@@ -1,0 +1,29 @@
+{
+  "name": "@crms/api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy",
+    "type-check": "tsc --noEmit",
+    "db:migrate": "wrangler d1 migrations apply crms-db"
+  },
+  "dependencies": {
+    "hono": "^4.6.14",
+    "drizzle-orm": "^0.38.3",
+    "zod": "^3.24.1",
+    "@crms/db": "workspace:*",
+    "@crms/types": "workspace:*",
+    "bcryptjs": "^2.4.3",
+    "nanoid": "^5.0.9",
+    "jose": "^5.10.0",
+    "@hono/zod-validator": "^0.4.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241224.0",
+    "wrangler": "^3.99.0",
+    "typescript": "^5.7.2",
+    "@types/bcryptjs": "^2.4.6"
+  }
+}

@@ -1,0 +1,6 @@
+JWT_SECRET=your-super-secret-jwt-key-minimum-32-characters-long
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+CAPTCHA_SECRET=your_turnstile_secret_key
+ENVIRONMENT=development
+APP_URL=http://localhost:3000
+PUBLIC_URL=http://localhost:3001

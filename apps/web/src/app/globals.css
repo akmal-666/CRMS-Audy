@@ -1,0 +1,151 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 248 250 252;
+    --foreground: 15 23 42;
+    --card: 255 255 255;
+    --card-foreground: 15 23 42;
+    --primary: 79 70 229;
+    --primary-foreground: 255 255 255;
+    --secondary: 238 242 255;
+    --secondary-foreground: 79 70 229;
+    --muted: 241 245 249;
+    --muted-foreground: 100 116 139;
+    --border: 226 232 240;
+    --input: 226 232 240;
+    --ring: 79 70 229;
+    --radius: 12px;
+    --sidebar-bg: 15 15 35;
+    --sidebar-hover: 26 26 46;
+  }
+
+  .dark {
+    --background: 10 10 20;
+    --foreground: 226 232 240;
+    --card: 20 20 40;
+    --card-foreground: 226 232 240;
+    --primary: 99 102 241;
+    --primary-foreground: 255 255 255;
+    --secondary: 30 27 75;
+    --secondary-foreground: 167 139 250;
+    --muted: 30 41 59;
+    --muted-foreground: 148 163 184;
+    --border: 30 41 59;
+    --input: 30 41 59;
+    --sidebar-bg: 8 8 18;
+    --sidebar-hover: 20 20 40;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
+           text-sidebar-text transition-all duration-150 cursor-pointer
+           hover:bg-sidebar-hover hover:text-white;
+  }
+
+  .sidebar-item.active {
+    @apply bg-primary text-white;
+  }
+
+  .card {
+    @apply bg-card rounded-xl shadow-card border border-border/50 p-5;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium
+           hover:bg-primary-700 transition-colors duration-150
+           focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-primary px-4 py-2 rounded-lg text-sm font-medium
+           hover:bg-primary-100 transition-colors duration-150
+           focus:outline-none focus:ring-2 focus:ring-primary/30;
+  }
+
+  .btn-ghost {
+    @apply text-muted-foreground px-3 py-2 rounded-lg text-sm font-medium
+           hover:bg-muted hover:text-foreground transition-colors duration-150;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 rounded-lg border border-border bg-card text-sm
+           placeholder:text-muted-foreground
+           focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary
+           transition-all duration-150;
+  }
+
+  .label {
+    @apply text-sm font-medium text-foreground mb-1.5 block;
+  }
+
+  .kanban-column {
+    @apply flex flex-col gap-3 w-72 flex-shrink-0;
+  }
+
+  .kanban-card {
+    @apply bg-card rounded-xl border border-border/60 p-4 cursor-pointer
+           shadow-card hover:shadow-card-hover hover:border-primary/20
+           transition-all duration-200;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .stat-card {
+    @apply card flex flex-col gap-1;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-1.5 h-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .glass {
+    @apply backdrop-blur-sm bg-white/80 dark:bg-black/40;
+  }
+}

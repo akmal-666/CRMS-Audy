@@ -1,0 +1,437 @@
+# 🚀 CRMS Deployment Guide
+## GitHub + Cloudflare — Step by Step
+
+---
+
+## Prerequisites
+
+Pastikan sudah terinstall:
+- [Node.js 20+](https://nodejs.org)
+- [pnpm](https://pnpm.io) → `npm install -g pnpm`
+- [Git](https://git-scm.com)
+- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) → `npm install -g wrangler`
+
+---
+
+## BAGIAN 1 — Setup GitHub Repository
+
+### 1.1 Buat Repository di GitHub
+
+1. Buka https://github.com/new
+2. Isi:
+   - **Repository name**: `crms`
+   - **Visibility**: Private ✅
+   - **Jangan** centang "Add README" (project sudah punya)
+3. Klik **Create repository**
+
+### 1.2 Push Code ke GitHub
+
+Buka terminal di folder project (`IT Workflow`):
+
+```bash
+git init
+git add .
+git commit -m "feat: initial CRMS project setup"
+git branch -M main
+git remote add origin https://github.com/USERNAME/crms.git
+git push -u origin main
+```
+
+> Ganti `USERNAME` dengan GitHub username kamu.
+
+---
+
+## BAGIAN 2 — Setup Cloudflare Account
+
+### 2.1 Buat Cloudflare Account
+
+1. Daftar di https://dash.cloudflare.com/sign-up (gratis)
+2. Verifikasi email
+
+### 2.2 Login Wrangler ke Cloudflare
+
+```bash
+wrangler login
+```
+
+Browser akan terbuka → Klik **Allow** → Tunggu "Successfully logged in".
+
+### 2.3 Cek Account ID
+
+```bash
+wrangler whoami
+```
+
+Catat **Account ID** yang muncul, akan dipakai nanti.
+
+---
+
+## BAGIAN 3 — Buat Cloudflare Resources
+
+Jalankan semua perintah ini satu per satu:
+
+### 3.1 Buat D1 Database
+
+```bash
+wrangler d1 create crms-db
+```
+
+Output akan seperti ini:
+```
+✅ Successfully created DB 'crms-db'
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+```
+
+**Catat `database_id` ini!**
+
+### 3.2 Buat R2 Bucket (File Storage)
+
+```bash
+wrangler r2 bucket create crms-attachments
+```
+
+### 3.3 Buat KV Namespace (Cache)
+
+```bash
+wrangler kv namespace create CACHE
+```
+
+Output:
+```
+id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+**Catat `id` ini!**
+
+### 3.4 Buat Queue (Email Notifications)
+
+```bash
+wrangler queues create crms-email-queue
+```
+
+---
+
+## BAGIAN 4 — Konfigurasi Project
+
+### 4.1 Update `wrangler.toml`
+
+Buka file `apps/api/wrangler.toml` dan update dengan ID yang sudah dicatat:
+
+```toml
+name = "crms-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "crms-db"
+database_id = "PASTE_DATABASE_ID_DISINI"   # ← ganti ini
+
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "crms-attachments"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "PASTE_KV_ID_DISINI"                  # ← ganti ini
+
+[[queues.producers]]
+binding = "EMAIL_QUEUE"
+queue = "crms-email-queue"
+
+[[queues.consumers]]
+queue = "crms-email-queue"
+max_batch_size = 10
+max_batch_timeout = 5
+
+[vars]
+ENVIRONMENT = "production"
+APP_URL = "https://crms.pages.dev"
+PUBLIC_URL = "https://crms.pages.dev/submit"
+```
+
+### 4.2 Buat File `.dev.vars` untuk Local Dev
+
+```bash
+cd apps/api
+cp .dev.vars.example .dev.vars
+```
+
+Edit `.dev.vars`:
+```
+JWT_SECRET=ini-harus-panjang-minimal-32-karakter-ya
+RESEND_API_KEY=re_xxxxxxxx   (opsional untuk email)
+ENVIRONMENT=development
+APP_URL=http://localhost:3000
+PUBLIC_URL=http://localhost:3000/submit
+```
+
+> **JWT_SECRET**: buat string acak panjang, minimal 32 karakter.
+> Contoh generate: `openssl rand -base64 32`
+
+---
+
+## BAGIAN 5 — Setup Database (D1 Migration)
+
+### 5.1 Jalankan Migration di Local
+
+```bash
+wrangler d1 migrations apply crms-db --local
+```
+
+### 5.2 Jalankan Migration di Production (Remote)
+
+```bash
+wrangler d1 migrations apply crms-db --remote
+```
+
+Ketik `y` untuk konfirmasi.
+
+### 5.3 Verifikasi Database
+
+```bash
+wrangler d1 execute crms-db --remote --command "SELECT * FROM departments"
+```
+
+Harus muncul data departments dari seed.
+
+---
+
+## BAGIAN 6 — Set Secrets di Cloudflare Workers
+
+Secrets **tidak** disimpan di file, tapi diset via CLI:
+
+```bash
+cd apps/api
+
+# JWT Secret (WAJIB)
+echo "your-super-secret-jwt-key-minimum-32-characters" | wrangler secret put JWT_SECRET
+
+# Resend API Key (untuk email, opsional)
+echo "re_your_resend_key" | wrangler secret put RESEND_API_KEY
+```
+
+---
+
+## BAGIAN 7 — Deploy API ke Cloudflare Workers
+
+### 7.1 Install Dependencies
+
+```bash
+# Di root folder project
+pnpm install
+```
+
+### 7.2 Deploy Workers
+
+```bash
+pnpm --filter @crms/api exec wrangler deploy
+```
+
+Output sukses:
+```
+✅ Deployed crms-api
+   https://crms-api.YOUR-SUBDOMAIN.workers.dev
+```
+
+**Catat URL Workers ini!**
+
+---
+
+## BAGIAN 8 — Deploy Frontend ke Cloudflare Pages
+
+### 8.1 Buat Project Pages di Dashboard
+
+1. Buka https://dash.cloudflare.com
+2. Pilih **Workers & Pages** → **Create Application** → **Pages**
+3. Klik **Connect to Git**
+4. Authorize GitHub → Pilih repo `crms`
+5. Klik **Begin Setup**
+
+### 8.2 Konfigurasi Build
+
+Isi form build settings:
+
+| Setting | Value |
+|---------|-------|
+| **Production branch** | `main` |
+| **Framework preset** | `Next.js` |
+| **Build command** | `pnpm --filter @crms/web build` |
+| **Build output directory** | `apps/web/.next` |
+| **Root directory** | `/` |
+
+### 8.3 Environment Variables di Pages
+
+Klik **Environment variables** → **Add variable**:
+
+| Variable | Value |
+|----------|-------|
+| `NEXT_PUBLIC_API_URL` | `https://crms-api.YOUR-SUBDOMAIN.workers.dev` |
+| `NODE_VERSION` | `20` |
+| `PNPM_VERSION` | `9.15.0` |
+
+### 8.4 Klik Save and Deploy
+
+Tunggu build selesai (3-5 menit).
+
+URL hasil deploy: `https://crms.pages.dev` (atau nama project yang kamu pilih)
+
+---
+
+## BAGIAN 9 — Setup GitHub Actions (Auto-Deploy)
+
+### 9.1 Buat API Token Cloudflare
+
+1. Buka https://dash.cloudflare.com/profile/api-tokens
+2. Klik **Create Token**
+3. Pilih template **Edit Cloudflare Workers**
+4. Tambahkan permissions:
+   - `Account > D1 > Edit`
+   - `Account > Cloudflare Pages > Edit`
+5. Klik **Continue to summary** → **Create Token**
+6. **Salin token** (hanya muncul sekali!)
+
+### 9.2 Tambahkan Secrets ke GitHub Repository
+
+1. Buka repo di GitHub
+2. **Settings** → **Secrets and variables** → **Actions**
+3. Klik **New repository secret** untuk setiap:
+
+| Secret Name | Value |
+|-------------|-------|
+| `CLOUDFLARE_API_TOKEN` | Token dari 9.1 |
+| `CLOUDFLARE_ACCOUNT_ID` | Account ID dari langkah 2.3 |
+| `NEXT_PUBLIC_API_URL` | `https://crms-api.YOUR-SUBDOMAIN.workers.dev` |
+
+### 9.3 Test Auto-Deploy
+
+```bash
+git add .
+git commit -m "chore: configure deployment"
+git push
+```
+
+Buka tab **Actions** di GitHub → Lihat workflow berjalan otomatis.
+
+---
+
+## BAGIAN 10 — Update Password Seed Data
+
+Password di seed data masih placeholder. Buat password hash yang benar:
+
+### 10.1 Generate bcrypt hash
+
+```bash
+node -e "const b=require('bcryptjs'); b.hash('Admin@1234',12).then(h=>console.log(h))"
+```
+
+### 10.2 Update di Database
+
+```bash
+# Ganti hash admin
+wrangler d1 execute crms-db --remote --command \
+  "UPDATE users SET password_hash='HASH_DARI_STEP_10.1' WHERE email='admin@crms.local'"
+
+# Ganti hash manager
+wrangler d1 execute crms-db --remote --command \
+  "UPDATE users SET password_hash='HASH_DARI_STEP_10.1' WHERE email='manager@crms.local'"
+```
+
+Lakukan untuk semua user seed.
+
+---
+
+## BAGIAN 11 — Custom Domain (Opsional)
+
+### 11.1 Custom Domain untuk Pages
+
+1. Cloudflare Dashboard → **Workers & Pages** → pilih project `crms`
+2. **Custom domains** → **Set up a custom domain**
+3. Masukkan domain, misal: `crms.company.com`
+4. Update DNS sesuai instruksi
+
+### 11.2 Custom Domain untuk Workers
+
+Buka `wrangler.toml`, tambahkan:
+
+```toml
+[env.production]
+routes = [
+  { pattern = "api.company.com/*", custom_domain = true }
+]
+```
+
+---
+
+## BAGIAN 12 — Verifikasi Final
+
+Checklist setelah deployment:
+
+- [ ] Buka `https://crms.pages.dev/login` → Halaman login muncul
+- [ ] Login dengan `admin@crms.local` / `Admin@1234`
+- [ ] Dashboard menampilkan data
+- [ ] Buka `https://crms.pages.dev/kanban` → Board kosong tapi tampil
+- [ ] Buka `https://crms.pages.dev/submit` → Form publik tanpa login
+- [ ] Submit form → Dapat ticket number CR-2026-000001
+- [ ] Refresh kanban → Ticket muncul di kolom "In Pipeline"
+- [ ] Drag card ke kolom lain → Status berubah
+- [ ] Klik card → Detail drawer terbuka
+
+---
+
+## Troubleshooting
+
+### ❌ "Cannot find module" saat deploy Workers
+
+```bash
+pnpm install --frozen-lockfile
+pnpm --filter @crms/api exec wrangler deploy
+```
+
+### ❌ "D1_ERROR: no such table"
+
+Migration belum jalan ke remote:
+```bash
+wrangler d1 migrations apply crms-db --remote
+```
+
+### ❌ "401 Unauthorized" di API
+
+JWT_SECRET belum diset:
+```bash
+echo "your-secret" | wrangler secret put JWT_SECRET
+```
+
+### ❌ CORS Error di browser
+
+Update `APP_URL` dan `PUBLIC_URL` di `wrangler.toml` dengan URL Pages yang benar, lalu redeploy.
+
+### ❌ Build Pages gagal
+
+Pastikan environment variable `NEXT_PUBLIC_API_URL` sudah diset di Pages settings.
+
+### ❌ pnpm not found di Pages build
+
+Tambahkan environment variable:
+```
+NPM_FLAGS=--legacy-peer-deps
+```
+Atau gunakan build command: `npm install -g pnpm && pnpm --filter @crms/web build`
+
+---
+
+## Quick Reference
+
+| Resource | URL / Command |
+|----------|--------------|
+| Frontend | `https://crms.pages.dev` |
+| Public Portal | `https://crms.pages.dev/submit` |
+| API | `https://crms-api.YOUR.workers.dev` |
+| D1 Studio | `wrangler d1 studio crms-db` |
+| Workers Logs | `wrangler tail crms-api` |
+| Pages Logs | Cloudflare Dashboard → Pages → Deployments |
+
+---
+
+*Guide ini diasumsikan menggunakan Cloudflare Free Plan yang sudah cukup untuk production CRMS.*

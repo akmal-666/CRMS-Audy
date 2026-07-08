@@ -1,0 +1,35 @@
+name = "crms-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "crms-db"
+database_id = "YOUR_D1_DATABASE_ID"
+
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "crms-attachments"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "YOUR_KV_NAMESPACE_ID"
+
+[[queues.producers]]
+binding = "EMAIL_QUEUE"
+queue = "crms-email-queue"
+
+[[queues.consumers]]
+queue = "crms-email-queue"
+max_batch_size = 10
+max_batch_timeout = 5
+
+[vars]
+ENVIRONMENT = "production"
+APP_URL = "https://crms.pages.dev"
+PUBLIC_URL = "https://request.crms.pages.dev"
+
+[dev]
+port = 8787
+local_protocol = "http"
