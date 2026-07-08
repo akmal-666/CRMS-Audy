@@ -3,7 +3,6 @@ import type { UserRole } from '@crms/types'
 
 export interface Bindings {
   DB: D1Database
-  STORAGE: R2Bucket
   CACHE: KVNamespace
   EMAIL_QUEUE: Queue
   JWT_SECRET: string
@@ -12,6 +11,10 @@ export interface Bindings {
   PUBLIC_URL: string
   RESEND_API_KEY: string
   CAPTCHA_SECRET: string
+  // Supabase Storage
+  SUPABASE_URL: string
+  SUPABASE_SERVICE_ROLE_KEY: string
+  SUPABASE_STORAGE_BUCKET: string
 }
 
 export interface Variables {

@@ -84,13 +84,7 @@ database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 **Catat `database_id` ini!**
 
-### 3.2 Buat R2 Bucket (File Storage)
-
-```bash
-wrangler r2 bucket create crms-attachments
-```
-
-### 3.3 Buat KV Namespace (Cache)
+### 3.2 Buat KV Namespace (Cache)
 
 ```bash
 wrangler kv namespace create CACHE
@@ -103,11 +97,62 @@ id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 **Catat `id` ini!**
 
-### 3.4 Buat Queue (Email Notifications)
+### 3.3 Buat Queue (Email Notifications)
 
 ```bash
 wrangler queues create crms-email-queue
 ```
+
+> ℹ️ **R2 tidak dipakai** — File storage menggunakan **Supabase Storage** (lihat Bagian 3B).
+
+---
+
+## BAGIAN 3B — Setup Supabase Storage (Pengganti R2)
+
+### 3B.1 Buat Supabase Account & Project
+
+1. Daftar di https://supabase.com (gratis)
+2. Klik **New project**
+3. Isi:
+   - **Name**: `crms`
+   - **Database Password**: buat password kuat (simpan!)
+   - **Region**: pilih yang terdekat (misal: Southeast Asia)
+4. Tunggu project selesai dibuat (~2 menit)
+
+### 3B.2 Buat Storage Bucket
+
+1. Di Supabase Dashboard → **Storage** → **New bucket**
+2. Isi:
+   - **Name**: `crms-attachments`
+   - **Public bucket**: ❌ OFF (private, pakai signed URL)
+3. Klik **Create bucket**
+
+### 3B.3 Set Storage Policy (Allow Service Role)
+
+Di **Storage** → **Policies** → bucket `crms-attachments`:
+
+Klik **New policy** → **For full customization**:
+
+```sql
+-- Policy: Service role can do anything
+CREATE POLICY "service_role_full_access"
+ON storage.objects
+FOR ALL
+TO service_role
+USING (bucket_id = 'crms-attachments')
+WITH CHECK (bucket_id = 'crms-attachments');
+```
+
+Atau lebih mudah: pilih template **"Give users access to own folder"** dan sesuaikan.
+
+### 3B.4 Ambil Credentials Supabase
+
+1. **Settings** → **API**
+2. Catat:
+   - **Project URL**: `https://xxxxxxxxxxxx.supabase.co`
+   - **service_role key** (bukan anon key!): `eyJhbGci...`
+
+> ⚠️ `service_role` key bersifat rahasia, jangan expose ke frontend.
 
 ---
 
@@ -126,15 +171,11 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "crms-db"
-database_id = "PASTE_DATABASE_ID_DISINI"   # ← ganti ini
-
-[[r2_buckets]]
-binding = "STORAGE"
-bucket_name = "crms-attachments"
+database_id = "PASTE_DATABASE_ID_DISINI"   # ← dari langkah 3.1
 
 [[kv_namespaces]]
 binding = "CACHE"
-id = "PASTE_KV_ID_DISINI"                  # ← ganti ini
+id = "PASTE_KV_ID_DISINI"                  # ← dari langkah 3.2
 
 [[queues.producers]]
 binding = "EMAIL_QUEUE"
@@ -149,6 +190,8 @@ max_batch_timeout = 5
 ENVIRONMENT = "production"
 APP_URL = "https://crms.pages.dev"
 PUBLIC_URL = "https://crms.pages.dev/submit"
+SUPABASE_URL = "https://xxxxxxxxxxxx.supabase.co"   # ← dari langkah 3B.4
+SUPABASE_STORAGE_BUCKET = "crms-attachments"
 ```
 
 ### 4.2 Buat File `.dev.vars` untuk Local Dev
@@ -165,6 +208,11 @@ RESEND_API_KEY=re_xxxxxxxx   (opsional untuk email)
 ENVIRONMENT=development
 APP_URL=http://localhost:3000
 PUBLIC_URL=http://localhost:3000/submit
+
+# Supabase Storage
+SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_STORAGE_BUCKET=crms-attachments
 ```
 
 > **JWT_SECRET**: buat string acak panjang, minimal 32 karakter.
@@ -208,9 +256,14 @@ cd apps/api
 # JWT Secret (WAJIB)
 echo "your-super-secret-jwt-key-minimum-32-characters" | wrangler secret put JWT_SECRET
 
+# Supabase Service Role Key (WAJIB untuk file upload)
+echo "eyJhbGci..." | wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+
 # Resend API Key (untuk email, opsional)
 echo "re_your_resend_key" | wrangler secret put RESEND_API_KEY
 ```
+
+> ⚠️ `SUPABASE_SERVICE_ROLE_KEY` **harus** di-set sebagai secret, bukan di `[vars]` karena sifatnya rahasia.
 
 ---
 
