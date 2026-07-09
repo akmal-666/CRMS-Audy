@@ -6,11 +6,11 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "crms-db"
-database_id = "YOUR_D1_DATABASE_ID"
+database_id = "1e9c3b4c-8327-41f9-a02c-76367476214c"
 
 [[kv_namespaces]]
 binding = "CACHE"
-id = "YOUR_KV_NAMESPACE_ID"
+id = "ce6d512002fd41f28e7d00f17b56161a"
 
 [[queues.producers]]
 binding = "EMAIL_QUEUE"
@@ -25,7 +25,7 @@ max_batch_timeout = 5
 ENVIRONMENT = "production"
 APP_URL = "https://crms.pages.dev"
 PUBLIC_URL = "https://request.crms.pages.dev"
-SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL"
+SUPABASE_URL = "https://vwswzpesucitknvkrjos.supabase.co"
 SUPABASE_STORAGE_BUCKET = "crms-attachments"
 
 [dev]
