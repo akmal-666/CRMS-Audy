@@ -481,3 +481,140 @@ Atau gunakan build command: `npm install -g pnpm && pnpm --filter @crms/web buil
 ---
 
 *Guide ini diasumsikan menggunakan Cloudflare Free Plan yang sudah cukup untuk production CRMS.*
+
+---
+
+## BAGIAN 13 — Setup Resend Email dengan Domain audydental.com
+
+### 13.1 Daftar & Login Resend
+
+1. Buka https://resend.com/signup
+2. Daftar pakai email → verifikasi email
+3. Masuk ke Resend Dashboard
+
+---
+
+### 13.2 Tambah Domain di Resend
+
+1. Di sidebar klik **Domains**
+2. Klik **Add Domain**
+3. Masukkan: `audydental.com`
+4. Region: pilih **Southeast Asia** atau **US East** → klik **Add**
+
+Resend akan tampilkan beberapa **DNS record** yang harus ditambahkan ke Cloudflare.
+
+---
+
+### 13.3 Tambah DNS Record di Cloudflare
+
+1. Buka tab baru → https://dash.cloudflare.com
+2. Pilih domain **audydental.com**
+3. Klik **DNS** → **Records** → **Add record**
+
+Tambahkan semua record yang ditampilkan Resend. Biasanya ada 3-4 record:
+
+#### Record SPF (TXT)
+| Field | Value |
+|-------|-------|
+| Type | `TXT` |
+| Name | `@` |
+| Content | `v=spf1 include:amazonses.com ~all` |
+| TTL | Auto |
+| Proxy status | ❌ **DNS only** (abu-abu) |
+
+#### Record DKIM (TXT)
+| Field | Value |
+|-------|-------|
+| Type | `TXT` |
+| Name | `resend._domainkey` |
+| Content | `p=MIGf...` (copy dari Resend) |
+| TTL | Auto |
+| Proxy status | ❌ **DNS only** (abu-abu) |
+
+#### Record Bounce (CNAME)
+| Field | Value |
+|-------|-------|
+| Type | `CNAME` |
+| Name | `bounce` |
+| Content | `feedback-smtp.us-east-1.amazonses.com` |
+| TTL | Auto |
+| Proxy status | ❌ **DNS only** (abu-abu) |
+
+> ⚠️ **PENTING**: Semua record Resend **wajib DNS only** (ikon abu-abu), bukan Proxied (ikon oranye). Kalau Proxied, verifikasi akan gagal.
+
+---
+
+### 13.4 Verifikasi Domain di Resend
+
+1. Kembali ke tab Resend
+2. Klik tombol **Verify DNS Records**
+3. Tunggu status berubah jadi ✅ **Verified**
+
+Domain di Cloudflare propagasinya cepat, biasanya **langsung verified** atau maksimal 5 menit.
+
+---
+
+### 13.5 Buat API Key
+
+1. Di Resend sidebar → **API Keys**
+2. Klik **Create API Key**
+3. Isi:
+   - **Name**: `crms-production`
+   - **Permission**: `Sending access`
+   - **Domain**: pilih `audydental.com`
+4. Klik **Add**
+5. **Copy key** → formatnya: `re_xxxxxxxxxxxxxxxxxxxxxxxxxx`
+
+> ⚠️ API Key **hanya muncul sekali**. Langsung simpan di tempat aman (password manager).
+
+---
+
+### 13.6 Set API Key ke Cloudflare Workers
+
+```bash
+echo "re_xxxxxxxxxxxxxxxxxxxxxxxxxx" | wrangler secret put RESEND_API_KEY
+```
+
+Dan untuk local development, edit `apps/api/.dev.vars`:
+```
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+---
+
+### 13.7 Update Email Sender di Kode
+
+Sekarang update bagian queue consumer di `apps/api/src/index.ts` agar email dikirim dari `audydental.com`.
+
+Kode email sudah diupdate otomatis — email dikirim dari `noreply@audydental.com` dengan template HTML yang rapi.
+
+---
+
+### 13.8 Commit & Push
+
+```bash
+git add .
+git commit -m "feat: integrate Resend email with audydental.com domain"
+git push
+```
+
+---
+
+### 13.9 Test Kirim Email
+
+1. Buka `https://crms.pages.dev/submit`
+2. Submit test request, isi email dengan email kamu sendiri
+3. Cek inbox — harus dapat email dari `noreply@audydental.com`
+4. Cek Resend Dashboard → **Emails** → status harus `Delivered` ✅
+
+---
+
+### Ringkasan Konfigurasi Email
+
+| Setting | Value |
+|---------|-------|
+| Provider | Resend (free: 3,000 email/bulan) |
+| From | `noreply@audydental.com` |
+| Domain verified | `audydental.com` via Cloudflare DNS |
+| Trigger | Submit request → Cloudflare Queue → Worker → Resend |
+| Secret | `RESEND_API_KEY` via `wrangler secret put` |
