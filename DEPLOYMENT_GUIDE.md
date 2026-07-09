@@ -1,159 +1,108 @@
 # 🚀 CRMS Deployment Guide
-## GitHub + Cloudflare — Step by Step
+## GitHub + Cloudflare Dashboard (Tanpa CLI)
+
+> Guide ini **100% menggunakan UI/Dashboard** — tidak perlu install Wrangler CLI.
+> Kamu hanya butuh browser dan akses ke GitHub + Cloudflare Dashboard.
 
 ---
 
-## Prerequisites
+## Urutan Langkah
 
-Pastikan sudah terinstall:
-- [Node.js 20+](https://nodejs.org)
-- [pnpm](https://pnpm.io) → `npm install -g pnpm`
-- [Git](https://git-scm.com)
-- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) → `npm install -g wrangler`
+```
+1. GitHub → Push code (sudah selesai ✅)
+2. Cloudflare → Buat D1 Database
+3. Cloudflare → Buat KV Namespace
+4. Cloudflare → Buat Queue
+5. Supabase → Buat Storage bucket
+6. Cloudflare → Deploy Workers (upload manual)
+7. Cloudflare → Set Environment Variables & Secrets
+8. Cloudflare → Jalankan SQL Migration
+9. Cloudflare Pages → Deploy Frontend
+10. Resend → Setup Email Domain
+11. Verifikasi Final
+```
 
 ---
 
-## BAGIAN 1 — Setup GitHub Repository
+## BAGIAN 1 — Buat D1 Database
 
-### 1.1 Buat Repository di GitHub
+1. Buka https://dash.cloudflare.com
+2. Di sidebar kiri klik **Storage & Databases** → **D1 SQL Database**
+3. Klik **Create database**
+4. Isi:
+   - **Database name**: `crms-db`
+5. Klik **Create**
+6. Setelah masuk ke halaman database, catat **Database ID** yang muncul di bagian atas
 
-1. Buka https://github.com/new
-2. Isi:
-   - **Repository name**: `crms`
-   - **Visibility**: Private ✅
-   - **Jangan** centang "Add README" (project sudah punya)
-3. Klik **Create repository**
+   Contoh: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
 
-### 1.2 Push Code ke GitHub
-
-Buka terminal di folder project (`IT Workflow`):
-
-```bash
-git init
-git add .
-git commit -m "feat: initial CRMS project setup"
-git branch -M main
-git remote add origin https://github.com/USERNAME/crms.git
-git push -u origin main
-```
-
-> Ganti `USERNAME` dengan GitHub username kamu.
+> 📋 **Simpan Database ID ini** — dibutuhkan di langkah berikutnya.
 
 ---
 
-## BAGIAN 2 — Setup Cloudflare Account
+## BAGIAN 2 — Buat KV Namespace
 
-### 2.1 Buat Cloudflare Account
+1. Di sidebar Cloudflare → **Storage & Databases** → **KV**
+2. Klik **Create a namespace**
+3. Isi **Namespace Name**: `CRMS_CACHE`
+4. Klik **Add**
+5. Catat **ID** yang muncul di kolom sebelah kanan nama namespace
 
-1. Daftar di https://dash.cloudflare.com/sign-up (gratis)
-2. Verifikasi email
-
-### 2.2 Login Wrangler ke Cloudflare
-
-```bash
-wrangler login
-```
-
-Browser akan terbuka → Klik **Allow** → Tunggu "Successfully logged in".
-
-### 2.3 Cek Account ID
-
-```bash
-wrangler whoami
-```
-
-Catat **Account ID** yang muncul, akan dipakai nanti.
+> 📋 **Simpan KV ID ini.**
 
 ---
 
-## BAGIAN 3 — Buat Cloudflare Resources
+## BAGIAN 3 — Buat Queue
 
-Jalankan semua perintah ini satu per satu:
-
-### 3.1 Buat D1 Database
-
-```bash
-wrangler d1 create crms-db
-```
-
-Output akan seperti ini:
-```
-✅ Successfully created DB 'crms-db'
-database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-```
-
-**Catat `database_id` ini!**
-
-### 3.2 Buat KV Namespace (Cache)
-
-```bash
-wrangler kv namespace create CACHE
-```
-
-Output:
-```
-id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-```
-
-**Catat `id` ini!**
-
-### 3.3 Buat Queue (Email Notifications)
-
-```bash
-wrangler queues create crms-email-queue
-```
-
-> ℹ️ **R2 tidak dipakai** — File storage menggunakan **Supabase Storage** (lihat Bagian 3B).
+1. Di sidebar → **Workers & Pages** → **Queues**
+2. Klik **Create queue**
+3. Isi **Queue name**: `crms-email-queue`
+4. Klik **Create queue**
 
 ---
 
-## BAGIAN 3B — Setup Supabase Storage (Pengganti R2)
+## BAGIAN 4 — Setup Supabase Storage
 
-### 3B.1 Buat Supabase Account & Project
+### 4.1 Buat Account & Project
 
-1. Daftar di https://supabase.com (gratis)
+1. Buka https://supabase.com → daftar / login
 2. Klik **New project**
 3. Isi:
    - **Name**: `crms`
-   - **Database Password**: buat password kuat (simpan!)
-   - **Region**: pilih yang terdekat (misal: Southeast Asia)
-4. Tunggu project selesai dibuat (~2 menit)
+   - **Database Password**: buat password kuat, simpan!
+   - **Region**: Southeast Asia
+4. Tunggu selesai (~2 menit)
 
-### 3B.2 Buat Storage Bucket
+### 4.2 Buat Storage Bucket
 
-1. Di Supabase Dashboard → **Storage** → **New bucket**
-2. Isi:
+1. Di Supabase sidebar → **Storage**
+2. Klik **New bucket**
+3. Isi:
    - **Name**: `crms-attachments`
-   - **Public bucket**: ❌ OFF (private, pakai signed URL)
-3. Klik **Create bucket**
+   - **Public bucket**: ❌ OFF
+4. Klik **Save**
 
-### 3B.3 Storage Policy — SKIP, Tidak Diperlukan
+### 4.3 Ambil Credentials
 
-> ✅ **Kamu tidak perlu buat policy apapun.**
->
-> Aplikasi CRMS menggunakan **`service_role` key** di backend (Cloudflare Workers).
-> Service role secara otomatis **bypass semua RLS (Row Level Security)** di Supabase,
-> sehingga punya akses penuh ke bucket tanpa perlu policy tambahan.
->
-> Policy hanya diperlukan jika akses storage dilakukan langsung dari frontend
-> menggunakan `anon` key — yang tidak kita lakukan di sini.
-
-### 3B.4 Ambil Credentials Supabase
-
-1. **Settings** → **API**
-2. Catat:
+1. Di Supabase → **Settings** → **API**
+2. Catat dua hal:
    - **Project URL**: `https://xxxxxxxxxxxx.supabase.co`
-   - **service_role key** (bukan anon key!): `eyJhbGci...`
+   - **service_role** key (bukan anon!): `eyJhbGci...`
 
-> ⚠️ `service_role` key bersifat rahasia, jangan expose ke frontend.
+> ⚠️ Jangan bagikan `service_role` key ke siapapun.
 
 ---
 
-## BAGIAN 4 — Konfigurasi Project
+## BAGIAN 5 — Update File Konfigurasi di GitHub
 
-### 4.1 Update `wrangler.toml`
+Sebelum deploy Workers, kamu perlu update file `wrangler.toml` dengan ID-ID yang sudah dicatat.
 
-Buka file `apps/api/wrangler.toml` dan update dengan ID yang sudah dicatat:
+### 5.1 Edit wrangler.toml di GitHub
+
+1. Buka https://github.com/akmal-666/CRMS-Audy
+2. Navigasi ke: `apps/api/wrangler.toml`
+3. Klik ikon **pensil** (Edit this file) di kanan atas
+4. Update baris berikut dengan nilai yang sudah kamu catat:
 
 ```toml
 name = "crms-api"
@@ -164,11 +113,11 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "crms-db"
-database_id = "PASTE_DATABASE_ID_DISINI"   # ← dari langkah 3.1
+database_id = "PASTE_DATABASE_ID_DARI_BAGIAN_1"
 
 [[kv_namespaces]]
 binding = "CACHE"
-id = "PASTE_KV_ID_DISINI"                  # ← dari langkah 3.2
+id = "PASTE_KV_ID_DARI_BAGIAN_2"
 
 [[queues.producers]]
 binding = "EMAIL_QUEUE"
@@ -181,135 +130,164 @@ max_batch_timeout = 5
 
 [vars]
 ENVIRONMENT = "production"
-APP_URL = "https://crms.pages.dev"
-PUBLIC_URL = "https://crms.pages.dev/submit"
-SUPABASE_URL = "https://xxxxxxxxxxxx.supabase.co"   # ← dari langkah 3B.4
+APP_URL = "https://crms-audy.pages.dev"
+PUBLIC_URL = "https://crms-audy.pages.dev/submit"
+SUPABASE_URL = "https://PASTE_PROJECT_URL_DARI_BAGIAN_4"
 SUPABASE_STORAGE_BUCKET = "crms-attachments"
 ```
 
-### 4.2 Buat File `.dev.vars` untuk Local Dev
-
-```bash
-cd apps/api
-cp .dev.vars.example .dev.vars
-```
-
-Edit `.dev.vars`:
-```
-JWT_SECRET=ini-harus-panjang-minimal-32-karakter-ya
-RESEND_API_KEY=re_xxxxxxxx   (opsional untuk email)
-ENVIRONMENT=development
-APP_URL=http://localhost:3000
-PUBLIC_URL=http://localhost:3000/submit
-
-# Supabase Storage
-SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_STORAGE_BUCKET=crms-attachments
-```
-
-> **JWT_SECRET**: buat string acak panjang, minimal 32 karakter.
-> Contoh generate: `openssl rand -base64 32`
+5. Scroll ke bawah → klik **Commit changes** → **Commit directly to main**
 
 ---
 
-## BAGIAN 5 — Setup Database (D1 Migration)
+## BAGIAN 6 — Deploy Cloudflare Workers
 
-### 5.1 Jalankan Migration di Local
+### 6.1 Buat Worker Baru
 
-```bash
-wrangler d1 migrations apply crms-db --local
-```
+1. Di Cloudflare Dashboard → **Workers & Pages**
+2. Klik **Create application** → **Workers** → **Create Worker**
+3. Isi **Name**: `crms-api`
+4. Klik **Deploy** (biarkan kode default dulu)
 
-### 5.2 Jalankan Migration di Production (Remote)
+### 6.2 Connect ke GitHub (Auto-Deploy)
 
-```bash
-wrangler d1 migrations apply crms-db --remote
-```
-
-Ketik `y` untuk konfirmasi.
-
-### 5.3 Verifikasi Database
-
-```bash
-wrangler d1 execute crms-db --remote --command "SELECT * FROM departments"
-```
-
-Harus muncul data departments dari seed.
-
----
-
-## BAGIAN 6 — Set Secrets di Cloudflare Workers
-
-Secrets **tidak** disimpan di file, tapi diset via CLI:
-
-```bash
-cd apps/api
-
-# JWT Secret (WAJIB)
-echo "your-super-secret-jwt-key-minimum-32-characters" | wrangler secret put JWT_SECRET
-
-# Supabase Service Role Key (WAJIB untuk file upload)
-echo "eyJhbGci..." | wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-
-# Resend API Key (untuk email, opsional)
-echo "re_your_resend_key" | wrangler secret put RESEND_API_KEY
-```
-
-> ⚠️ `SUPABASE_SERVICE_ROLE_KEY` **harus** di-set sebagai secret, bukan di `[vars]` karena sifatnya rahasia.
-
----
-
-## BAGIAN 7 — Deploy API ke Cloudflare Workers
-
-### 7.1 Install Dependencies
-
-```bash
-# Di root folder project
-pnpm install
-```
-
-### 7.2 Deploy Workers
-
-```bash
-pnpm --filter @crms/api exec wrangler deploy
-```
-
-Output sukses:
-```
-✅ Deployed crms-api
-   https://crms-api.YOUR-SUBDOMAIN.workers.dev
-```
-
-**Catat URL Workers ini!**
-
----
-
-## BAGIAN 8 — Deploy Frontend ke Cloudflare Pages
-
-### 8.1 Buat Project Pages di Dashboard
-
-1. Buka https://dash.cloudflare.com
-2. Pilih **Workers & Pages** → **Create Application** → **Pages**
+1. Masuk ke Worker `crms-api` yang baru dibuat
+2. Klik tab **Settings** → **Build**
 3. Klik **Connect to Git**
-4. Authorize GitHub → Pilih repo `crms`
+4. Authorize GitHub → pilih repo `CRMS-Audy`
+5. Konfigurasi build:
+
+   | Setting | Value |
+   |---------|-------|
+   | **Production branch** | `main` |
+   | **Build command** | `pnpm install && pnpm --filter @crms/api exec wrangler deploy --dry-run` |
+   | **Deploy command** | `pnpm --filter @crms/api exec wrangler deploy` |
+   | **Root directory** | `/` |
+
+6. Klik **Save**
+
+> 💡 Alternatif lebih mudah: gunakan **GitHub Actions** yang sudah ada di repo (`.github/workflows/deploy.yml`). Lihat Bagian 9.
+
+### 6.3 Bind D1, KV, Queue ke Worker
+
+Di halaman Worker `crms-api`:
+
+1. Klik tab **Settings** → **Bindings**
+2. Tambahkan binding satu per satu:
+
+   **D1 Database:**
+   - Klik **Add** → pilih **D1 Database**
+   - Variable name: `DB`
+   - Database: pilih `crms-db`
+   - Klik **Save**
+
+   **KV Namespace:**
+   - Klik **Add** → pilih **KV Namespace**
+   - Variable name: `CACHE`
+   - KV Namespace: pilih `CRMS_CACHE`
+   - Klik **Save**
+
+   **Queue:**
+   - Klik **Add** → pilih **Queue**
+   - Variable name: `EMAIL_QUEUE`
+   - Queue: pilih `crms-email-queue`
+   - Klik **Save**
+
+---
+
+## BAGIAN 7 — Set Environment Variables & Secrets di Workers
+
+Di halaman Worker `crms-api` → **Settings** → **Variables and Secrets**
+
+### 7.1 Tambah Variables (plain text, tidak rahasia)
+
+Klik **Add variable** untuk setiap baris:
+
+| Variable Name | Value | Type |
+|---------------|-------|------|
+| `ENVIRONMENT` | `production` | Text |
+| `APP_URL` | `https://crms-audy.pages.dev` | Text |
+| `PUBLIC_URL` | `https://crms-audy.pages.dev/submit` | Text |
+| `SUPABASE_URL` | `https://xxxx.supabase.co` | Text |
+| `SUPABASE_STORAGE_BUCKET` | `crms-attachments` | Text |
+
+### 7.2 Tambah Secrets (terenkripsi, tidak bisa dilihat lagi)
+
+Untuk setiap secret di bawah, pilih tipe **Secret** (bukan Text):
+
+| Variable Name | Value | Keterangan |
+|---------------|-------|------------|
+| `JWT_SECRET` | string acak 32+ karakter | Buat di https://generate-secret.vercel.app/64 |
+| `SUPABASE_SERVICE_ROLE_KEY` | `eyJhbGci...` dari Supabase | Settings → API → service_role |
+| `RESEND_API_KEY` | `re_xxxxxxx` dari Resend | Lihat Bagian 10 |
+
+Cara tambah secret:
+1. Klik **Add variable**
+2. Isi **Variable name**
+3. Isi **Value**
+4. Ubah tipe dari **Text** ke **Secret** (klik dropdown)
+5. Klik **Deploy** / **Save**
+
+---
+
+## BAGIAN 8 — Jalankan SQL Migration (via Cloudflare Dashboard)
+
+### 8.1 Buka D1 Database Console
+
+1. Di sidebar → **Storage & Databases** → **D1 SQL Database**
+2. Klik database `crms-db`
+3. Klik tab **Console**
+
+### 8.2 Jalankan Migration Pertama
+
+1. Buka file `packages/db/migrations/0001_initial.sql` di GitHub
+2. Klik **Raw** → **Select All** → **Copy**
+3. Kembali ke D1 Console
+4. Paste semua SQL ke kolom input
+5. Klik **Execute**
+6. Tunggu sampai semua tabel terbuat ✅
+
+### 8.3 Jalankan Seed Data
+
+1. Buka file `packages/db/migrations/0002_seed.sql` di GitHub
+2. **Raw** → **Copy**
+3. Paste ke D1 Console
+4. Klik **Execute**
+
+### 8.4 Verifikasi
+
+Ketik di D1 Console dan klik Execute:
+```sql
+SELECT * FROM departments;
+```
+Harus muncul 6 baris department. ✅
+
+---
+
+## BAGIAN 9 — Deploy Frontend ke Cloudflare Pages
+
+### 9.1 Buat Project Pages
+
+1. Di Cloudflare Dashboard → **Workers & Pages**
+2. Klik **Create application** → **Pages**
+3. Klik **Connect to Git**
+4. Authorize GitHub → pilih repo `CRMS-Audy`
 5. Klik **Begin Setup**
 
-### 8.2 Konfigurasi Build
-
-Isi form build settings:
+### 9.2 Konfigurasi Build
 
 | Setting | Value |
 |---------|-------|
+| **Project name** | `crms-audy` |
 | **Production branch** | `main` |
 | **Framework preset** | `Next.js` |
-| **Build command** | `pnpm --filter @crms/web build` |
+| **Build command** | `pnpm install && pnpm --filter @crms/web build` |
 | **Build output directory** | `apps/web/.next` |
-| **Root directory** | `/` |
+| **Root directory** | *(kosongkan)* |
 
-### 8.3 Environment Variables di Pages
+### 9.3 Tambah Environment Variables
 
-Klik **Environment variables** → **Add variable**:
+Sebelum klik Deploy, tambahkan environment variables:
 
 | Variable | Value |
 |----------|-------|
@@ -317,304 +295,203 @@ Klik **Environment variables** → **Add variable**:
 | `NODE_VERSION` | `20` |
 | `PNPM_VERSION` | `9.15.0` |
 
-### 8.4 Klik Save and Deploy
+> Ganti `YOUR-SUBDOMAIN` dengan subdomain Workers kamu yang terlihat di halaman Worker.
 
-Tunggu build selesai (3-5 menit).
+### 9.4 Klik Save and Deploy
 
-URL hasil deploy: `https://crms.pages.dev` (atau nama project yang kamu pilih)
-
----
-
-## BAGIAN 9 — Setup GitHub Actions (Auto-Deploy)
-
-### 9.1 Buat API Token Cloudflare
-
-1. Buka https://dash.cloudflare.com/profile/api-tokens
-2. Klik **Create Token**
-3. Pilih template **Edit Cloudflare Workers**
-4. Tambahkan permissions:
-   - `Account > D1 > Edit`
-   - `Account > Cloudflare Pages > Edit`
-5. Klik **Continue to summary** → **Create Token**
-6. **Salin token** (hanya muncul sekali!)
-
-### 9.2 Tambahkan Secrets ke GitHub Repository
-
-1. Buka repo di GitHub
-2. **Settings** → **Secrets and variables** → **Actions**
-3. Klik **New repository secret** untuk setiap:
-
-| Secret Name | Value |
-|-------------|-------|
-| `CLOUDFLARE_API_TOKEN` | Token dari 9.1 |
-| `CLOUDFLARE_ACCOUNT_ID` | Account ID dari langkah 2.3 |
-| `NEXT_PUBLIC_API_URL` | `https://crms-api.YOUR-SUBDOMAIN.workers.dev` |
-
-### 9.3 Test Auto-Deploy
-
-```bash
-git add .
-git commit -m "chore: configure deployment"
-git push
-```
-
-Buka tab **Actions** di GitHub → Lihat workflow berjalan otomatis.
+Tunggu build selesai (3–5 menit).
+URL hasil: `https://crms-audy.pages.dev`
 
 ---
 
-## BAGIAN 10 — Update Password Seed Data
+## BAGIAN 10 — Setup Resend Email (audydental.com)
 
-Password di seed data masih placeholder. Buat password hash yang benar:
+### 10.1 Daftar & Login Resend
 
-### 10.1 Generate bcrypt hash
+1. Buka https://resend.com/signup → daftar
+2. Masuk ke dashboard
 
-```bash
-node -e "const b=require('bcryptjs'); b.hash('Admin@1234',12).then(h=>console.log(h))"
-```
+### 10.2 Tambah Domain
 
-### 10.2 Update di Database
+1. Sidebar → **Domains** → **Add Domain**
+2. Masukkan: `audydental.com`
+3. Region: **Southeast Asia** → klik **Add**
 
-```bash
-# Ganti hash admin
-wrangler d1 execute crms-db --remote --command \
-  "UPDATE users SET password_hash='HASH_DARI_STEP_10.1' WHERE email='admin@crms.local'"
+Resend tampilkan DNS record yang perlu ditambahkan ke Cloudflare.
 
-# Ganti hash manager
-wrangler d1 execute crms-db --remote --command \
-  "UPDATE users SET password_hash='HASH_DARI_STEP_10.1' WHERE email='manager@crms.local'"
-```
+### 10.3 Tambah DNS Record di Cloudflare
 
-Lakukan untuk semua user seed.
+1. Buka https://dash.cloudflare.com → pilih `audydental.com`
+2. **DNS** → **Records** → **Add record**
 
----
+Tambahkan semua record dari Resend:
 
-## BAGIAN 11 — Custom Domain (Opsional)
-
-### 11.1 Custom Domain untuk Pages
-
-1. Cloudflare Dashboard → **Workers & Pages** → pilih project `crms`
-2. **Custom domains** → **Set up a custom domain**
-3. Masukkan domain, misal: `crms.company.com`
-4. Update DNS sesuai instruksi
-
-### 11.2 Custom Domain untuk Workers
-
-Buka `wrangler.toml`, tambahkan:
-
-```toml
-[env.production]
-routes = [
-  { pattern = "api.company.com/*", custom_domain = true }
-]
-```
-
----
-
-## BAGIAN 12 — Verifikasi Final
-
-Checklist setelah deployment:
-
-- [ ] Buka `https://crms.pages.dev/login` → Halaman login muncul
-- [ ] Login dengan `admin@crms.local` / `Admin@1234`
-- [ ] Dashboard menampilkan data
-- [ ] Buka `https://crms.pages.dev/kanban` → Board kosong tapi tampil
-- [ ] Buka `https://crms.pages.dev/submit` → Form publik tanpa login
-- [ ] Submit form → Dapat ticket number CR-2026-000001
-- [ ] Refresh kanban → Ticket muncul di kolom "In Pipeline"
-- [ ] Drag card ke kolom lain → Status berubah
-- [ ] Klik card → Detail drawer terbuka
-
----
-
-## Troubleshooting
-
-### ❌ "Cannot find module" saat deploy Workers
-
-```bash
-pnpm install --frozen-lockfile
-pnpm --filter @crms/api exec wrangler deploy
-```
-
-### ❌ "D1_ERROR: no such table"
-
-Migration belum jalan ke remote:
-```bash
-wrangler d1 migrations apply crms-db --remote
-```
-
-### ❌ "401 Unauthorized" di API
-
-JWT_SECRET belum diset:
-```bash
-echo "your-secret" | wrangler secret put JWT_SECRET
-```
-
-### ❌ CORS Error di browser
-
-Update `APP_URL` dan `PUBLIC_URL` di `wrangler.toml` dengan URL Pages yang benar, lalu redeploy.
-
-### ❌ Build Pages gagal
-
-Pastikan environment variable `NEXT_PUBLIC_API_URL` sudah diset di Pages settings.
-
-### ❌ pnpm not found di Pages build
-
-Tambahkan environment variable:
-```
-NPM_FLAGS=--legacy-peer-deps
-```
-Atau gunakan build command: `npm install -g pnpm && pnpm --filter @crms/web build`
-
----
-
-## Quick Reference
-
-| Resource | URL / Command |
-|----------|--------------|
-| Frontend | `https://crms.pages.dev` |
-| Public Portal | `https://crms.pages.dev/submit` |
-| API | `https://crms-api.YOUR.workers.dev` |
-| D1 Studio | `wrangler d1 studio crms-db` |
-| Workers Logs | `wrangler tail crms-api` |
-| Pages Logs | Cloudflare Dashboard → Pages → Deployments |
-
----
-
-*Guide ini diasumsikan menggunakan Cloudflare Free Plan yang sudah cukup untuk production CRMS.*
-
----
-
-## BAGIAN 13 — Setup Resend Email dengan Domain audydental.com
-
-### 13.1 Daftar & Login Resend
-
-1. Buka https://resend.com/signup
-2. Daftar pakai email → verifikasi email
-3. Masuk ke Resend Dashboard
-
----
-
-### 13.2 Tambah Domain di Resend
-
-1. Di sidebar klik **Domains**
-2. Klik **Add Domain**
-3. Masukkan: `audydental.com`
-4. Region: pilih **Southeast Asia** atau **US East** → klik **Add**
-
-Resend akan tampilkan beberapa **DNS record** yang harus ditambahkan ke Cloudflare.
-
----
-
-### 13.3 Tambah DNS Record di Cloudflare
-
-1. Buka tab baru → https://dash.cloudflare.com
-2. Pilih domain **audydental.com**
-3. Klik **DNS** → **Records** → **Add record**
-
-Tambahkan semua record yang ditampilkan Resend. Biasanya ada 3-4 record:
-
-#### Record SPF (TXT)
+**SPF (TXT):**
 | Field | Value |
 |-------|-------|
 | Type | `TXT` |
 | Name | `@` |
 | Content | `v=spf1 include:amazonses.com ~all` |
-| TTL | Auto |
-| Proxy status | ❌ **DNS only** (abu-abu) |
+| Proxy | ❌ DNS only (abu-abu) |
 
-#### Record DKIM (TXT)
+**DKIM (TXT):**
 | Field | Value |
 |-------|-------|
 | Type | `TXT` |
 | Name | `resend._domainkey` |
 | Content | `p=MIGf...` (copy dari Resend) |
-| TTL | Auto |
-| Proxy status | ❌ **DNS only** (abu-abu) |
+| Proxy | ❌ DNS only (abu-abu) |
 
-#### Record Bounce (CNAME)
+**Bounce (CNAME):**
 | Field | Value |
 |-------|-------|
 | Type | `CNAME` |
 | Name | `bounce` |
 | Content | `feedback-smtp.us-east-1.amazonses.com` |
-| TTL | Auto |
-| Proxy status | ❌ **DNS only** (abu-abu) |
+| Proxy | ❌ DNS only (abu-abu) |
 
-> ⚠️ **PENTING**: Semua record Resend **wajib DNS only** (ikon abu-abu), bukan Proxied (ikon oranye). Kalau Proxied, verifikasi akan gagal.
+> ⚠️ Semua record Resend **wajib DNS only** (abu-abu), bukan Proxied (oranye).
 
----
+### 10.4 Verify di Resend
 
-### 13.4 Verifikasi Domain di Resend
+Kembali ke Resend → klik **Verify DNS Records** → tunggu ✅ Verified (biasanya < 5 menit).
 
-1. Kembali ke tab Resend
-2. Klik tombol **Verify DNS Records**
-3. Tunggu status berubah jadi ✅ **Verified**
+### 10.5 Buat API Key
 
-Domain di Cloudflare propagasinya cepat, biasanya **langsung verified** atau maksimal 5 menit.
-
----
-
-### 13.5 Buat API Key
-
-1. Di Resend sidebar → **API Keys**
-2. Klik **Create API Key**
-3. Isi:
+1. Resend sidebar → **API Keys** → **Create API Key**
+2. Isi:
    - **Name**: `crms-production`
    - **Permission**: `Sending access`
-   - **Domain**: pilih `audydental.com`
-4. Klik **Add**
-5. **Copy key** → formatnya: `re_xxxxxxxxxxxxxxxxxxxxxxxxxx`
+   - **Domain**: `audydental.com`
+3. Klik **Add** → **copy key** `re_xxxxxxxxx`
 
-> ⚠️ API Key **hanya muncul sekali**. Langsung simpan di tempat aman (password manager).
+> ⚠️ Hanya muncul sekali — simpan sekarang!
+
+### 10.6 Set RESEND_API_KEY ke Workers
+
+1. Cloudflare Dashboard → **Workers & Pages** → `crms-api`
+2. **Settings** → **Variables and Secrets**
+3. **Add variable**:
+   - Name: `RESEND_API_KEY`
+   - Value: `re_xxxxxxxxx`
+   - Type: **Secret**
+4. Klik **Deploy**
 
 ---
 
-### 13.6 Set API Key ke Cloudflare Workers
+## BAGIAN 11 — Update Password User (via D1 Console)
 
-```bash
-echo "re_xxxxxxxxxxxxxxxxxxxxxxxxxx" | wrangler secret put RESEND_API_KEY
+Password seed data masih placeholder. Update via D1 Console:
+
+### 11.1 Generate bcrypt hash
+
+Buka: https://bcrypt-generator.com
+- Masukkan password: `Admin@1234`
+- Rounds: `12`
+- Klik **Generate** → copy hasilnya
+
+### 11.2 Update di D1 Console
+
+Cloudflare → D1 → `crms-db` → **Console**, jalankan:
+
+```sql
+UPDATE users SET password_hash = 'PASTE_HASH_DISINI'
+WHERE email IN (
+  'admin@crms.local',
+  'manager@crms.local',
+  'analyst@crms.local',
+  'developer@crms.local',
+  'qa@crms.local'
+);
 ```
 
-Dan untuk local development, edit `apps/api/.dev.vars`:
+---
+
+## BAGIAN 12 — Custom Domain untuk CRMS (Opsional)
+
+Kamu bisa pakai subdomain `audydental.com` untuk CRMS:
+
+**Contoh:**
+- Frontend: `crms.audydental.com`
+- API: `api-crms.audydental.com`
+
+### 12.1 Custom Domain untuk Pages
+
+1. **Workers & Pages** → `crms-audy` → **Custom domains**
+2. Klik **Set up a custom domain**
+3. Masukkan: `crms.audydental.com`
+4. Klik **Continue** → Cloudflare otomatis tambah DNS record
+5. Tunggu **Active** ✅
+
+### 12.2 Custom Domain untuk Workers
+
+1. **Workers & Pages** → `crms-api` → **Settings** → **Triggers**
+2. **Custom Domains** → **Add Custom Domain**
+3. Masukkan: `api-crms.audydental.com`
+4. Klik **Add Custom Domain**
+5. Tunggu **Active** ✅
+
+Setelah ini update `NEXT_PUBLIC_API_URL` di Pages menjadi `https://api-crms.audydental.com`.
+
+---
+
+## BAGIAN 13 — Verifikasi Final
+
+Checklist setelah semua selesai:
+
+- [ ] Buka `https://crms-audy.pages.dev/login` → halaman login muncul
+- [ ] Login dengan `admin@crms.local` / `Admin@1234`
+- [ ] Dashboard tampil dengan data statistik
+- [ ] Buka `/kanban` → Kanban board tampil
+- [ ] Buka `/submit` → Form publik tanpa login
+- [ ] Submit form → dapat ticket `CR-2026-000001`
+- [ ] Cek inbox email → dapat konfirmasi dari `noreply@audydental.com`
+- [ ] Di kanban, drag card ke kolom lain → status berubah
+- [ ] Klik card → detail drawer terbuka
+
+---
+
+## Troubleshooting
+
+### ❌ Build Pages gagal — "pnpm not found"
+Tambahkan environment variable di Pages:
 ```
-RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxx
+NPM_FLAGS = --legacy-peer-deps
+NODE_VERSION = 20
+PNPM_VERSION = 9.15.0
 ```
 
----
+### ❌ "D1_ERROR: no such table"
+SQL migration belum dijalankan. Ulangi Bagian 8.
 
-### 13.7 Update Email Sender di Kode
+### ❌ "401 Unauthorized"
+`JWT_SECRET` belum di-set di Workers. Ulangi Bagian 7.2.
 
-Sekarang update bagian queue consumer di `apps/api/src/index.ts` agar email dikirim dari `audydental.com`.
+### ❌ File upload gagal
+`SUPABASE_SERVICE_ROLE_KEY` belum di-set, atau salah isi. Cek Bagian 7.2.
 
-Kode email sudah diupdate otomatis — email dikirim dari `noreply@audydental.com` dengan template HTML yang rapi.
+### ❌ Email tidak terkirim
+- Cek `RESEND_API_KEY` sudah di-set sebagai Secret di Workers
+- Cek domain `audydental.com` sudah **Verified** di Resend
+- Cek Resend Dashboard → **Emails** untuk melihat error
 
----
-
-### 13.8 Commit & Push
-
-```bash
-git add .
-git commit -m "feat: integrate Resend email with audydental.com domain"
-git push
-```
-
----
-
-### 13.9 Test Kirim Email
-
-1. Buka `https://crms.pages.dev/submit`
-2. Submit test request, isi email dengan email kamu sendiri
-3. Cek inbox — harus dapat email dari `noreply@audydental.com`
-4. Cek Resend Dashboard → **Emails** → status harus `Delivered` ✅
+### ❌ CORS Error
+Pastikan `APP_URL` di Workers Variables sudah sesuai dengan URL Pages kamu.
 
 ---
 
-### Ringkasan Konfigurasi Email
+## Quick Reference
 
-| Setting | Value |
-|---------|-------|
-| Provider | Resend (free: 3,000 email/bulan) |
-| From | `noreply@audydental.com` |
-| Domain verified | `audydental.com` via Cloudflare DNS |
-| Trigger | Submit request → Cloudflare Queue → Worker → Resend |
-| Secret | `RESEND_API_KEY` via `wrangler secret put` |
+| Resource | URL |
+|----------|-----|
+| Cloudflare Dashboard | https://dash.cloudflare.com |
+| Frontend | `https://crms-audy.pages.dev` |
+| Public Portal | `https://crms-audy.pages.dev/submit` |
+| D1 Console | Dashboard → Storage & Databases → D1 → crms-db → Console |
+| Workers Logs | Dashboard → Workers & Pages → crms-api → Logs |
+| Supabase Storage | https://supabase.com/dashboard/project/xxx/storage |
+| Resend Dashboard | https://resend.com/emails |
+
+---
+
+*Semua langkah menggunakan UI Dashboard — tidak perlu CLI.*
