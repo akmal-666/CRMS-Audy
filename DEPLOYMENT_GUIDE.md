@@ -127,23 +127,16 @@ wrangler queues create crms-email-queue
    - **Public bucket**: ❌ OFF (private, pakai signed URL)
 3. Klik **Create bucket**
 
-### 3B.3 Set Storage Policy (Allow Service Role)
+### 3B.3 Storage Policy — SKIP, Tidak Diperlukan
 
-Di **Storage** → **Policies** → bucket `crms-attachments`:
-
-Klik **New policy** → **For full customization**:
-
-```sql
--- Policy: Service role can do anything
-CREATE POLICY "service_role_full_access"
-ON storage.objects
-FOR ALL
-TO service_role
-USING (bucket_id = 'crms-attachments')
-WITH CHECK (bucket_id = 'crms-attachments');
-```
-
-Atau lebih mudah: pilih template **"Give users access to own folder"** dan sesuaikan.
+> ✅ **Kamu tidak perlu buat policy apapun.**
+>
+> Aplikasi CRMS menggunakan **`service_role` key** di backend (Cloudflare Workers).
+> Service role secara otomatis **bypass semua RLS (Row Level Security)** di Supabase,
+> sehingga punya akses penuh ke bucket tanpa perlu policy tambahan.
+>
+> Policy hanya diperlukan jika akses storage dilakukan langsung dari frontend
+> menggunakan `anon` key — yang tidak kita lakukan di sini.
 
 ### 3B.4 Ambil Credentials Supabase
 
