@@ -46,7 +46,7 @@ export function PublicRequestForm() {
   })
 
   const submit = useMutation({
-    mutationFn: (data: FormData) => apiPost('/api/work-items/public/submit', data),
+    mutationFn: (data: FormData) => apiPost<{ ticketNumber: string; id: string }>('/api/work-items/public/submit', data),
     onSuccess: (res) => {
       setTicketNumber(res.data?.ticketNumber ?? 'N/A')
       toast.success('Request submitted successfully')
