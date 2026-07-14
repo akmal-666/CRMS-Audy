@@ -3,6 +3,7 @@ import { TicketDetailPage } from '@/features/tickets/ticket-detail-page'
 
 export const metadata: Metadata = { title: 'Request Detail' }
 
-export default function RequestDetailPage({ params }: { params: { id: string } }) {
-  return <TicketDetailPage id={params.id} />
+export default async function RequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  return <TicketDetailPage id={id} />
 }
