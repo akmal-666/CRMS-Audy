@@ -2,6 +2,8 @@ import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core
 import { relations } from 'drizzle-orm'
 import { departments, branches, vendors } from './departments'
 import { users } from './users'
+import { tasks } from './tasks'
+import { comments, attachments, activityLogs } from './communications'
 
 export const workItems = sqliteTable('work_items', {
   id: text('id').primaryKey(),
@@ -72,4 +74,8 @@ export const workItemsRelations = relations(workItems, ({ one, many }) => ({
   qa: one(users, { fields: [workItems.qaId], references: [users.id], relationName: 'qa' }),
   assessment: one(assessments, { fields: [workItems.id], references: [assessments.workItemId] }),
   deployments: many(deployments),
+  tasks: many(tasks),
+  comments: many(comments),
+  attachments: many(attachments),
+  activityLogs: many(activityLogs),
 }))

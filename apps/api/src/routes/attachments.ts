@@ -41,7 +41,7 @@ app.post('/:workItemId/attachments', async (c) => {
   if (!item) return c.json(err('Work item not found'), 404)
 
   const formData = await c.req.formData()
-  const files = formData.getAll('files') as File[]
+  const files = formData.getAll('files') as unknown as File[]
 
   if (!files.length) return c.json(err('No files provided'), 400)
 
