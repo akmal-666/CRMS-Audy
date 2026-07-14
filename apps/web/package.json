@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:cf": "next build && next-on-pages",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
@@ -51,6 +52,7 @@
     "react-dropzone": "^14.3.5"
   },
   "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.13.7",
     "typescript": "^5.7.2",
     "@types/react": "^19.0.4",
     "@types/react-dom": "^19.0.2",
