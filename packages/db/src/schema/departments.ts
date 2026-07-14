@@ -44,3 +44,7 @@ export const departmentsRelations = relations(departments, ({ many }) => ({
 export const branchesRelations = relations(branches, ({ one }) => ({
   department: one(departments, { fields: [branches.departmentId], references: [departments.id] }),
 }))
+
+export const vendorsRelations = relations(vendors, ({ many }) => ({
+  // placeholder for future relations
+}))
