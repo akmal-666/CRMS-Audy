@@ -25,7 +25,7 @@ max_batch_timeout = 5
 ENVIRONMENT = "production"
 APP_URL = "https://crms-audy.pages.dev"
 PUBLIC_URL = "https://crms-audy.pages.dev/submit"
-SUPABASE_URL = "https://PASTE_PROJECT_URL_DARI_BAGIAN_4"
+SUPABASE_URL = "https://vwswzpesucitknvkrjos.supabase.co"
 SUPABASE_STORAGE_BUCKET = "crms-attachments"
 
 [dev]
