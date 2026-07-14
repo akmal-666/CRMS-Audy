@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -139,10 +141,10 @@ export function KanbanView() {
               Filter
             </button>
 
-            <a href="/requests/new" className="btn-primary flex items-center gap-1.5 text-xs py-1.5">
+            <Link href="/requests/new" className="btn-primary flex items-center gap-1.5 text-xs py-1.5">
               <Plus size={13} />
               <span className="hidden sm:inline">New Request</span>
-            </a>
+            </Link>
           </div>
         </div>
 

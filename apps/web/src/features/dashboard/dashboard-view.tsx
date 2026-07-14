@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
@@ -181,7 +183,7 @@ export function DashboardView() {
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-foreground">Recent Requests</h3>
-          <a href="/requests" className="text-xs text-primary hover:underline">View all</a>
+          <Link href="/requests" className="text-xs text-primary hover:underline">View all</Link>
         </div>
         <div className="space-y-2">
           {stats?.recentItems?.map((item, i) => (

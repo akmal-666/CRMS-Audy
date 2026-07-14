@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -119,10 +121,10 @@ export function RequestsView() {
             <h1 className="text-xl font-semibold text-foreground">All Requests</h1>
             <p className="text-sm text-muted-foreground mt-0.5">{pagination?.total ?? 0} total requests</p>
           </div>
-          <a href="/requests/new" className="btn-primary flex items-center gap-1.5 text-sm">
+          <Link href="/requests/new" className="btn-primary flex items-center gap-1.5 text-sm">
             <Plus size={15} />
             New Request
-          </a>
+          </Link>
         </div>
 
         {/* Filters */}
