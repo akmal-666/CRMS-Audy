@@ -159,7 +159,7 @@ export function PublicTracker() {
             <Search className="w-8 h-8 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">No Requests Found</h3>
-          <p className="text-muted-foreground text-sm">We couldn't find any requests associated with {submittedEmail}.</p>
+          <p className="text-muted-foreground text-sm">We couldn&apos;t find any requests associated with {submittedEmail}.</p>
         </div>
       ) : (
         <AnimatePresence mode="wait">

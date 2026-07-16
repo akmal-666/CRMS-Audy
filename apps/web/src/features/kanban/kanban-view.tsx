@@ -67,7 +67,7 @@ export function KanbanView() {
     select: (res) => res.data ?? [],
   })
 
-  const workItems: WorkItem[] = (data as unknown as WorkItem[]) ?? []
+  const workItems: WorkItem[] = useMemo(() => (data as unknown as WorkItem[]) ?? [], [data])
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>

@@ -62,7 +62,7 @@ export function CalendarView() {
     select: (res) => (res as any).data ?? [],
   })
 
-  const workItems: WorkItem[] = data ?? []
+  const workItems: WorkItem[] = useMemo(() => data ?? [], [data])
 
   // Filter events based on active statuses
   const events = useMemo(() => {
