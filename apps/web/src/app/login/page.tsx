@@ -19,8 +19,8 @@ export default function LoginPage() {
 
         <div>
           <h1 className="text-4xl font-bold text-white leading-tight mb-4">
-            Manage IT Requests<br />
-            <span className="text-primary">Efficiently.</span>
+            IT Workflow <br />
+            <span className="text-primary">Request.</span>
           </h1>
           <p className="text-white/50 text-base leading-relaxed">
             Centralize all IT change requests with full lifecycle management, Kanban tracking, and real-time collaboration.
@@ -29,9 +29,9 @@ export default function LoginPage() {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4 mt-10">
             {[
-              { label: 'Requests', value: '2,400+' },
-              { label: 'Departments', value: '12' },
-              { label: 'Uptime', value: '99.9%' },
+              { label: 'Tracking', value: 'Real-Time' },
+              { label: 'Management', value: 'Centralized' },
+              { label: 'Process', value: 'Auditable' },
             ].map(stat => (
               <div key={stat.label} className="p-4 rounded-xl bg-white/5 border border-white/10">
                 <div className="text-2xl font-bold text-white">{stat.value}</div>
