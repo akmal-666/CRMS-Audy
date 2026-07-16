@@ -17,12 +17,12 @@ const requestSchema = z.object({
   requesterEmail: z.string().email('Invalid email address'),
   departmentId: z.string().min(1, 'Please select a department'),
   vendorId: z.string().min(1, 'Please select a platform/vendor'),
-  managerEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
+  managerEmail: z.string().email('Invalid email address'),
   title: z.string().min(5, 'Title must be at least 5 characters'),
   problemDescription: z.string().min(10, 'Description must be at least 10 characters'),
-  expectedSolution: z.string().optional(),
+  expectedSolution: z.string().min(10, 'Expected solution must be at least 10 characters'),
   priority: z.enum(['low', 'medium', 'high', 'critical']),
-  dueDate: z.string().optional(),
+  dueDate: z.string().min(1, 'Please select a target go-live date'),
 })
 
 type FormData = z.infer<typeof requestSchema>
@@ -134,8 +134,8 @@ export function PublicRequestForm() {
       
       {/* Assign Email Manager */}
       <div>
-        <label className="label">Assign Email Manager</label>
-        <input {...register('managerEmail')} type="email" className="input" placeholder="manager@company.com" />
+        <label className="label">Assign Email Manager*</label>
+        <input {...register('managerEmail')} type="email" className={cn('input', errors.managerEmail && 'border-destructive/50 focus:ring-destructive')} placeholder="manager@company.com" />
         {errors.managerEmail && <p className="text-xs text-danger mt-1">{errors.managerEmail.message}</p>}
       </div>
 
@@ -155,8 +155,9 @@ export function PublicRequestForm() {
 
       {/* Expected Solution */}
       <div>
-        <label className="label">Expected Solution</label>
-        <textarea {...register('expectedSolution')} rows={3} className="input" placeholder="Describe what outcome or solution you expect..." />
+        <label className="label">Expected Solution*</label>
+        <textarea {...register('expectedSolution')} rows={3} className={cn('input', errors.expectedSolution && 'border-destructive/50 focus:ring-destructive')} placeholder="Describe what outcome or solution you expect..." />
+        {errors.expectedSolution && <p className="text-xs text-danger mt-1">{errors.expectedSolution.message}</p>}
       </div>
 
       {/* Priority & Expected Go-Live */}
@@ -171,8 +172,9 @@ export function PublicRequestForm() {
           </select>
         </div>
         <div>
-          <label className="label">Expected go-live</label>
-          <input {...register('dueDate')} type="date" className="input" />
+          <label className="label">Expected go-live*</label>
+          <input {...register('dueDate')} type="date" className={cn('input', errors.dueDate && 'border-destructive/50 focus:ring-destructive')} />
+          {errors.dueDate && <p className="text-xs text-danger mt-1">{errors.dueDate.message}</p>}
         </div>
       </div>
 
