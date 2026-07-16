@@ -14,9 +14,8 @@ const requestSchema = z.object({
   requesterName: z.string().min(2, 'Name must be at least 2 characters'),
   requesterEmail: z.string().email('Invalid email address'),
   departmentId: z.string().min(1, 'Please select a department'),
-  branchId: z.string().optional(),
+  managerEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
   title: z.string().min(5, 'Title must be at least 5 characters'),
-  businessProcess: z.string().optional(),
   problemDescription: z.string().min(10, 'Description must be at least 10 characters'),
   expectedSolution: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high', 'critical']),
@@ -35,13 +34,6 @@ export function PublicRequestForm() {
   const { data: departments } = useQuery({
     queryKey: ['departments'],
     queryFn: () => apiGet<any[]>('/api/master/departments'),
-    select: (res) => res.data ?? [],
-  })
-
-  const { data: branches } = useQuery({
-    queryKey: ['branches', watch('departmentId')],
-    queryFn: () => apiGet<any[]>('/api/master/branches', { departmentId: watch('departmentId') }),
-    enabled: !!watch('departmentId'),
     select: (res) => res.data ?? [],
   })
 
@@ -93,7 +85,7 @@ export function PublicRequestForm() {
         </div>
       </div>
 
-      {/* Department & Branch */}
+      {/* Department & Assign Email Manager */}
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="label">Department*</label>
@@ -106,13 +98,9 @@ export function PublicRequestForm() {
           {errors.departmentId && <p className="text-xs text-danger mt-1">{errors.departmentId.message}</p>}
         </div>
         <div>
-          <label className="label">Branch</label>
-          <select {...register('branchId')} className="input" disabled={!watch('departmentId')}>
-            <option value="">Select branch</option>
-            {branches?.map((branch: any) => (
-              <option key={branch.id} value={branch.id}>{branch.name}</option>
-            ))}
-          </select>
+          <label className="label">Assign Email Manager</label>
+          <input {...register('managerEmail')} type="email" className="input" placeholder="manager@company.com" />
+          {errors.managerEmail && <p className="text-xs text-danger mt-1">{errors.managerEmail.message}</p>}
         </div>
       </div>
 
@@ -121,12 +109,6 @@ export function PublicRequestForm() {
         <label className="label">Request Title*</label>
         <input {...register('title')} className="input" placeholder="Brief title of your request" />
         {errors.title && <p className="text-xs text-danger mt-1">{errors.title.message}</p>}
-      </div>
-
-      {/* Business Process */}
-      <div>
-        <label className="label">Business Process</label>
-        <input {...register('businessProcess')} className="input" placeholder="e.g., Procurement, Invoice Processing" />
       </div>
 
       {/* Problem Description */}
@@ -142,7 +124,7 @@ export function PublicRequestForm() {
         <textarea {...register('expectedSolution')} rows={3} className="input" placeholder="Describe what outcome or solution you expect..." />
       </div>
 
-      {/* Priority & Due Date */}
+      {/* Priority & Expected Go-Live */}
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="label">Priority*</label>
@@ -154,7 +136,7 @@ export function PublicRequestForm() {
           </select>
         </div>
         <div>
-          <label className="label">Due Date</label>
+          <label className="label">Expected go-live</label>
           <input {...register('dueDate')} type="date" className="input" />
         </div>
       </div>

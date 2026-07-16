@@ -12,9 +12,8 @@ export const workItems = sqliteTable('work_items', {
   description: text('description').notNull(),
   problemDescription: text('problem_description').notNull(),
   expectedSolution: text('expected_solution'),
-  businessProcess: text('business_process'),
   departmentId: text('department_id').notNull().references(() => departments.id),
-  branchId: text('branch_id').references(() => branches.id),
+  managerEmail: text('manager_email'),
   priority: text('priority', { enum: ['low','medium','high','critical'] }).notNull().default('medium'),
   status: text('status', {
     enum: ['in_pipeline','assessment','development','uat','deployment','go_live','drop'],
@@ -66,7 +65,6 @@ export const deployments = sqliteTable('deployments', {
 
 export const workItemsRelations = relations(workItems, ({ one, many }) => ({
   department: one(departments, { fields: [workItems.departmentId], references: [departments.id] }),
-  branch: one(branches, { fields: [workItems.branchId], references: [branches.id] }),
   vendor: one(vendors, { fields: [workItems.vendorId], references: [vendors.id] }),
   manager: one(users, { fields: [workItems.managerId], references: [users.id], relationName: 'manager' }),
   businessAnalyst: one(users, { fields: [workItems.businessAnalystId], references: [users.id], relationName: 'businessAnalyst' }),

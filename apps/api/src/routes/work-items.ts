@@ -17,13 +17,12 @@ const submitSchema = z.object({
   requesterName: z.string().min(2).max(100),
   requesterEmail: z.string().email(),
   departmentId: z.string(),
-  branchId: z.string().optional(),
+  managerEmail: z.string().email().optional().or(z.literal('')),
   title: z.string().min(5).max(200),
-  businessProcess: z.string().optional(),
   problemDescription: z.string().min(10),
   expectedSolution: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
-  dueDate: z.string().datetime().optional(),
+  dueDate: z.string().optional(),
 })
 
 app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
@@ -55,9 +54,8 @@ app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
     description: data.problemDescription,
     problemDescription: data.problemDescription,
     expectedSolution: data.expectedSolution,
-    businessProcess: data.businessProcess,
     departmentId: data.departmentId,
-    branchId: data.branchId,
+    managerEmail: data.managerEmail ? data.managerEmail : null,
     priority: data.priority as any,
     status: 'in_pipeline',
     requesterName: data.requesterName,
@@ -86,6 +84,16 @@ app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
       ticketNumber,
       title: data.title,
     })
+
+    if (data.managerEmail) {
+      await c.env.EMAIL_QUEUE.send({
+        type: 'confirmation',
+        to: data.managerEmail,
+        name: 'Manager',
+        ticketNumber,
+        title: `(Manager FYI) ${data.title}`,
+      })
+    }
   } catch { /* email queue optional */ }
 
   return c.json(ok({ ticketNumber, id }, 'Request submitted successfully'), 201)
