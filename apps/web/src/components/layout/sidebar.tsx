@@ -139,9 +139,11 @@ function SidebarContent({
       {/* Nav */}
       <nav className="flex-1 px-2 pb-4 overflow-y-auto scrollbar-hide">
         <div className="space-y-0.5">
-          {navItems.map((item) => (
-            <NavLink key={item.href} item={item} collapsed={collapsed} isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href!))} onClick={onItemClick} />
-          ))}
+          {navItems.map((item) => {
+            const isReqDetail = item.href === '/requests' && pathname.startsWith('/requests/') && pathname !== '/requests/calendar'
+            const isActive = pathname === item.href || (item.href !== '/dashboard' && item.href !== '/requests' && pathname.startsWith(item.href!)) || isReqDetail
+            return <NavLink key={item.href} item={item} collapsed={collapsed} isActive={isActive} onClick={onItemClick} />
+          })}
         </div>
 
         {isAdmin && (

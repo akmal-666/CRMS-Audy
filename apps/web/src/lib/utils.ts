@@ -86,3 +86,36 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
+
+export function exportToCSV(data: any[], filename: string) {
+  if (!data || !data.length) return
+
+  // Extract headers
+  const headers = Object.keys(data[0])
+  
+  // Convert objects to CSV lines
+  const csvContent = [
+    headers.join(','),
+    ...data.map(row => 
+      headers.map(header => {
+        const cell = row[header] === null || row[header] === undefined ? '' : String(row[header])
+        // Escape quotes and wrap in quotes if contains comma
+        if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
+          return `"${cell.replace(/"/g, '""')}"`
+        }
+        return cell
+      }).join(',')
+    )
+  ].join('\n')
+
+  // Create Blob and download
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  link.setAttribute('download', `${filename}.csv`)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}

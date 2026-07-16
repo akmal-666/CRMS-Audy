@@ -101,6 +101,24 @@ app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
   return c.json(ok({ ticketNumber, id }, 'Request submitted successfully'), 201)
 })
 
+// Public: Track requests by email
+app.get('/public/track', zValidator('query', z.object({ email: z.string().email() })), async (c) => {
+  const { email } = c.req.valid('query')
+  const db = c.get('db')
+  
+  const items = await db.query.workItems.findMany({
+    where: eq(schema.workItems.requesterEmail, email),
+    orderBy: [desc(schema.workItems.createdAt)],
+    with: {
+      department: true,
+      vendor: true,
+      manager: { columns: { name: true } },
+    }
+  })
+  
+  return c.json(ok(items))
+})
+
 // Get work items (authenticated)
 app.get('/', authMiddleware, async (c) => {
   const db = c.get('db')
@@ -184,9 +202,14 @@ app.patch('/:id/status', authMiddleware, requireRole(...STAFF_ROLES), zValidator
   if (!item) return c.json(err('Work item not found'), 404)
 
   const oldStatus = item.status
+  const goLiveDate = status === 'go_live' && oldStatus !== 'go_live' ? new Date() : undefined
 
   await db.update(schema.workItems)
-    .set({ status: status as any, updatedAt: new Date() })
+    .set({ 
+      status: status as any, 
+      updatedAt: new Date(),
+      ...(goLiveDate && { goLiveDate })
+    })
     .where(eq(schema.workItems.id, id))
 
   await Promise.all([

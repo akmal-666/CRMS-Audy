@@ -1,5 +1,7 @@
 import { Metadata } from 'next'
 import { PublicRequestForm } from '@/features/public/request-form'
+import Link from 'next/link'
+import { Search } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'Submit IT Request | CRMS',
@@ -18,9 +20,14 @@ export default function SubmitPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-foreground">Submit IT Request</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
+          <p className="text-muted-foreground mt-2 text-sm max-w-md mx-auto">
             Fill in the form below to submit your IT request. You will receive a confirmation email with your ticket number.
           </p>
+          <div className="mt-6 flex justify-center">
+            <Link href="/track" className="btn-ghost flex items-center gap-2 text-primary border border-primary/20 hover:border-primary/50">
+              <Search size={16} /> Track My Request
+            </Link>
+          </div>
         </div>
 
         <PublicRequestForm />

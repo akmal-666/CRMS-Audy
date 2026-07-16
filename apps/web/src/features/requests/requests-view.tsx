@@ -12,10 +12,10 @@ import {
   type ColumnDef,
 } from '@tanstack/react-table'
 import { motion } from 'framer-motion'
-import { Search, Filter, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Filter, Plus, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 import { WorkflowStatus, Priority } from '@crms/types'
-import { STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, cn } from '@/lib/utils'
+import { STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, cn, exportToCSV } from '@/lib/utils'
 import { TicketDetailDrawer } from '../tickets/ticket-detail-drawer'
 
 interface WorkItem {
@@ -121,10 +121,21 @@ export function RequestsView() {
             <h1 className="text-xl font-semibold text-foreground">All Requests</h1>
             <p className="text-sm text-muted-foreground mt-0.5">{pagination?.total ?? 0} total requests</p>
           </div>
-          <Link href="/requests/new" className="btn-primary flex items-center gap-1.5 text-sm">
-            <Plus size={15} />
-            New Request
-          </Link>
+          <div className="flex gap-2">
+            <button
+              onClick={() => exportToCSV(items.map(i => ({
+                ID: i.ticketNumber, Title: i.title, Status: STATUS_LABELS[i.status as WorkflowStatus], Priority: i.priority,
+                Requester: i.requesterName, Department: i.department?.name, Manager: i.manager?.name, Created: i.createdAt
+              })), 'requests_export')}
+              className="btn-ghost flex items-center gap-1.5 text-sm"
+            >
+              <Download size={14} /> Export
+            </button>
+            <Link href="/requests/new" className="btn-primary flex items-center gap-1.5 text-sm">
+              <Plus size={15} />
+              New Request
+            </Link>
+          </div>
         </div>
 
         {/* Filters */}

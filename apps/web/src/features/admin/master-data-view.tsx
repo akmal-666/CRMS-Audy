@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Plus, Search, Edit2, Check, X, Loader2, Building2, GitBranch, Users2 } from 'lucide-react'
-import { apiGet, apiPost, apiPut } from '@/lib/api'
-import { cn } from '@/lib/utils'
+import { Plus, Search, Edit2, Check, X, Loader2, Building2, GitBranch, Users2, Trash2, Download } from 'lucide-react'
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
+import { cn, exportToCSV } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useAuth } from '@/lib/auth'
 
 type MasterDataType = 'departments' | 'branches' | 'vendors'
 
@@ -60,6 +61,8 @@ export function MasterDataView({ type, title }: MasterDataViewProps) {
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [editData, setEditData] = useState<Record<string, string>>({})
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.role === 'administrator'
 
   const config = TYPE_CONFIG[type]
   const Icon = config.icon
@@ -100,6 +103,15 @@ export function MasterDataView({ type, title }: MasterDataViewProps) {
     onError: (e: any) => toast.error(e?.response?.data?.message || 'Failed to update'),
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiDelete(`${config.endpoint}/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [type] })
+      toast.success(`${title.slice(0, -1)} deleted successfully`)
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Failed to delete'),
+  })
+
   function handleCreate() {
     const missing = config.fields.find((f) => f.required && !formData[f.key]?.trim())
     if (missing) {
@@ -130,12 +142,20 @@ export function MasterDataView({ type, title }: MasterDataViewProps) {
             {filtered.length} {title.toLowerCase()} found
           </p>
         </div>
-        <button
-          onClick={() => { setShowCreate(!showCreate); setFormData({}) }}
-          className="btn-primary flex items-center gap-1.5 text-sm"
-        >
-          <Plus size={14} /> Add {title.slice(0, -1)}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportToCSV(filtered, `${title.toLowerCase()}_export`)}
+            className="btn-ghost flex items-center gap-1.5 text-sm"
+          >
+            <Download size={14} /> Export
+          </button>
+          <button
+            onClick={() => { setShowCreate(!showCreate); setFormData({}) }}
+            className="btn-primary flex items-center gap-1.5 text-sm"
+          >
+            <Plus size={14} /> Add {title.slice(0, -1)}
+          </button>
+        </div>
       </div>
 
       {/* Create Form */}
@@ -352,6 +372,19 @@ export function MasterDataView({ type, title }: MasterDataViewProps) {
                             title="Edit"
                           >
                             <Edit2 size={14} />
+                          </button>
+                        )}
+                        {isAdmin && !editingId && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to delete this data? This action cannot be undone.')) {
+                                deleteMutation.mutate(item.id)
+                              }
+                            }}
+                            className="p-1.5 rounded hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
                           </button>
                         )}
                       </div>

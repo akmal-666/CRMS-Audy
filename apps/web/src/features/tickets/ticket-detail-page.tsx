@@ -178,6 +178,7 @@ export function TicketDetailPage({ id }: { id: string }) {
               <InfoItem label="Department" value={item.department?.name} />
               <InfoItem label="Branch" value={item.branch?.name} />
               <InfoItem label="Created" value={formatDate(item.createdAt)} />
+              {item.goLiveDate && <InfoItem label="Go-Live" value={formatDate(item.goLiveDate)} />}
               <InfoItem label="Due Date" value={item.dueDate ? formatDate(item.dueDate) : undefined} />
               <InfoItem label="Requester" value={item.requesterName} />
               <InfoItem label="Email" value={item.requesterEmail} />

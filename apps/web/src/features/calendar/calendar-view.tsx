@@ -7,12 +7,11 @@ import { enUS } from 'date-fns/locale/en-US'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { useQuery } from '@tanstack/react-query'
 import { apiGet } from '@/lib/api'
-import { STATUS_LABELS } from '@/lib/utils'
+import { STATUS_LABELS, cn, exportToCSV } from '@/lib/utils'
 import { WorkflowStatus } from '@crms/types'
 import { TicketDetailDrawer } from '../tickets/ticket-detail-drawer'
-import { Plus, ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, Check, Download } from 'lucide-react'
 import Link from 'next/link'
-import { cn } from '@/lib/utils'
 
 const locales = {
   'en-US': enUS,
@@ -162,7 +161,7 @@ export function CalendarView() {
       <div className="flex h-full -m-4 lg:-m-6 bg-background">
         {/* Left Sidebar (Google Calendar style) */}
         <div className="w-64 flex-shrink-0 border-r border-border flex flex-col">
-          <div className="p-4 lg:p-6 pb-2">
+          <div className="p-4 lg:p-6 pb-2 space-y-3">
             <Link 
               href="/requests/new" 
               className="flex items-center gap-2 px-4 py-3 bg-card border border-border shadow-sm rounded-full hover:shadow-md transition-shadow text-foreground w-max font-medium text-sm"
@@ -170,6 +169,16 @@ export function CalendarView() {
               <svg width="24" height="24" viewBox="0 0 24 24" className="text-primary mr-1"><path fill="currentColor" d="M20 13h-7v7h-2v-7H4v-2h7V4h2v7h7v2z"></path></svg>
               Create
             </Link>
+            <button
+              onClick={() => exportToCSV(workItems.map(i => ({
+                ID: i.ticketNumber, Title: i.title, Status: STATUS_LABELS[i.status as WorkflowStatus], Priority: i.priority,
+                Requester: i.requesterName, Department: i.department?.name, Vendor: i.vendor?.name, DueDate: i.dueDate, Created: i.createdAt
+              })), 'calendar_requests_export')}
+              className="flex items-center gap-2 px-4 py-2 hover:bg-muted rounded-full transition-colors text-foreground w-max font-medium text-sm"
+            >
+              <Download size={20} className="text-muted-foreground mr-1" />
+              Export CSV
+            </button>
           </div>
           
           <div className="p-4 lg:p-6 pt-6 flex-1 overflow-y-auto">

@@ -35,6 +35,13 @@ app.put('/departments/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR),
   return c.json(ok(null, 'Department updated'))
 })
 
+app.delete('/departments/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), async (c) => {
+  const { id } = c.req.param()
+  const db = c.get('db')
+  await db.delete(schema.departments).where(eq(schema.departments.id, id))
+  return c.json(ok(null, 'Department deleted'))
+})
+
 // Branches
 app.get('/branches', async (c) => {
   const db = c.get('db')
@@ -51,6 +58,21 @@ app.post('/branches', authMiddleware, requireRole(UserRole.ADMINISTRATOR), zVali
   const id = generateId()
   await db.insert(schema.branches).values({ id, ...data, createdAt: new Date(), updatedAt: new Date() })
   return c.json(ok({ id }, 'Branch created'), 201)
+})
+
+app.put('/branches/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), async (c) => {
+  const { id } = c.req.param()
+  const body = await c.req.json()
+  const db = c.get('db')
+  await db.update(schema.branches).set({ ...body, updatedAt: new Date() }).where(eq(schema.branches.id, id))
+  return c.json(ok(null, 'Branch updated'))
+})
+
+app.delete('/branches/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), async (c) => {
+  const { id } = c.req.param()
+  const db = c.get('db')
+  await db.delete(schema.branches).where(eq(schema.branches.id, id))
+  return c.json(ok(null, 'Branch deleted'))
 })
 
 // Vendors
@@ -74,6 +96,13 @@ app.put('/vendors/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), asy
   const db = c.get('db')
   await db.update(schema.vendors).set({ ...body, updatedAt: new Date() }).where(eq(schema.vendors.id, id))
   return c.json(ok(null, 'Vendor updated'))
+})
+
+app.delete('/vendors/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), async (c) => {
+  const { id } = c.req.param()
+  const db = c.get('db')
+  await db.delete(schema.vendors).where(eq(schema.vendors.id, id))
+  return c.json(ok(null, 'Vendor deleted'))
 })
 
 export default app

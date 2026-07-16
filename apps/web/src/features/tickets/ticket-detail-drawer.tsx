@@ -100,6 +100,7 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
                       <InfoRow label="Requester" value={item.requesterName} />
                       <InfoRow label="Email" value={item.requesterEmail} />
                       <InfoRow label="Created" value={formatDate(item.createdAt)} />
+                      {item.goLiveDate && <InfoRow label="Go-Live" value={formatDate(item.goLiveDate)} />}
                       <InfoRow label="Due Date" value={item.dueDate ? formatDate(item.dueDate) : '—'} />
                       <AssignSelect workItemId={item.id} label="Manager" field="managerId" currentUser={item.manager} canEdit={canEditAssignment} />
                       <AssignSelect workItemId={item.id} label="Developer" field="developerId" currentUser={item.developer} canEdit={canEditAssignment} />
