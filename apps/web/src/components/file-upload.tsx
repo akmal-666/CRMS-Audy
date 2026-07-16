@@ -20,14 +20,15 @@ interface UploadingFile {
 
 const ALLOWED_TYPES = [
   'application/pdf',
+  'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'image/png', 'image/jpeg', 'image/jpg', 'image/webp',
-  'application/zip',
-  'video/mp4',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 ]
 
-const MAX_SIZE = 50 * 1024 * 1024 // 50MB
+const MAX_SIZE = 30 * 1024 * 1024 // 30MB
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
@@ -63,7 +64,7 @@ export function FileUpload({ workItemId, guestName, onUploaded }: FileUploadProp
         continue
       }
       if (file.size > MAX_SIZE) {
-        toast.error(`File terlalu besar (maks 50MB): ${file.name}`)
+        toast.error(`File terlalu besar (maks 30MB): ${file.name}`)
         continue
       }
       newEntries.push({
@@ -134,7 +135,7 @@ export function FileUpload({ workItemId, guestName, onUploaded }: FileUploadProp
         <p className="text-sm font-medium text-foreground">
           {isDragging ? 'Lepaskan file di sini' : 'Klik atau drag & drop untuk mengunggah'}
         </p>
-        <p className="text-xs text-muted-foreground mt-1">PDF, Word, Excel, Gambar, ZIP, MP4 — Maks 50MB</p>
+        <p className="text-xs text-muted-foreground mt-1">PDF, Word, Excel, PPT — Maks 30MB</p>
         <input
           ref={inputRef}
           type="file"

@@ -18,22 +18,23 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
+  // Word
+  'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  // Excel
+  'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'image/png',
-  'image/jpeg',
-  'image/jpg',
-  'image/webp',
-  'application/zip',
-  'video/mp4',
+  // PPT
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 ]
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+const MAX_FILE_SIZE = 30 * 1024 * 1024 // 30MB
 
 // ─── Presigned URL for direct upload (frontend uploads directly to B2) ────────
 const presignedUploadSchema = z.object({
   fileName: z.string(),
-  fileSize: z.number().max(MAX_FILE_SIZE, 'File exceeds 50MB limit'),
+  fileSize: z.number().max(MAX_FILE_SIZE, 'File exceeds 30MB limit'),
   mimeType: z.string().refine(t => ALLOWED_MIME_TYPES.includes(t), 'File type not allowed'),
 })
 
@@ -116,7 +117,7 @@ app.post('/:workItemId/attachments', async (c) => {
 
   for (const file of files) {
     if (!ALLOWED_MIME_TYPES.includes(file.type)) return c.json(err(`File type "${file.type}" not allowed`), 400)
-    if (file.size > MAX_FILE_SIZE) return c.json(err(`File "${file.name}" exceeds 50MB`), 400)
+    if (file.size > MAX_FILE_SIZE) return c.json(err(`File "${file.name}" exceeds 30MB`), 400)
 
     const id = generateId()
     const ext = file.name.split('.').pop()
