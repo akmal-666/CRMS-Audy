@@ -10,6 +10,7 @@ import { CheckCircle2, Loader2 } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { FileUpload } from '@/components/file-upload'
 
 const requestSchema = z.object({
   requesterName: z.string().min(2, 'Name must be at least 2 characters'),
@@ -28,6 +29,7 @@ type FormData = z.infer<typeof requestSchema>
 
 export function PublicRequestForm() {
   const [ticketNumber, setTicketNumber] = useState<string | null>(null)
+  const [submittedId, setSubmittedId] = useState<string | null>(null)
   const { register, handleSubmit, formState: { errors }, watch } = useForm<FormData>({
     resolver: zodResolver(requestSchema),
     defaultValues: { priority: 'medium' },
@@ -49,6 +51,7 @@ export function PublicRequestForm() {
     mutationFn: (data: FormData) => apiPost<{ ticketNumber: string; id: string }>('/api/work-items/public/submit', data),
     onSuccess: (res) => {
       setTicketNumber(res.data?.ticketNumber ?? 'N/A')
+      setSubmittedId(res.data?.id ?? null)
       toast.success('Request submitted successfully')
     },
     onError: () => toast.error('Failed to submit request'),
@@ -67,10 +70,22 @@ export function PublicRequestForm() {
         <div className="inline-block px-6 py-3 bg-primary/10 rounded-xl">
           <span className="text-2xl font-mono font-bold text-primary">{ticketNumber}</span>
         </div>
-        <p className="text-sm text-muted-foreground mt-6">
+        <p className="text-sm text-muted-foreground mt-6 mb-6">
           A confirmation email has been sent to your email address. You can use this ticket number to track your request.
         </p>
-        <button onClick={() => window.location.reload()} className="btn-primary mt-6">
+
+        {submittedId && (
+          <div className="text-left mt-8 p-6 bg-card border rounded-xl shadow-sm">
+            <h3 className="text-sm font-semibold mb-1">Upload Attachments (Optional)</h3>
+            <p className="text-xs text-muted-foreground mb-4">You can attach screenshots, documents, or videos related to this request.</p>
+            <FileUpload 
+              workItemId={submittedId} 
+              guestName={watch('requesterName')}
+            />
+          </div>
+        )}
+
+        <button onClick={() => window.location.reload()} className="btn-primary mt-8">
           Submit Another Request
         </button>
       </motion.div>
