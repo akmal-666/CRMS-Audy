@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Kanban, ListChecks, Users, Building2,
   GitBranch, Package, Settings, ChevronDown, ChevronRight,
-  Sparkles, Bell, FileText, BarChart3, Shield, X,
+  Sparkles, Bell, FileText, BarChart3, Shield, X, Calendar
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { useAuth } from '@/context/auth-context'
@@ -24,6 +24,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard size={16} /> },
   { label: 'Kanban Board', href: '/kanban', icon: <Kanban size={16} /> },
+  { label: 'Calendar', href: '/requests/calendar', icon: <Calendar size={16} /> },
   { label: 'All Requests', href: '/requests', icon: <ListChecks size={16} /> },
   { label: 'Reports', href: '/reports', icon: <BarChart3 size={16} /> },
   { label: 'Notifications', href: '/notifications', icon: <Bell size={16} /> },
