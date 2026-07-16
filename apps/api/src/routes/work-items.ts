@@ -102,7 +102,7 @@ app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
 // Get work items (authenticated)
 app.get('/', authMiddleware, async (c) => {
   const db = c.get('db')
-  const { page = '1', pageSize = '20', search, status, priority, departmentId, branchId, assignee } = c.req.query()
+  const { page = '1', pageSize = '20', search, status, priority, departmentId, assignee } = c.req.query()
 
   const pageNum = parseInt(page)
   const pageSizeNum = Math.min(parseInt(pageSize), 100)
@@ -117,7 +117,6 @@ app.get('/', authMiddleware, async (c) => {
   if (status) conditions.push(eq(schema.workItems.status, status as any))
   if (priority) conditions.push(eq(schema.workItems.priority, priority as any))
   if (departmentId) conditions.push(eq(schema.workItems.departmentId, departmentId))
-  if (branchId) conditions.push(eq(schema.workItems.branchId, branchId))
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
@@ -129,7 +128,6 @@ app.get('/', authMiddleware, async (c) => {
       orderBy: [desc(schema.workItems.createdAt)],
       with: {
         department: true,
-        branch: true,
         manager: { columns: { id: true, name: true, avatarUrl: true } },
         developer: { columns: { id: true, name: true, avatarUrl: true } },
         vendor: { columns: { id: true, name: true } },
@@ -151,7 +149,6 @@ app.get('/:id', authMiddleware, async (c) => {
     where: eq(schema.workItems.id, id),
     with: {
       department: true,
-      branch: true,
       manager: true,
       businessAnalyst: true,
       vendor: true,
