@@ -9,12 +9,7 @@ export default function LoginPage() {
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#0F0F23] flex-col justify-between p-10">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
-          <span className="font-bold text-white text-lg">CRMS</span>
+          <img src="/audy-logo.svg" alt="Audy Dental" className="h-12 w-auto bg-white/90 p-2 rounded-xl" />
         </div>
 
         <div>
@@ -49,12 +44,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           <div className="mb-8">
             <div className="lg:hidden flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <span className="font-bold text-foreground">CRMS</span>
+              <img src="/audy-logo.svg" alt="Audy Dental" className="h-8 w-auto bg-slate-100 dark:bg-white/90 p-1.5 rounded-lg" />
             </div>
             <h2 className="text-2xl font-semibold text-foreground">Welcome back</h2>
             <p className="text-muted-foreground text-sm mt-1">Sign in to your account</p>
