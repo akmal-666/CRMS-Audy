@@ -39,7 +39,7 @@ jobs:
     name: Deploy API (Cloudflare Workers)
     needs: lint-and-type-check
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && secrets.CLOUDFLARE_API_TOKEN != ''
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
@@ -71,7 +71,7 @@ jobs:
     name: Deploy Web (Cloudflare Pages)
     needs: lint-and-type-check
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && secrets.CLOUDFLARE_API_TOKEN != ''
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
