@@ -56,3 +56,17 @@ export async function apiDelete<T>(url: string): Promise<ApiResponse<T>> {
   const res = await api.delete<ApiResponse<T>>(url)
   return res.data
 }
+
+export async function apiUpload<T>(
+  url: string,
+  formData: FormData,
+  onProgress?: (pct: number) => void
+): Promise<ApiResponse<T>> {
+  const res = await api.post<ApiResponse<T>>(url, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100))
+    },
+  })
+  return res.data
+}
