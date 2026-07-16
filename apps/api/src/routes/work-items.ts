@@ -23,6 +23,7 @@ const submitSchema = z.object({
   expectedSolution: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
   dueDate: z.string().optional(),
+  vendorId: z.string().min(1),
 })
 
 app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
@@ -55,6 +56,7 @@ app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
     problemDescription: data.problemDescription,
     expectedSolution: data.expectedSolution,
     departmentId: data.departmentId,
+    vendorId: data.vendorId,
     managerEmail: data.managerEmail ? data.managerEmail : null,
     priority: data.priority as any,
     status: 'in_pipeline',

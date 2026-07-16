@@ -105,7 +105,7 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
                       <AssignSelect workItemId={item.id} label="Developer" field="developerId" currentUser={item.developer} canEdit={canEditAssignment} />
                       <AssignSelect workItemId={item.id} label="Business Analyst" field="businessAnalystId" currentUser={item.businessAnalyst} canEdit={canEditAssignment} />
                       <AssignSelect workItemId={item.id} label="QA" field="qaId" currentUser={item.qa} canEdit={canEditAssignment} />
-                      {item.vendor && <InfoRow label="Vendor" value={item.vendor.name} />}
+                      {item.vendor && <InfoRow label="Platform / Vendor" value={item.vendor.name} />}
                     </div>
                   </div>
 

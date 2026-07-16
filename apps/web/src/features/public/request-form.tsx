@@ -8,12 +8,14 @@ import { z } from 'zod'
 import { motion } from 'framer-motion'
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { apiGet, apiPost } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
 const requestSchema = z.object({
   requesterName: z.string().min(2, 'Name must be at least 2 characters'),
   requesterEmail: z.string().email('Invalid email address'),
   departmentId: z.string().min(1, 'Please select a department'),
+  vendorId: z.string().min(1, 'Please select a platform/vendor'),
   managerEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
   title: z.string().min(5, 'Title must be at least 5 characters'),
   problemDescription: z.string().min(10, 'Description must be at least 10 characters'),
@@ -34,6 +36,12 @@ export function PublicRequestForm() {
   const { data: departments } = useQuery({
     queryKey: ['departments'],
     queryFn: () => apiGet<any[]>('/api/master/departments'),
+    select: (res) => res.data ?? [],
+  })
+
+  const { data: vendors } = useQuery({
+    queryKey: ['vendors'],
+    queryFn: () => apiGet<any[]>('/api/master/vendors'),
     select: (res) => res.data ?? [],
   })
 
@@ -85,11 +93,11 @@ export function PublicRequestForm() {
         </div>
       </div>
 
-      {/* Department & Assign Email Manager */}
+      {/* Department & Platform/Vendor */}
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="label">Department*</label>
-          <select {...register('departmentId')} className="input">
+          <select {...register('departmentId')} className={cn('input', errors.departmentId && 'border-destructive/50 focus:ring-destructive')}>
             <option value="">Select department</option>
             {departments?.map((dept: any) => (
               <option key={dept.id} value={dept.id}>{dept.name}</option>
@@ -98,10 +106,22 @@ export function PublicRequestForm() {
           {errors.departmentId && <p className="text-xs text-danger mt-1">{errors.departmentId.message}</p>}
         </div>
         <div>
-          <label className="label">Assign Email Manager</label>
-          <input {...register('managerEmail')} type="email" className="input" placeholder="manager@company.com" />
-          {errors.managerEmail && <p className="text-xs text-danger mt-1">{errors.managerEmail.message}</p>}
+          <label className="label">Platform*</label>
+          <select {...register('vendorId')} className={cn('input', errors.vendorId && 'border-destructive/50 focus:ring-destructive')}>
+            <option value="">Select platform</option>
+            {vendors?.map((v: any) => (
+              <option key={v.id} value={v.id}>{v.name}</option>
+            ))}
+          </select>
+          {errors.vendorId && <p className="text-xs text-danger mt-1">{errors.vendorId.message}</p>}
         </div>
+      </div>
+      
+      {/* Assign Email Manager */}
+      <div>
+        <label className="label">Assign Email Manager</label>
+        <input {...register('managerEmail')} type="email" className="input" placeholder="manager@company.com" />
+        {errors.managerEmail && <p className="text-xs text-danger mt-1">{errors.managerEmail.message}</p>}
       </div>
 
       {/* Title */}

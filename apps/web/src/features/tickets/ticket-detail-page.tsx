@@ -192,7 +192,7 @@ export function TicketDetailPage({ id }: { id: string }) {
               <AssignSelect workItemId={id} label="Developer" field="developerId" currentUser={item.developer} canEdit={canEditAssignment} />
               <AssignSelect workItemId={id} label="Business Analyst" field="businessAnalystId" currentUser={item.businessAnalyst} canEdit={canEditAssignment} />
               <AssignSelect workItemId={id} label="QA" field="qaId" currentUser={item.qa} canEdit={canEditAssignment} />
-              {item.vendor && <AssigneeItem label="Vendor" user={item.vendor} />}
+              {item.vendor && <AssigneeItem label="Platform / Vendor" user={item.vendor} />}
             </div>
           </motion.div>
 
