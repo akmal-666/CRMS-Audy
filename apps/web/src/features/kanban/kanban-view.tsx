@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   DndContext,
