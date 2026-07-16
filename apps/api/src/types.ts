@@ -11,10 +11,12 @@ export interface Bindings {
   PUBLIC_URL: string
   RESEND_API_KEY: string
   CAPTCHA_SECRET: string
-  // Supabase Storage
-  SUPABASE_URL: string
-  SUPABASE_SERVICE_ROLE_KEY: string
-  SUPABASE_STORAGE_BUCKET: string
+  // Backblaze B2 Storage
+  B2_ENDPOINT: string
+  B2_ACCESS_KEY_ID: string
+  B2_SECRET_ACCESS_KEY: string
+  B2_BUCKET_NAME: string
+  B2_REGION: string
 }
 
 export interface Variables {

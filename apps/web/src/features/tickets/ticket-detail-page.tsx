@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Loader2, Edit2, Check, X, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Loader2, Edit2, Check, X, ChevronDown, Paperclip, Download, FileText } from 'lucide-react'
 import { apiGet, apiPatch, apiPut } from '@/lib/api'
 import { WorkflowStatus, Priority, UserRole } from '@crms/types'
 import {
@@ -18,6 +18,8 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { AssignSelect } from './assign-select'
+import { FileUpload } from '@/components/file-upload'
+import { apiGet as _apiGet } from '@/lib/api'
 
 const WORKFLOW_TRANSITIONS: Record<string, WorkflowStatus[]> = {
   in_pipeline:  [WorkflowStatus.ASSESSMENT, WorkflowStatus.DROP],
@@ -198,17 +200,44 @@ export function TicketDetailPage({ id }: { id: string }) {
           </motion.div>
 
           {/* Attachments */}
-          {item.attachments?.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card space-y-2">
-              <h3 className="text-sm font-semibold text-foreground">Attachments ({item.attachments.length})</h3>
-              {item.attachments.map((att: any) => (
-                <a key={att.id} href={`/api/work-items/${id}/attachments/${att.id}/download`} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 transition-colors text-sm text-primary">
-                  <span className="truncate">{att.fileName}</span>
-                </a>
-              ))}
-            </motion.div>
-          )}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Paperclip size={14} className="text-muted-foreground" />
+                Attachments {item.attachments?.length > 0 && `(${item.attachments.length})`}
+              </h3>
+            </div>
+
+            {item.attachments?.length > 0 && (
+              <div className="space-y-1">
+                {item.attachments.map((att: any) => (
+                  <div key={att.id} className="flex items-center gap-3 p-2.5 rounded-lg border border-border hover:bg-muted/30 transition-colors">
+                    <FileText size={14} className="text-muted-foreground flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{att.fileName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {att.fileSize ? `${(att.fileSize / 1024).toFixed(1)} KB` : ''}
+                        {att.uploader?.name ? ` · ${att.uploader.name}` : ''}
+                      </p>
+                    </div>
+                    <a
+                      href={`/api/work-items/${id}/attachments/${att.id}/download`}
+                      target="_blank" rel="noreferrer"
+                      className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                      title="Download"
+                    >
+                      <Download size={14} />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <FileUpload
+              workItemId={id}
+              onUploaded={() => {}}
+            />
+          </motion.div>
         </div>
       </div>
     </div>
