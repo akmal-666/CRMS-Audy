@@ -12,6 +12,7 @@ import { AssessmentPanel } from './assessment-panel'
 import Link from 'next/link'
 import { useAuth } from '@/context/auth-context'
 import { AssignSelect } from './assign-select'
+import { MandaysEdit } from './mandays-edit'
 import { FileUpload } from '@/components/file-upload'
 import { UserRole } from '@crms/types'
 
@@ -108,7 +109,7 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
                       <AssignSelect workItemId={item.id} label="Business Analyst" field="businessAnalystId" currentUser={item.businessAnalyst} canEdit={canEditAssignment} />
                       <AssignSelect workItemId={item.id} label="QA" field="qaId" currentUser={item.qa} canEdit={canEditAssignment} />
                       {item.vendor && <InfoRow label="Platform / Vendor" value={item.vendor.name} />}
-                      {item.mandays !== null && item.mandays !== undefined && <InfoRow label="Mandays" value={`${item.mandays} days`} />}
+                      <MandaysEdit workItemId={item.id} currentValue={item.mandays} canEdit={canEditAssignment} />
                     </div>
                   </div>
 

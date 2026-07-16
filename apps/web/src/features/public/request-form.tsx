@@ -23,14 +23,13 @@ const requestSchema = z.object({
   expectedSolution: z.string().min(10, 'Expected solution must be at least 10 characters'),
   priority: z.enum(['low', 'medium', 'high', 'critical']),
   dueDate: z.string().min(1, 'Please select a target go-live date'),
-  mandays: z.coerce.number().optional(),
 })
 
 type FormData = z.infer<typeof requestSchema>
 
 export function PublicRequestForm() {
   const [ticketNumber, setTicketNumber] = useState<string | null>(null)
-  const [submittedId, setSubmittedId] = useState<string | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const { register, handleSubmit, formState: { errors }, watch } = useForm<FormData>({
     resolver: zodResolver(requestSchema),
     defaultValues: { priority: 'medium' },
@@ -49,10 +48,23 @@ export function PublicRequestForm() {
   })
 
   const submit = useMutation({
-    mutationFn: (data: FormData) => apiPost<{ ticketNumber: string; id: string }>('/api/work-items/public/submit', data),
+    mutationFn: async (data: FormData) => {
+      // 1. Submit ticket
+      const res = await apiPost<{ ticketNumber: string; id: string }>('/api/work-items/public/submit', data)
+      
+      // 2. Upload files if any
+      if (files.length > 0 && res.data?.id) {
+        // Upload sequentially or together? The api supports multiple files.
+        const { apiUpload } = await import('@/lib/api')
+        const formData = new globalThis.FormData()
+        files.forEach(f => formData.append('files', f))
+        formData.append('guestName', data.requesterName)
+        await apiUpload(`/api/work-items/${res.data.id}/attachments`, formData)
+      }
+      return res
+    },
     onSuccess: (res) => {
       setTicketNumber(res.data?.ticketNumber ?? 'N/A')
-      setSubmittedId(res.data?.id ?? null)
       toast.success('Request submitted successfully')
     },
     onError: () => toast.error('Failed to submit request'),
@@ -71,22 +83,10 @@ export function PublicRequestForm() {
         <div className="inline-block px-6 py-3 bg-primary/10 rounded-xl">
           <span className="text-2xl font-mono font-bold text-primary">{ticketNumber}</span>
         </div>
-        <p className="text-sm text-muted-foreground mt-6 mb-6">
+        <p className="text-sm text-muted-foreground mt-6">
           A confirmation email has been sent to your email address. You can use this ticket number to track your request.
         </p>
-
-        {submittedId && (
-          <div className="text-left mt-8 p-6 bg-card border rounded-xl shadow-sm">
-            <h3 className="text-sm font-semibold mb-1">Upload Attachments (Optional)</h3>
-            <p className="text-xs text-muted-foreground mb-4">You can attach screenshots, documents, or videos related to this request.</p>
-            <FileUpload 
-              workItemId={submittedId} 
-              guestName={watch('requesterName')}
-            />
-          </div>
-        )}
-
-        <button onClick={() => window.location.reload()} className="btn-primary mt-8">
+        <button onClick={() => window.location.reload()} className="btn-primary mt-6">
           Submit Another Request
         </button>
       </motion.div>
@@ -161,8 +161,8 @@ export function PublicRequestForm() {
         {errors.expectedSolution && <p className="text-xs text-danger mt-1">{errors.expectedSolution.message}</p>}
       </div>
 
-      {/* Priority, Go-Live, & Mandays */}
-      <div className="grid md:grid-cols-3 gap-4">
+      {/* Priority & Expected Go-Live */}
+      <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="label">Priority*</label>
           <select {...register('priority')} className="input">
@@ -177,10 +177,15 @@ export function PublicRequestForm() {
           <input {...register('dueDate')} type="date" className={cn('input', errors.dueDate && 'border-destructive/50 focus:ring-destructive')} />
           {errors.dueDate && <p className="text-xs text-danger mt-1">{errors.dueDate.message}</p>}
         </div>
-        <div>
-          <label className="label">Mandays</label>
-          <input {...register('mandays')} type="number" step="0.1" className="input" placeholder="e.g. 5.5" />
-        </div>
+      </div>
+
+      {/* Attachments */}
+      <div>
+        <label className="label">Attachments (Optional)</label>
+        <FileUpload 
+          autoUpload={false}
+          onChange={setFiles}
+        />
       </div>
 
       {/* Submit */}

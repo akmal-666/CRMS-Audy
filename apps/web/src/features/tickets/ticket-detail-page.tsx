@@ -18,6 +18,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { AssignSelect } from './assign-select'
+import { MandaysEdit } from './mandays-edit'
 import { FileUpload } from '@/components/file-upload'
 import { apiGet as _apiGet } from '@/lib/api'
 
@@ -196,6 +197,7 @@ export function TicketDetailPage({ id }: { id: string }) {
               <AssignSelect workItemId={id} label="Business Analyst" field="businessAnalystId" currentUser={item.businessAnalyst} canEdit={canEditAssignment} />
               <AssignSelect workItemId={id} label="QA" field="qaId" currentUser={item.qa} canEdit={canEditAssignment} />
               {item.vendor && <AssigneeItem label="Platform / Vendor" user={item.vendor} />}
+              <MandaysEdit workItemId={id} currentValue={item.mandays} canEdit={canEditAssignment} />
             </div>
           </motion.div>
 

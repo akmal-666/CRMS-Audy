@@ -43,12 +43,14 @@ function getFileIcon(mimeType: string) {
 }
 
 interface FileUploadProps {
-  workItemId: string
+  workItemId?: string
   guestName?: string
   onUploaded?: () => void
+  autoUpload?: boolean
+  onChange?: (files: File[]) => void
 }
 
-export function FileUpload({ workItemId, guestName, onUploaded }: FileUploadProps) {
+export function FileUpload({ workItemId, guestName, onUploaded, autoUpload = true, onChange }: FileUploadProps) {
   const [files, setFiles] = useState<UploadingFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -79,7 +81,15 @@ export function FileUpload({ workItemId, guestName, onUploaded }: FileUploadProp
     }
 
     if (!newEntries.length) return
-    setFiles(prev => [...prev, ...newEntries])
+    const updatedFiles = [...files, ...newEntries]
+    setFiles(updatedFiles)
+
+    if (!autoUpload) {
+      onChange?.(updatedFiles.map(f => f.file))
+      return
+    }
+
+    if (!workItemId) return
 
     // Upload each file via Worker (no B2 CORS needed)
     for (const entry of newEntries) {
@@ -114,7 +124,13 @@ export function FileUpload({ workItemId, guestName, onUploaded }: FileUploadProp
     handleFiles(e.dataTransfer.files)
   }, [handleFiles])
 
-  const removeFile = (id: string) => setFiles(prev => prev.filter(f => f.id !== id))
+  const removeFile = (id: string) => {
+    setFiles(prev => {
+      const next = prev.filter(f => f.id !== id)
+      if (!autoUpload) onChange?.(next.map(f => f.file))
+      return next
+    })
+  }
 
   return (
     <div className="space-y-3">

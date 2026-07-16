@@ -24,7 +24,6 @@ const submitSchema = z.object({
   priority: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
   dueDate: z.string().min(1),
   vendorId: z.string().min(1),
-  mandays: z.coerce.number().optional(),
 })
 
 app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
@@ -64,7 +63,6 @@ app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
     requesterName: data.requesterName,
     requesterEmail: data.requesterEmail,
     dueDate: new Date(data.dueDate),
-    mandays: data.mandays,
     createdAt: new Date(),
     updatedAt: new Date(),
   })
@@ -313,6 +311,40 @@ app.put('/:id/assessment', authMiddleware, requireRole(UserRole.ADMINISTRATOR, U
   })
 
   return c.json(ok(null, 'Assessment updated'))
+})
+
+// Update mandays
+const updateMandaysSchema = z.object({
+  mandays: z.number().nullable(),
+})
+
+app.patch('/:id/mandays', authMiddleware, requireRole(...STAFF_ROLES), zValidator('json', updateMandaysSchema), async (c) => {
+  const { id } = c.req.param()
+  const { mandays } = c.req.valid('json')
+  const db = c.get('db')
+  const user = c.get('user')!
+
+  const item = await db.query.workItems.findFirst({ where: eq(schema.workItems.id, id) })
+  if (!item) return c.json(err('Work item not found'), 404)
+
+  const oldMandays = item.mandays
+
+  await db.update(schema.workItems)
+    .set({ mandays, updatedAt: new Date() })
+    .where(eq(schema.workItems.id, id))
+
+  await db.insert(schema.auditLogs).values({
+    id: generateId(),
+    userId: user.sub,
+    action: 'update_mandays',
+    entityType: 'work_item',
+    entityId: id,
+    oldValues: { mandays: oldMandays },
+    newValues: { mandays },
+    createdAt: new Date(),
+  })
+
+  return c.json(ok({ id, mandays }, 'Mandays updated'))
 })
 
 export default app
