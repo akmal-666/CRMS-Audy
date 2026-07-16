@@ -10,6 +10,9 @@ import { ActivityTimeline } from './activity-timeline'
 import { CommentSection } from './comment-section'
 import { AssessmentPanel } from './assessment-panel'
 import Link from 'next/link'
+import { useAuth } from '@/context/auth-context'
+import { AssignSelect } from './assign-select'
+import { UserRole } from '@crms/types'
 
 interface TicketDetailDrawerProps {
   itemId: string | null
@@ -17,6 +20,8 @@ interface TicketDetailDrawerProps {
 }
 
 export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps) {
+  const { user } = useAuth()
+  const canEditAssignment = user?.role === UserRole.ADMINISTRATOR || user?.role === UserRole.MANAGER
   const { data, isLoading } = useQuery({
     queryKey: ['work-item', itemId],
     queryFn: () => apiGet<any>(`/api/work-items/${itemId}`),
@@ -96,10 +101,10 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
                       <InfoRow label="Email" value={item.requesterEmail} />
                       <InfoRow label="Created" value={formatDate(item.createdAt)} />
                       <InfoRow label="Due Date" value={item.dueDate ? formatDate(item.dueDate) : '—'} />
-                      <InfoRow label="Manager" value={item.manager?.name || '—'} />
-                      <InfoRow label="Developer" value={item.developer?.name || '—'} />
-                      <InfoRow label="Business Analyst" value={item.businessAnalyst?.name || '—'} />
-                      <InfoRow label="QA" value={item.qa?.name || '—'} />
+                      <AssignSelect workItemId={item.id} label="Manager" field="managerId" currentUser={item.manager} canEdit={canEditAssignment} />
+                      <AssignSelect workItemId={item.id} label="Developer" field="developerId" currentUser={item.developer} canEdit={canEditAssignment} />
+                      <AssignSelect workItemId={item.id} label="Business Analyst" field="businessAnalystId" currentUser={item.businessAnalyst} canEdit={canEditAssignment} />
+                      <AssignSelect workItemId={item.id} label="QA" field="qaId" currentUser={item.qa} canEdit={canEditAssignment} />
                       {item.vendor && <InfoRow label="Vendor" value={item.vendor.name} />}
                     </div>
                   </div>

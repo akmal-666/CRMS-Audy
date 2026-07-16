@@ -46,6 +46,16 @@ export const STATUS_DOT_COLORS: Record<WorkflowStatus, string> = {
   [WorkflowStatus.DROP]: 'bg-red-500',
 }
 
+export const STATUS_BORDER_COLORS: Record<WorkflowStatus, string> = {
+  [WorkflowStatus.IN_PIPELINE]: 'border-l-slate-400',
+  [WorkflowStatus.ASSESSMENT]: 'border-l-blue-500',
+  [WorkflowStatus.DEVELOPMENT]: 'border-l-violet-500',
+  [WorkflowStatus.UAT]: 'border-l-amber-500',
+  [WorkflowStatus.DEPLOYMENT]: 'border-l-orange-500',
+  [WorkflowStatus.GO_LIVE]: 'border-l-green-500',
+  [WorkflowStatus.DROP]: 'border-l-red-500',
+}
+
 export const PRIORITY_LABELS: Record<Priority, string> = {
   [Priority.LOW]: 'Low',
   [Priority.MEDIUM]: 'Medium',

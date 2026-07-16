@@ -17,6 +17,7 @@ import { AssessmentPanel } from './assessment-panel'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { useState } from 'react'
+import { AssignSelect } from './assign-select'
 
 const WORKFLOW_TRANSITIONS: Record<string, WorkflowStatus[]> = {
   in_pipeline:  [WorkflowStatus.ASSESSMENT, WorkflowStatus.DROP],
@@ -30,6 +31,7 @@ const WORKFLOW_TRANSITIONS: Record<string, WorkflowStatus[]> = {
 
 export function TicketDetailPage({ id }: { id: string }) {
   const { user } = useAuth()
+  const canEditAssignment = user?.role === UserRole.ADMINISTRATOR || user?.role === UserRole.MANAGER
   const queryClient = useQueryClient()
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
 
@@ -183,14 +185,14 @@ export function TicketDetailPage({ id }: { id: string }) {
           </motion.div>
 
           {/* Team */}
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="card space-y-3">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="card space-y-4">
             <h3 className="text-sm font-semibold text-foreground">Team</h3>
-            <div className="space-y-2.5">
-              <AssigneeItem label="Manager" user={item.manager} />
-              <AssigneeItem label="Business Analyst" user={item.businessAnalyst} />
-              <AssigneeItem label="Developer" user={item.developer} />
-              <AssigneeItem label="QA" user={item.qa} />
-              {item.vendor && <InfoItem label="Vendor" value={item.vendor.name} />}
+            <div className="space-y-4">
+              <AssignSelect workItemId={id} label="Manager" field="managerId" currentUser={item.manager} canEdit={canEditAssignment} />
+              <AssignSelect workItemId={id} label="Developer" field="developerId" currentUser={item.developer} canEdit={canEditAssignment} />
+              <AssignSelect workItemId={id} label="Business Analyst" field="businessAnalystId" currentUser={item.businessAnalyst} canEdit={canEditAssignment} />
+              <AssignSelect workItemId={id} label="QA" field="qaId" currentUser={item.qa} canEdit={canEditAssignment} />
+              {item.vendor && <AssigneeItem label="Vendor" user={item.vendor} />}
             </div>
           </motion.div>
 

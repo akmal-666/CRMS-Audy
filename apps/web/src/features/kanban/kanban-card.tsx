@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { motion } from 'framer-motion'
 import { Calendar, User2, AlertCircle } from 'lucide-react'
 import { WorkflowStatus, Priority } from '@crms/types'
-import { PRIORITY_COLORS, PRIORITY_DOT_COLORS, PRIORITY_LABELS, formatDate, cn, getInitials } from '@/lib/utils'
+import { PRIORITY_COLORS, PRIORITY_DOT_COLORS, PRIORITY_LABELS, STATUS_BORDER_COLORS, formatDate, cn, getInitials } from '@/lib/utils'
 import { differenceInDays } from 'date-fns'
 
 interface WorkItem {
@@ -55,7 +55,8 @@ export function KanbanCard({ item, isDragging, onClick }: KanbanCardProps) {
       {...listeners}
       onClick={onClick}
       className={cn(
-        'kanban-card group select-none',
+        'kanban-card group select-none border-l-[3px]',
+        STATUS_BORDER_COLORS[item.status as WorkflowStatus],
         isDragging && 'rotate-1 scale-105 shadow-soft-lg',
       )}
     >
