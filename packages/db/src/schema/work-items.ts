@@ -63,6 +63,15 @@ export const deployments = sqliteTable('deployments', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 })
 
+export const assessmentsRelations = relations(assessments, ({ one }) => ({
+  workItem: one(workItems, { fields: [assessments.workItemId], references: [workItems.id] }),
+}))
+
+export const deploymentsRelations = relations(deployments, ({ one }) => ({
+  workItem: one(workItems, { fields: [deployments.workItemId], references: [workItems.id] }),
+  deployedBy: one(users, { fields: [deployments.deployedBy], references: [users.id] }),
+}))
+
 export const workItemsRelations = relations(workItems, ({ one, many }) => ({
   department: one(departments, { fields: [workItems.departmentId], references: [departments.id] }),
   vendor: one(vendors, { fields: [workItems.vendorId], references: [vendors.id] }),

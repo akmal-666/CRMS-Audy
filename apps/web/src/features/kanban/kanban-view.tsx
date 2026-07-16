@@ -63,8 +63,8 @@ export function KanbanView() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['work-items', 'kanban', search],
-    queryFn: () => apiGet<{ data: WorkItem[] }>('/api/work-items', { search: search || undefined, pageSize: 500 }),
-    select: (res) => (res.data as unknown as { data: WorkItem[] })?.data ?? [],
+    queryFn: () => apiGet<WorkItem[]>('/api/work-items', { search: search || undefined, pageSize: 500 }),
+    select: (res) => res.data ?? [],
   })
 
   const workItems: WorkItem[] = (data as unknown as WorkItem[]) ?? []
