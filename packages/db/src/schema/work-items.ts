@@ -22,6 +22,7 @@ export const workItems = sqliteTable('work_items', {
   requesterEmail: text('requester_email').notNull(),
   dueDate: integer('due_date', { mode: 'timestamp' }),
   goLiveDate: integer('go_live_date', { mode: 'timestamp' }),
+  mandays: real('mandays'),
   managerId: text('manager_id').references(() => users.id),
   businessAnalystId: text('business_analyst_id').references(() => users.id),
   vendorId: text('vendor_id').references(() => vendors.id),

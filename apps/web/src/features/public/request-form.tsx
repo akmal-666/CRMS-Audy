@@ -23,6 +23,7 @@ const requestSchema = z.object({
   expectedSolution: z.string().min(10, 'Expected solution must be at least 10 characters'),
   priority: z.enum(['low', 'medium', 'high', 'critical']),
   dueDate: z.string().min(1, 'Please select a target go-live date'),
+  mandays: z.coerce.number().optional(),
 })
 
 type FormData = z.infer<typeof requestSchema>
@@ -160,8 +161,8 @@ export function PublicRequestForm() {
         {errors.expectedSolution && <p className="text-xs text-danger mt-1">{errors.expectedSolution.message}</p>}
       </div>
 
-      {/* Priority & Expected Go-Live */}
-      <div className="grid md:grid-cols-2 gap-4">
+      {/* Priority, Go-Live, & Mandays */}
+      <div className="grid md:grid-cols-3 gap-4">
         <div>
           <label className="label">Priority*</label>
           <select {...register('priority')} className="input">
@@ -175,6 +176,10 @@ export function PublicRequestForm() {
           <label className="label">Expected go-live*</label>
           <input {...register('dueDate')} type="date" className={cn('input', errors.dueDate && 'border-destructive/50 focus:ring-destructive')} />
           {errors.dueDate && <p className="text-xs text-danger mt-1">{errors.dueDate.message}</p>}
+        </div>
+        <div>
+          <label className="label">Mandays</label>
+          <input {...register('mandays')} type="number" step="0.1" className="input" placeholder="e.g. 5.5" />
         </div>
       </div>
 

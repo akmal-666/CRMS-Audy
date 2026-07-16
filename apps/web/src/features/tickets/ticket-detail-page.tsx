@@ -215,10 +215,11 @@ export function TicketDetailPage({ id }: { id: string }) {
                     <FileText size={14} className="text-muted-foreground flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{att.fileName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {att.fileSize ? `${(att.fileSize / 1024).toFixed(1)} KB` : ''}
-                        {att.uploader?.name ? ` · ${att.uploader.name}` : ''}
-                      </p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{att.fileSize ? `${(att.fileSize / 1024).toFixed(1)} KB` : ''}</span>
+                        {att.createdAt && <span>· {formatDate(att.createdAt)}</span>}
+                        {att.uploader?.name && <span>· {att.uploader.name}</span>}
+                      </div>
                     </div>
                     <a
                       href={`/api/work-items/${id}/attachments/${att.id}/download`}

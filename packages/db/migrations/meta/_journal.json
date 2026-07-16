@@ -15,6 +15,13 @@
       "when": 1784186975733,
       "tag": "0005_same_albert_cleary",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784189362636,
+      "tag": "0002_aromatic_norman_osborn",
+      "breakpoints": true
     }
   ]
 }

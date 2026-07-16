@@ -24,6 +24,7 @@ const submitSchema = z.object({
   priority: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
   dueDate: z.string().min(1),
   vendorId: z.string().min(1),
+  mandays: z.coerce.number().optional(),
 })
 
 app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
@@ -63,6 +64,7 @@ app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
     requesterName: data.requesterName,
     requesterEmail: data.requesterEmail,
     dueDate: new Date(data.dueDate),
+    mandays: data.mandays,
     createdAt: new Date(),
     updatedAt: new Date(),
   })

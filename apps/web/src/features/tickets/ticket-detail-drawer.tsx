@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ExternalLink } from 'lucide-react'
+import { X, ExternalLink, Paperclip, FileText, Download } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 import { STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, timeAgo, cn } from '@/lib/utils'
 import { WorkflowStatus, Priority } from '@crms/types'
@@ -12,6 +12,7 @@ import { AssessmentPanel } from './assessment-panel'
 import Link from 'next/link'
 import { useAuth } from '@/context/auth-context'
 import { AssignSelect } from './assign-select'
+import { FileUpload } from '@/components/file-upload'
 import { UserRole } from '@crms/types'
 
 interface TicketDetailDrawerProps {
@@ -107,7 +108,44 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
                       <AssignSelect workItemId={item.id} label="Business Analyst" field="businessAnalystId" currentUser={item.businessAnalyst} canEdit={canEditAssignment} />
                       <AssignSelect workItemId={item.id} label="QA" field="qaId" currentUser={item.qa} canEdit={canEditAssignment} />
                       {item.vendor && <InfoRow label="Platform / Vendor" value={item.vendor.name} />}
+                      {item.mandays !== null && item.mandays !== undefined && <InfoRow label="Mandays" value={`${item.mandays} days`} />}
                     </div>
+                  </div>
+
+                  {/* Attachments */}
+                  <div className="px-5 py-4 space-y-3 border-b border-border">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Paperclip size={14} className="text-muted-foreground" />
+                      Attachments {item.attachments?.length > 0 && `(${item.attachments.length})`}
+                    </h3>
+                    
+                    {item.attachments?.length > 0 && (
+                      <div className="space-y-2 mb-4">
+                        {item.attachments.map((att: any) => (
+                          <div key={att.id} className="flex items-center gap-3 p-2.5 rounded-lg border border-border bg-card">
+                            <FileText size={14} className="text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{att.fileName}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span>{att.fileSize ? `${(att.fileSize / 1024).toFixed(1)} KB` : ''}</span>
+                                {att.createdAt && <span>· {formatDate(att.createdAt)}</span>}
+                                {att.uploader?.name && <span>· {att.uploader.name}</span>}
+                              </div>
+                            </div>
+                            <a
+                              href={`/api/work-items/${item.id}/attachments/${att.id}/download`}
+                              target="_blank" rel="noreferrer"
+                              className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                              title="Download"
+                            >
+                              <Download size={14} />
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <FileUpload workItemId={item.id} />
                   </div>
 
                   {/* Assessment */}
