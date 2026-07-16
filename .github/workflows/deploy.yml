@@ -100,7 +100,6 @@ jobs:
         run: |
           pnpm --filter @crms/api exec wrangler pages deploy apps/web/.vercel/output/static \
             --project-name=crms-audy \
-            --compatibility-flag=nodejs_compat \
             --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
