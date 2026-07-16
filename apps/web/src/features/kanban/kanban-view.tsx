@@ -106,9 +106,12 @@ export function KanbanView() {
 
     if (targetColumn && draggedItem.status !== targetColumn) {
       // Optimistic update
-      queryClient.setQueryData(['work-items', 'kanban', search], (old: WorkItem[] | undefined) => {
-        if (!old) return old
-        return old.map(item => item.id === draggedItem.id ? { ...item, status: targetColumn } : item)
+      queryClient.setQueryData(['work-items', 'kanban', search], (old: any) => {
+        if (!old || !old.data) return old
+        return {
+          ...old,
+          data: old.data.map((item: any) => item.id === draggedItem.id ? { ...item, status: targetColumn } : item)
+        }
       })
       updateStatusMutation.mutate({ id: draggedItem.id, status: targetColumn })
     }
