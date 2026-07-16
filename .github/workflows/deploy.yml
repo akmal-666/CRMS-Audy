@@ -92,7 +92,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build web app
-        run: pnpm --filter @crms/web build
+        run: pnpm --filter @crms/web build:cf
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
@@ -102,5 +102,5 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: crms-audy
-          directory: apps/web/.next
+          directory: apps/web/.vercel/output/static
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
