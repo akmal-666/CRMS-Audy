@@ -32,6 +32,10 @@ interface WorkItem {
   status: WorkflowStatus
   createdAt: string
   dueDate?: string
+  priority: string
+  requesterName: string
+  department?: { name: string }
+  vendor?: { name: string }
 }
 
 const STATUS_COLORS_HEX: Record<WorkflowStatus, string> = {

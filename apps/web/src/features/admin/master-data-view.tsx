@@ -7,7 +7,7 @@ import { Plus, Search, Edit2, Check, X, Loader2, Building2, GitBranch, Users2, T
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api'
 import { cn, exportToCSV } from '@/lib/utils'
 import { toast } from 'sonner'
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/context/auth-context'
 
 type MasterDataType = 'departments' | 'branches' | 'vendors'
 

@@ -1,11 +1,11 @@
 'use client'
 
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/context/auth-context'
 import { getInitials } from '@/lib/utils'
 import { LogOut, User, Shield, Mail, Key } from 'lucide-react'
 
 export default function ProfilePage() {
-  const { user, signOut } = useAuth()
+  const { user, logout } = useAuth()
 
   if (!user) {
     return (
@@ -81,7 +81,7 @@ export default function ProfilePage() {
 
         <div className="pt-6 border-t border-border">
           <button 
-            onClick={() => signOut()}
+            onClick={() => logout()}
             className="flex items-center gap-2 text-danger font-medium hover:text-danger/80 transition-colors"
           >
             <LogOut size={16} />
