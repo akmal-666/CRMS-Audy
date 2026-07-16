@@ -7,6 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 binding = "DB"
 database_name = "crms-db"
 database_id = "1e9c3b4c-8327-41f9-a02c-76367476214c"
+migrations_dir = "../../packages/db/migrations"
 
 [[kv_namespaces]]
 binding = "CACHE"
