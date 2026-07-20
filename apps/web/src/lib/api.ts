@@ -23,8 +23,11 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
+      const isAuthRequest = error.config?.url?.includes('/api/auth/me') || error.config?.url?.includes('/api/auth/login')
       localStorage.removeItem('crms_token')
-      if (window.location.pathname !== '/login') {
+      
+      // Only redirect if it's not an auth check, or if they are in a protected app route
+      if (!isAuthRequest && window.location.pathname !== '/login' && !window.location.pathname.startsWith('/submit') && !window.location.pathname.startsWith('/track')) {
         window.location.href = '/login'
       }
     }
