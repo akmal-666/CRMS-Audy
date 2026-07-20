@@ -76,7 +76,7 @@ app.delete('/branches/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR),
 })
 
 // Vendors
-app.get('/vendors', authMiddleware, async (c) => {
+app.get('/vendors', async (c) => {
   const db = c.get('db')
   const vendors = await db.query.vendors.findMany({ where: eq(schema.vendors.isActive, true) })
   return c.json(ok(vendors))
