@@ -85,6 +85,8 @@ app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
       name: data.requesterName,
       ticketNumber,
       title: data.title,
+      workItemId: id,
+      role: 'requester'
     })
 
     if (data.managerEmail) {
@@ -94,6 +96,8 @@ app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
         name: 'Manager',
         ticketNumber,
         title: `(Manager FYI) ${data.title}`,
+        workItemId: id,
+        role: 'manager'
       })
     }
   } catch { /* email queue optional */ }

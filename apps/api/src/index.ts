@@ -5,6 +5,9 @@ import { prettyJSON } from 'hono/pretty-json'
 import { secureHeaders } from 'hono/secure-headers'
 import type { Bindings, Variables } from './types'
 import { dbMiddleware } from './middleware/db'
+import { drizzle } from 'drizzle-orm/d1'
+import { schema } from '@crms/db'
+import { eq } from 'drizzle-orm'
 import { optionalAuthMiddleware } from './middleware/auth'
 import { err } from './lib/response'
 
@@ -98,6 +101,25 @@ async function sendConfirmationEmail(
     return
   }
 
+  // Small delay to allow frontend to upload attachments
+  await new Promise(r => setTimeout(r, 2000))
+
+  const db = drizzle(env.DB, { schema })
+  const workItemId = payload.workItemId as string
+  const role = payload.role as string
+
+  let details: any = null
+  if (workItemId) {
+    details = await db.query.workItems.findFirst({
+      where: eq(schema.workItems.id, workItemId),
+      with: {
+        department: true,
+        vendor: true,
+        attachments: true
+      }
+    })
+  }
+
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -112,6 +134,8 @@ async function sendConfirmationEmail(
         name: payload.name as string,
         ticketNumber: payload.ticketNumber as string,
         title: payload.title as string,
+        role,
+        details
       }),
     }),
   })
@@ -128,7 +152,26 @@ function buildConfirmationEmail(data: {
   name: string
   ticketNumber: string
   title: string
+  role?: string
+  details?: any
 }): string {
+  const d = data.details || {}
+  const department = d.department?.name || '-'
+  const vendor = d.vendor?.name || '-'
+  const priority = d.priority ? d.priority.toUpperCase() : '-'
+  const desc = d.problemDescription || '-'
+  const attachments = (d.attachments || [])
+    .map((a: any) => `<li><a href="${a.fileUrl}" style="color:#4F46E5;">${a.fileName}</a></li>`)
+    .join('')
+
+  const attachmentHtml = attachments 
+    ? `<ul style="margin:8px 0 0;padding-left:20px;font-size:13px;">${attachments}</ul>` 
+    : '<span style="color:#9CA3AF;font-size:13px;font-style:italic;">No attachments</span>'
+
+  const greeting = data.role === 'manager' 
+    ? `Your team member has submitted a new IT Request. Please review the details below.`
+    : `Your IT request has been received and is now in our queue. The IT team will review it shortly.`
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -140,7 +183,6 @@ function buildConfirmationEmail(data: {
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:40px 16px;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
-
         <!-- Header -->
         <tr>
           <td style="background:#4F46E5;border-radius:12px 12px 0 0;padding:28px 32px;text-align:center;">
@@ -153,10 +195,7 @@ function buildConfirmationEmail(data: {
         <tr>
           <td style="background:#fff;padding:32px;border:1px solid #E2E8F0;border-top:none;">
             <p style="margin:0 0 16px;color:#374151;font-size:15px;">Hi <strong>${data.name}</strong>,</p>
-            <p style="margin:0 0 24px;color:#6B7280;font-size:14px;line-height:1.6;">
-              Your IT request has been received and is now in our queue.
-              The IT team will review it shortly.
-            </p>
+            <p style="margin:0 0 24px;color:#6B7280;font-size:14px;line-height:1.6;">${greeting}</p>
 
             <!-- Ticket number -->
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
@@ -171,16 +210,38 @@ function buildConfirmationEmail(data: {
             <!-- Details -->
             <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:8px;margin-bottom:20px;">
               <tr style="background:#F9FAFB;">
-                <td style="padding:10px 16px;font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Request Details</td>
+                <td colspan="2" style="padding:10px 16px;font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;border-bottom:1px solid #E5E7EB;">Request Details</td>
               </tr>
               <tr>
-                <td style="padding:12px 16px;font-size:14px;color:#374151;border-bottom:1px solid #E5E7EB;">
-                  <strong>Title:</strong> ${data.title}
+                <td style="padding:12px 16px;font-size:13px;color:#6B7280;width:120px;border-bottom:1px solid #E5E7EB;">Requester</td>
+                <td style="padding:12px 16px;font-size:14px;color:#374151;font-weight:600;border-bottom:1px solid #E5E7EB;">${d.requesterName || '-'} <span style="font-weight:normal;color:#9CA3AF;">(${d.requesterEmail || '-'})</span></td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px;font-size:13px;color:#6B7280;border-bottom:1px solid #E5E7EB;">Department</td>
+                <td style="padding:12px 16px;font-size:14px;color:#374151;border-bottom:1px solid #E5E7EB;">${department}</td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px;font-size:13px;color:#6B7280;border-bottom:1px solid #E5E7EB;">Platform/Vendor</td>
+                <td style="padding:12px 16px;font-size:14px;color:#374151;border-bottom:1px solid #E5E7EB;">${vendor}</td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px;font-size:13px;color:#6B7280;border-bottom:1px solid #E5E7EB;">Title</td>
+                <td style="padding:12px 16px;font-size:14px;color:#374151;font-weight:600;border-bottom:1px solid #E5E7EB;">${data.title}</td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px;font-size:13px;color:#6B7280;border-bottom:1px solid #E5E7EB;">Priority</td>
+                <td style="padding:12px 16px;font-size:13px;border-bottom:1px solid #E5E7EB;"><span style="background:#FEF2F2;color:#DC2626;padding:2px 8px;border-radius:12px;font-weight:600;font-size:11px;">${priority}</span></td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding:12px 16px;font-size:14px;color:#374151;border-bottom:1px solid #E5E7EB;line-height:1.5;">
+                  <strong style="font-size:13px;color:#6B7280;display:block;margin-bottom:4px;">Description:</strong>
+                  ${desc}
                 </td>
               </tr>
               <tr>
-                <td style="padding:12px 16px;font-size:14px;color:#374151;">
-                  <strong>Status:</strong> <span style="color:#4F46E5;font-weight:600;">In Pipeline</span>
+                <td colspan="2" style="padding:12px 16px;font-size:14px;color:#374151;">
+                  <strong style="font-size:13px;color:#6B7280;display:block;margin-bottom:4px;">Attachments:</strong>
+                  ${attachmentHtml}
                 </td>
               </tr>
             </table>
@@ -194,13 +255,10 @@ function buildConfirmationEmail(data: {
         <!-- Footer -->
         <tr>
           <td style="background:#F9FAFB;border:1px solid #E2E8F0;border-top:none;border-radius:0 0 12px 12px;padding:16px 32px;text-align:center;">
-            <p style="margin:0;color:#9CA3AF;font-size:12px;">
-              Sent by <strong>CRMS</strong> — IT Change Request Management System
-            </p>
+            <p style="margin:0;color:#9CA3AF;font-size:12px;">Sent by <strong>CRMS</strong> — IT Change Request Management System</p>
             <p style="margin:4px 0 0;color:#D1D5DB;font-size:11px;">audydental.com</p>
           </td>
         </tr>
-
       </table>
     </td></tr>
   </table>
