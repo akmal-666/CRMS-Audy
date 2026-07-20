@@ -162,7 +162,7 @@ export function CalendarView() {
 
   return (
     <>
-      <div className="flex h-full -m-4 lg:-m-6 bg-background">
+      <div className="flex h-[calc(100vh-3.5rem)] -m-4 lg:-m-6 bg-background">
         {/* Left Sidebar (Google Calendar style) */}
         <div className="w-64 flex-shrink-0 border-r border-border flex flex-col">
           <div className="p-4 lg:p-6 pb-2 space-y-3">

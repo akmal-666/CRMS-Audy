@@ -308,6 +308,201 @@ app.put('/:id/assessment', authMiddleware, requireRole(UserRole.ADMINISTRATOR, U
     action: 'assessment_updated',
     description: 'Assessment updated',
     createdAt: new Date(),
+    }
+  })
+  
+  return c.json(ok(items))
+})
+
+// Get work items (authenticated)
+app.get('/', authMiddleware, async (c) => {
+  const db = c.get('db')
+  const { page = '1', pageSize = '20', search, status, priority, departmentId, assignee } = c.req.query()
+
+  const pageNum = parseInt(page)
+  const pageSizeNum = Math.min(parseInt(pageSize), 100)
+  const offset = (pageNum - 1) * pageSizeNum
+
+  const conditions = []
+  if (search) {
+    conditions.push(
+      sql`(${schema.workItems.ticketNumber} LIKE ${'%' + search + '%'} OR ${schema.workItems.title} LIKE ${'%' + search + '%'} OR ${schema.workItems.requesterName} LIKE ${'%' + search + '%'})`
+    )
+  }
+  if (status) conditions.push(eq(schema.workItems.status, status as any))
+  if (priority) conditions.push(eq(schema.workItems.priority, priority as any))
+  if (departmentId) conditions.push(eq(schema.workItems.departmentId, departmentId))
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined
+
+  const [items, totalResult] = await Promise.all([
+    db.query.workItems.findMany({
+      where,
+      limit: pageSizeNum,
+      offset,
+      orderBy: [desc(schema.workItems.createdAt)],
+      with: {
+        department: true,
+        manager: { columns: { id: true, name: true, avatarUrl: true } },
+        developer: { columns: { id: true, name: true, avatarUrl: true } },
+        vendor: { columns: { id: true, name: true } },
+      },
+    }),
+    db.select({ count: count() }).from(schema.workItems).where(where),
+  ])
+
+  const total = totalResult[0]?.count ?? 0
+  return c.json(paginate(items, total, pageNum, pageSizeNum))
+})
+
+// Get single work item
+app.get('/:id', authMiddleware, async (c) => {
+  const { id } = c.req.param()
+  const db = c.get('db')
+
+  const item = await db.query.workItems.findFirst({
+    where: eq(schema.workItems.id, id),
+    with: {
+      department: true,
+      manager: true,
+      businessAnalyst: true,
+      vendor: true,
+      developer: true,
+      qa: true,
+      assessment: true,
+      tasks: { with: { subtasks: true, assignee: true } },
+      comments: { with: { user: { columns: { id: true, name: true, avatarUrl: true, role: true } } }, orderBy: [desc(schema.comments.createdAt)] },
+      attachments: { with: { uploader: { columns: { id: true, name: true } } } },
+      activityLogs: { with: { user: { columns: { id: true, name: true, avatarUrl: true } } }, orderBy: [desc(schema.activityLogs.createdAt)] },
+      deployments: true,
+    },
+  })
+
+  if (!item) return c.json(err('Work item not found'), 404)
+  return c.json(ok(item))
+})
+
+// Update status
+const updateStatusSchema = z.object({
+  status: z.enum(['in_pipeline', 'assessment', 'development', 'uat', 'deployment', 'go_live', 'drop']),
+})
+
+app.patch('/:id/status', authMiddleware, requireRole(...STAFF_ROLES), zValidator('json', updateStatusSchema), async (c) => {
+  const { id } = c.req.param()
+  const { status } = c.req.valid('json')
+  const user = c.get('user')!
+  const db = c.get('db')
+
+  const item = await db.query.workItems.findFirst({ where: eq(schema.workItems.id, id) })
+  if (!item) return c.json(err('Work item not found'), 404)
+
+  const oldStatus = item.status
+  const goLiveDate = status === 'go_live' && oldStatus !== 'go_live' ? new Date() : undefined
+
+  await db.update(schema.workItems)
+    .set({ 
+      status: status as any, 
+      updatedAt: new Date(),
+      ...(goLiveDate && { goLiveDate })
+    })
+    .where(eq(schema.workItems.id, id))
+
+  await Promise.all([
+    db.insert(schema.activityLogs).values({
+      id: generateId(),
+      workItemId: id,
+      userId: user.sub,
+      action: 'status_changed',
+      description: `Status changed from ${oldStatus} to ${status}`,
+      metadata: { oldStatus, newStatus: status },
+      createdAt: new Date(),
+    }),
+    db.insert(schema.auditLogs).values({
+      id: generateId(),
+      userId: user.sub,
+      action: 'status_change',
+      entityType: 'work_item',
+      entityId: id,
+      oldValues: { status: oldStatus },
+      newValues: { status },
+      createdAt: new Date(),
+    }),
+  ])
+
+  return c.json(ok({ id, status }, 'Status updated'))
+})
+
+// Assign team
+const assignSchema = z.object({
+  managerId: z.string().optional().nullable(),
+  businessAnalystId: z.string().optional().nullable(),
+  vendorId: z.string().optional().nullable(),
+  developerId: z.string().optional().nullable(),
+  qaId: z.string().optional().nullable(),
+})
+
+app.patch('/:id/assign', authMiddleware, requireRole(...MANAGER_ROLES), zValidator('json', assignSchema), async (c) => {
+  const { id } = c.req.param()
+  const data = c.req.valid('json')
+  const user = c.get('user')!
+  const db = c.get('db')
+
+  await db.update(schema.workItems)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(schema.workItems.id, id))
+
+  await db.insert(schema.activityLogs).values({
+    id: generateId(),
+    workItemId: id,
+    userId: user.sub,
+    action: 'assigned',
+    description: 'Team assignment updated',
+    metadata: data,
+    createdAt: new Date(),
+  })
+
+  return c.json(ok(null, 'Assignment updated'))
+})
+
+// Update assessment
+const assessmentSchema = z.object({
+  estimatedManDays: z.number().positive().optional(),
+  estimatedHours: z.number().positive().optional(),
+  targetGoLive: z.string().datetime().optional(),
+  complexity: z.enum(['low', 'medium', 'high']).optional(),
+  risk: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+  impact: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+  technicalNotes: z.string().optional(),
+})
+
+app.put('/:id/assessment', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST, UserRole.VENDOR), zValidator('json', assessmentSchema), async (c) => {
+  const { id } = c.req.param()
+  const data = c.req.valid('json')
+  const user = c.get('user')!
+  const db = c.get('db')
+
+  const existing = await db.query.assessments.findFirst({ where: eq(schema.assessments.workItemId, id) })
+
+  if (existing) {
+    await db.update(schema.assessments).set({ ...data, targetGoLive: data.targetGoLive ? new Date(data.targetGoLive) : undefined, updatedAt: new Date() }).where(eq(schema.assessments.workItemId, id))
+  } else {
+    await db.insert(schema.assessments).values({
+      id: generateId(),
+      workItemId: id,
+      ...data,
+      targetGoLive: data.targetGoLive ? new Date(data.targetGoLive) : undefined,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+  }
+
+  await db.insert(schema.activityLogs).values({
+    id: generateId(),
+    workItemId: id,
+    userId: user.sub,
+    action: 'assessment_updated',
+    description: 'Assessment updated',
+    createdAt: new Date(),
   })
 
   return c.json(ok(null, 'Assessment updated'))
@@ -336,7 +531,7 @@ app.patch('/:id/mandays', authMiddleware, requireRole(...STAFF_ROLES), zValidato
   await db.insert(schema.auditLogs).values({
     id: generateId(),
     userId: user.sub,
-    action: 'update_mandays',
+    action: 'update',
     entityType: 'work_item',
     entityId: id,
     oldValues: { mandays: oldMandays },
