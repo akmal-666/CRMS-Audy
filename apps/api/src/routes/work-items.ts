@@ -105,13 +105,17 @@ app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
   return c.json(ok({ ticketNumber, id }, 'Request submitted successfully'), 201)
 })
 
-// Public: Track requests by email
-app.get('/public/track', zValidator('query', z.object({ email: z.string().email() })), async (c) => {
-  const { email } = c.req.valid('query')
+// Public: Track requests by email or ticket number
+app.get('/public/track', zValidator('query', z.object({ query: z.string().min(3) })), async (c) => {
+  const { query } = c.req.valid('query')
   const db = c.get('db')
   
+  const isEmail = query.includes('@')
+  
   const items = await db.query.workItems.findMany({
-    where: eq(schema.workItems.requesterEmail, email),
+    where: isEmail 
+      ? eq(schema.workItems.requesterEmail, query)
+      : like(schema.workItems.ticketNumber, `%${query}%`),
     orderBy: [desc(schema.workItems.createdAt)],
     with: {
       department: true,

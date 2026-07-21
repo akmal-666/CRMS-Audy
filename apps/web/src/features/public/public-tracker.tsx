@@ -28,22 +28,22 @@ const localizer = dateFnsLocalizer({
 })
 
 export function PublicTracker() {
-  const [email, setEmail] = useState('')
-  const [submittedEmail, setSubmittedEmail] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [submittedQuery, setSubmittedQuery] = useState('')
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
 
   const { data: items, isLoading, error } = useQuery({
-    queryKey: ['public-track', submittedEmail],
-    queryFn: () => apiGet<any[]>('/api/work-items/public/track', { email: submittedEmail }),
-    enabled: !!submittedEmail,
+    queryKey: ['public-track', submittedQuery],
+    queryFn: () => apiGet<any[]>('/api/work-items/public/track', { query: submittedQuery }),
+    enabled: !!submittedQuery,
     select: (res) => res.data ?? [],
     retry: false
   })
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim() || !email.includes('@')) return
-    setSubmittedEmail(email.trim())
+    if (!searchQuery.trim() || searchQuery.trim().length < 3) return
+    setSubmittedQuery(searchQuery.trim())
   }
 
   const events = (items ?? []).map(item => ({
@@ -79,7 +79,7 @@ export function PublicTracker() {
     }
   }
 
-  if (!submittedEmail) {
+  if (!submittedQuery) {
     return (
       <div className="max-w-xl mx-auto">
         <div className="text-center mb-8">
@@ -88,20 +88,20 @@ export function PublicTracker() {
           </div>
           <h1 className="text-2xl font-bold text-foreground">Track My Request</h1>
           <p className="text-muted-foreground mt-2 text-sm">
-            Enter your email address to view the status of all IT requests you have submitted.
+            Enter your email address or Ticket ID to view the status of your IT requests.
           </p>
         </div>
 
         <form onSubmit={handleSearch} className="card p-6 md:p-8 space-y-6">
           <div>
-            <label className="label">Email Address</label>
+            <label className="label">Email Address or Ticket ID</label>
             <input 
-              type="email"
+              type="text"
               required
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
               className="input text-lg py-3" 
-              placeholder="e.g. john@company.com" 
+              placeholder="e.g. john@company.com or CR-2026-000001" 
             />
           </div>
           <button type="submit" className="btn-primary w-full py-3 text-sm font-medium">
@@ -120,13 +120,13 @@ export function PublicTracker() {
       <div className="flex items-center justify-between">
         <div>
           <button 
-            onClick={() => setSubmittedEmail('')}
+            onClick={() => setSubmittedQuery('')}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-2 transition-colors"
           >
             <ArrowLeft size={14} /> Back to Search
           </button>
           <h1 className="text-2xl font-bold text-foreground">My Requests</h1>
-          <p className="text-sm text-muted-foreground">Showing requests for <span className="font-medium text-foreground">{submittedEmail}</span></p>
+          <p className="text-sm text-muted-foreground">Showing requests for <span className="font-medium text-foreground">{submittedQuery}</span></p>
         </div>
         
         <div className="flex bg-muted p-1 rounded-lg">
@@ -159,7 +159,7 @@ export function PublicTracker() {
             <Search className="w-8 h-8 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">No Requests Found</h3>
-          <p className="text-muted-foreground text-sm">We couldn&apos;t find any requests associated with {submittedEmail}.</p>
+          <p className="text-muted-foreground text-sm">We couldn&apos;t find any requests associated with <strong>{submittedQuery}</strong>.</p>
         </div>
       ) : (
         <AnimatePresence mode="wait">
