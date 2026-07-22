@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
+    "build:pages": "cd apps/web && npm run build",
     "lint": "turbo lint",
     "type-check": "turbo type-check",
     "db:generate": "turbo db:generate",

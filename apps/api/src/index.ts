@@ -75,18 +75,26 @@ export default {
 
   // Cloudflare Queue consumer — sends emails via Resend
   async queue(batch: MessageBatch, env: Bindings): Promise<void> {
+    console.log(`[EMAIL QUEUE] Processing batch with ${batch.messages.length} messages`)
+    
     for (const message of batch.messages) {
       try {
         const payload = message.body as Record<string, unknown>
-        console.log('Processing email:', payload.type)
+        console.log('[EMAIL QUEUE] Processing email:', {
+          type: payload.type,
+          to: payload.to,
+          ticketNumber: payload.ticketNumber
+        })
 
         if (payload.type === 'confirmation') {
           await sendConfirmationEmail(env, payload)
         }
 
         message.ack()
+        console.log('[EMAIL QUEUE] Message acknowledged successfully')
       } catch (err) {
-        console.error('Email queue error:', err)
+        console.error('[EMAIL QUEUE] Error processing message:', err)
+        console.error('[EMAIL QUEUE] Message payload:', message.body)
         message.retry()
       }
     }
@@ -98,18 +106,23 @@ async function sendConfirmationEmail(
   env: Bindings,
   payload: Record<string, unknown>
 ): Promise<void> {
+  console.log('[RESEND] Starting email send process')
+  console.log('[RESEND] RESEND_API_KEY present:', !!env.RESEND_API_KEY)
+  
   if (!env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set — skipping email')
-    return
+    console.error('[RESEND] ❌ RESEND_API_KEY not set — email cannot be sent')
+    throw new Error('RESEND_API_KEY is not configured')
   }
 
   // Small delay to allow frontend to upload attachments
+  console.log('[RESEND] Waiting 2s for attachment uploads...')
   await new Promise(r => setTimeout(r, 2000))
 
   const db = drizzle(env.DB, { schema })
   const workItemId = payload.workItemId as string
   const role = payload.role as string
 
+  console.log('[RESEND] Fetching work item details:', workItemId)
   let details: any = null
   if (workItemId) {
     details = await db.query.workItems.findFirst({
@@ -120,7 +133,27 @@ async function sendConfirmationEmail(
         attachments: true
       }
     })
+    console.log('[RESEND] Work item found:', !!details)
   }
+
+  const emailPayload = {
+    from: 'CRMS Audy Dental <noreply@audydental.com>',
+    to: [payload.to as string],
+    subject: `[${payload.ticketNumber}] IT Request Submitted Successfully`,
+    html: buildConfirmationEmail({
+      name: payload.name as string,
+      ticketNumber: payload.ticketNumber as string,
+      title: payload.title as string,
+      role,
+      details
+    }),
+  }
+
+  console.log('[RESEND] Sending email via Resend API:', {
+    from: emailPayload.from,
+    to: emailPayload.to,
+    subject: emailPayload.subject
+  })
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -128,26 +161,19 @@ async function sendConfirmationEmail(
       Authorization: `Bearer ${env.RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      from: 'CRMS Audy Dental <noreply@audydental.com>',
-      to: [payload.to as string],
-      subject: `[${payload.ticketNumber}] IT Request Submitted Successfully`,
-      html: buildConfirmationEmail({
-        name: payload.name as string,
-        ticketNumber: payload.ticketNumber as string,
-        title: payload.title as string,
-        role,
-        details
-      }),
-    }),
+    body: JSON.stringify(emailPayload),
   })
 
+  const responseText = await res.text()
+  console.log('[RESEND] Response status:', res.status)
+  console.log('[RESEND] Response body:', responseText)
+
   if (!res.ok) {
-    const errText = await res.text()
-    throw new Error(`Resend error ${res.status}: ${errText}`)
+    console.error(`[RESEND] ❌ Failed to send email: ${res.status} ${responseText}`)
+    throw new Error(`Resend API error ${res.status}: ${responseText}`)
   }
 
-  console.log(`✅ Email sent to ${payload.to} — ${payload.ticketNumber}`)
+  console.log(`[RESEND] ✅ Email sent successfully to ${payload.to} — ${payload.ticketNumber}`)
 }
 
 function buildConfirmationEmail(data: {
