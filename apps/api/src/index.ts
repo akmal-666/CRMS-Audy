@@ -32,7 +32,6 @@ app.use('*', cors({
     const allowedOrigins = [
       'https://crms-audy.pages.dev',
       'https://it.audydental.com',
-      'https://it.audydental.com/submit',
       'https://crms.pages.dev',
       'https://request.crms.pages.dev',
       'http://localhost:3000',
