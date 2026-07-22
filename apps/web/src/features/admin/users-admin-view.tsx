@@ -57,7 +57,7 @@ export function UsersAdminView() {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<CreateUserForm>({
     resolver: zodResolver(createUserSchema),
-    defaultValues: { role: UserRole.REQUESTER },
+    defaultValues: { role: UserRole.BUSINESS_USER },
   })
 
   const createUser = useMutation({

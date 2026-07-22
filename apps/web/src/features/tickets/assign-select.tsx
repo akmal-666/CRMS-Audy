@@ -16,7 +16,7 @@ interface User {
 interface AssignSelectProps {
   workItemId: string
   label: string
-  field: 'managerId' | 'developerId' | 'businessAnalystId' | 'qaId'
+  field: 'managerId' | 'businessAnalystId'
   currentUser?: { id: string; name: string }
   canEdit: boolean
 }
