@@ -112,6 +112,36 @@ app.get('/me', authMiddleware, async (c) => {
 })
 
 // ─── Forgot Password ──────────────────────────────────────────────────────────
+// DEBUG: temporary endpoint to verify Resend config - REMOVE AFTER TESTING
+app.get('/test-email', async (c) => {
+  const hasKey = !!c.env.RESEND_API_KEY
+  const keyPrefix = hasKey ? c.env.RESEND_API_KEY.substring(0, 8) + '...' : 'NOT SET'
+  const appUrl = c.env.APP_URL || 'NOT SET'
+  
+  if (!hasKey) {
+    return c.json({ hasKey, keyPrefix, appUrl, emailSent: false, error: 'RESEND_API_KEY not configured' })
+  }
+
+  try {
+    const emailRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${c.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'CRMS Test <onboarding@resend.dev>',
+        to: ['delivered@resend.dev'], // Resend's test address
+        subject: 'CRMS Email Config Test',
+        html: '<p>Email config is working!</p>',
+      }),
+    })
+    const body = await emailRes.text()
+    return c.json({ hasKey, keyPrefix, appUrl, emailSent: emailRes.ok, status: emailRes.status, resendResponse: body })
+  } catch (err: any) {
+    return c.json({ hasKey, keyPrefix, appUrl, emailSent: false, error: err?.message })
+  }
+})
 app.post('/forgot-password', zValidator('json', z.object({ email: z.string().email() })), async (c) => {
   const { email } = c.req.valid('json')
   const db = c.get('db')
@@ -135,28 +165,33 @@ app.post('/forgot-password', zValidator('json', z.object({ email: z.string().ema
 
   // Send reset email via Resend
   if (c.env.RESEND_API_KEY) {
-    const emailRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${c.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'CRMS Audy Dental <onboarding@resend.dev>',
-        to: [user.email],
-        subject: 'Reset Your CRMS Password',
-        html: buildPasswordResetEmail({ name: user.name, resetUrl }),
-      }),
-    })
+    try {
+      const emailRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${c.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'CRMS Audy Dental <onboarding@resend.dev>',
+          to: [user.email],
+          subject: 'Reset Your CRMS Password',
+          html: buildPasswordResetEmail({ name: user.name, resetUrl }),
+        }),
+      })
 
-    if (!emailRes.ok) {
-      const errText = await emailRes.text()
-      console.error(`[forgot-password] Resend error ${emailRes.status}: ${errText}`)
-    } else {
-      console.log(`[forgot-password] Reset email sent to ${user.email}`)
+      const responseText = await emailRes.text()
+      if (!emailRes.ok) {
+        console.error(`[forgot-password] Resend error ${emailRes.status}: ${responseText}`)
+        // Still return success to user — don't expose internal error
+      } else {
+        console.log(`[forgot-password] Email sent OK to ${user.email}. Resend response: ${responseText}`)
+      }
+    } catch (emailErr) {
+      console.error(`[forgot-password] Fetch to Resend failed:`, emailErr)
     }
   } else {
-    console.warn('[forgot-password] RESEND_API_KEY not set — email not sent. Reset URL:', resetUrl)
+    console.warn(`[forgot-password] RESEND_API_KEY not configured. Reset URL: ${resetUrl}`)
   }
 
   return c.json(ok(null, 'If that email exists, a reset link has been sent.'))
