@@ -173,7 +173,7 @@ app.post('/forgot-password', zValidator('json', z.object({ email: z.string().ema
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: 'CRMS Audy Dental <onboarding@resend.dev>',
+          from: 'CRMS Audy Dental <noreply@audydental.com>',
           to: [user.email],
           subject: 'Reset Your CRMS Password',
           html: buildPasswordResetEmail({ name: user.name, resetUrl }),
