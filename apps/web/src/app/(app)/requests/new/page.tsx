@@ -14,9 +14,8 @@ export default function NewRequestRoute() {
           <p className="text-sm text-muted-foreground mt-0.5">Submit a new IT change request</p>
         </div>
         <Link
-          href="/BRD-Template.html"
-          target="_blank"
-          download="BRD-Template.html"
+          href="/Template BRD.docx"
+          download="Template BRD.docx"
           className="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card hover:bg-muted transition-colors text-sm font-medium text-foreground"
         >
           <FileDown size={15} className="text-primary" />
