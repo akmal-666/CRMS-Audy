@@ -26,7 +26,6 @@ max_batch_timeout = 5
 [vars]
 ENVIRONMENT = "production"
 APP_URL = "https://it.audydental.com"
-PUBLIC_URL = "https://it.audydental.com/submit"
 B2_ENDPOINT = "https://s3.us-east-005.backblazeb2.com"
 B2_BUCKET_NAME = "crms-attachments"
 B2_REGION = "us-east-005"
