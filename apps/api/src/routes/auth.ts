@@ -135,7 +135,7 @@ app.post('/forgot-password', zValidator('json', z.object({ email: z.string().ema
 
   // Send reset email via Resend
   if (c.env.RESEND_API_KEY) {
-    await fetch('https://api.resend.com/emails', {
+    const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${c.env.RESEND_API_KEY}`,
@@ -148,6 +148,15 @@ app.post('/forgot-password', zValidator('json', z.object({ email: z.string().ema
         html: buildPasswordResetEmail({ name: user.name, resetUrl }),
       }),
     })
+
+    if (!emailRes.ok) {
+      const errText = await emailRes.text()
+      console.error(`[forgot-password] Resend error ${emailRes.status}: ${errText}`)
+    } else {
+      console.log(`[forgot-password] Reset email sent to ${user.email}`)
+    }
+  } else {
+    console.warn('[forgot-password] RESEND_API_KEY not set — email not sent. Reset URL:', resetUrl)
   }
 
   return c.json(ok(null, 'If that email exists, a reset link has been sent.'))
