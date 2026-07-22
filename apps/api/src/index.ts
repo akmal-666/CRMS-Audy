@@ -129,7 +129,7 @@ async function sendConfirmationEmail(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'CRMS <noreply@audydental.com>',
+      from: 'CRMS Audy Dental <onboarding@resend.dev>',
       to: [payload.to as string],
       subject: `[${payload.ticketNumber}] IT Request Submitted Successfully`,
       html: buildConfirmationEmail({
