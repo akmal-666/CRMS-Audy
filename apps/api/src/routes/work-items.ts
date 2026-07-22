@@ -130,6 +130,7 @@ app.get('/public/track', zValidator('query', z.object({ query: z.string().min(3)
 // Get work items (authenticated)
 app.get('/', authMiddleware, async (c) => {
   const db = c.get('db')
+  const user = c.get('user')!
   const { page = '1', pageSize = '20', search, status, priority, departmentId, assignee } = c.req.query()
 
   const pageNum = parseInt(page)
@@ -137,6 +138,12 @@ app.get('/', authMiddleware, async (c) => {
   const offset = (pageNum - 1) * pageSizeNum
 
   const conditions: any[] = []
+
+  // business_user can only see their own requests (matched by email)
+  if (user.role === UserRole.BUSINESS_USER) {
+    conditions.push(eq(schema.workItems.requesterEmail, user.email))
+  }
+
   if (search) {
     conditions.push(
       sql`(${schema.workItems.ticketNumber} LIKE ${'%' + search + '%'} OR ${schema.workItems.title} LIKE ${'%' + search + '%'} OR ${schema.workItems.requesterName} LIKE ${'%' + search + '%'})`
@@ -171,6 +178,7 @@ app.get('/', authMiddleware, async (c) => {
 // Get single work item
 app.get('/:id', authMiddleware, async (c) => {
   const { id } = c.req.param()
+  const user = c.get('user')!
   const db = c.get('db')
 
   const item = await db.query.workItems.findFirst({
@@ -192,6 +200,12 @@ app.get('/:id', authMiddleware, async (c) => {
   })
 
   if (!item) return c.json(err('Work item not found'), 404)
+
+  // business_user can only access their own requests
+  if (user.role === UserRole.BUSINESS_USER && item.requesterEmail !== user.email) {
+    return c.json(err('Work item not found'), 404)
+  }
+
   return c.json(ok(item))
 })
 
