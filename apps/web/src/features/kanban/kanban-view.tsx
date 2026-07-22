@@ -1,7 +1,5 @@
 'use client'
 
-import Link from 'next/link'
-
 import { useState, useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -15,7 +13,7 @@ import {
   closestCenter,
 } from '@dnd-kit/core'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Filter, Search, Download } from 'lucide-react'
+import { Filter, Search, Download } from 'lucide-react'
 import { apiGet, apiPatch } from '@/lib/api'
 import { WorkflowStatus } from '@crms/types'
 import { STATUS_LABELS, STATUS_DOT_COLORS, cn, exportToCSV } from '@/lib/utils'
@@ -159,13 +157,6 @@ export function KanbanView() {
               <Filter size={13} />
               Filter
             </button>
-
-            {!isReadOnly && (
-              <Link href="/requests/new" className="btn-primary flex items-center gap-1.5 text-xs py-1.5">
-                <Plus size={13} />
-                <span className="hidden sm:inline">New Request</span>
-              </Link>
-            )}
           </div>
         </div>
 

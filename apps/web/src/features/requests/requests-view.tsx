@@ -1,7 +1,5 @@
 'use client'
 
-import Link from 'next/link'
-
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -12,12 +10,11 @@ import {
   type ColumnDef,
 } from '@tanstack/react-table'
 import { motion } from 'framer-motion'
-import { Search, Filter, Plus, ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { Search, Filter, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 import { WorkflowStatus, Priority } from '@crms/types'
 import { STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, cn, exportToCSV } from '@/lib/utils'
 import { TicketDetailDrawer } from '../tickets/ticket-detail-drawer'
-import { useAuth } from '@/context/auth-context'
 
 interface WorkItem {
   id: string
@@ -40,8 +37,6 @@ export function RequestsView() {
   const [statusFilter, setStatusFilter] = useState('')
   const [priorityFilter, setPriorityFilter] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const { user } = useAuth()
-  const isReadOnly = user?.role === 'business_user'
 
   const { data, isLoading } = useQuery({
     queryKey: ['work-items', 'list', page, search, statusFilter, priorityFilter],
@@ -134,12 +129,6 @@ export function RequestsView() {
             >
               <Download size={14} /> Export
             </button>
-            {!isReadOnly && (
-              <Link href="/requests/new" className="btn-primary flex items-center gap-1.5 text-sm">
-                <Plus size={15} />
-                New Request
-              </Link>
-            )}
           </div>
         </div>
 

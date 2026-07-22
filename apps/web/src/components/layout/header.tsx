@@ -1,6 +1,6 @@
 'use client'
 
-import { Menu, PanelLeftClose, PanelLeft, Bell, Search, Plus, Moon, Sun } from 'lucide-react'
+import { Menu, PanelLeftClose, PanelLeft, Bell, Search, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useAuth } from '@/context/auth-context'
 import { getInitials, cn } from '@/lib/utils'
@@ -50,12 +50,6 @@ export function Header({ onMenuClick, onCollapseToggle, sidebarCollapsed }: Head
         </button>
 
         <div className="ml-auto flex items-center gap-1.5">
-          {/* New request */}
-          <Link href="/requests/new" className="hidden sm:flex btn-primary items-center gap-1.5 text-xs">
-            <Plus size={14} />
-            New Request
-          </Link>
-
           {/* Theme toggle */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
