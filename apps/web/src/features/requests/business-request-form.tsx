@@ -33,6 +33,7 @@ export function BusinessRequestForm() {
   const { user } = useAuth()
   const [ticketNumber, setTicketNumber] = useState<string | null>(null)
   const [files, setFiles] = useState<File[]>([])
+  const [attachmentError, setAttachmentError] = useState<string | null>(null)
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(requestSchema),
@@ -57,11 +58,16 @@ export function BusinessRequestForm() {
 
   const submit = useMutation({
     mutationFn: async (data: FormData) => {
+      // Validate attachment is required
+      if (files.length === 0) {
+        throw new Error('ATTACHMENT_REQUIRED')
+      }
+
       // Submit ticket via the public submit endpoint (same form, now authenticated)
       const res = await apiPost<{ ticketNumber: string; id: string }>('/api/work-items/public/submit', data)
 
-      // Upload attachments if any
-      if (files.length > 0 && res.data?.id) {
+      // Upload attachments
+      if (res.data?.id) {
         const formData = new globalThis.FormData()
         files.forEach(f => formData.append('files', f))
         formData.append('guestName', data.requesterName)
@@ -72,9 +78,16 @@ export function BusinessRequestForm() {
     },
     onSuccess: (res) => {
       setTicketNumber(res.data?.ticketNumber ?? 'N/A')
+      setAttachmentError(null)
       toast.success('Request submitted successfully')
     },
-    onError: () => toast.error('Failed to submit request. Please try again.'),
+    onError: (err: any) => {
+      if (err?.message === 'ATTACHMENT_REQUIRED') {
+        setAttachmentError('Please attach at least one file before submitting.')
+      } else {
+        toast.error('Failed to submit request. Please try again.')
+      }
+    },
   })
 
   if (ticketNumber) {
@@ -229,10 +242,18 @@ export function BusinessRequestForm() {
         </div>
       </div>
 
-      {/* Attachments */}
+      {/* Attachments — mandatory */}
       <div>
-        <label className="label">Attachments (Optional)</label>
-        <FileUpload autoUpload={false} onChange={setFiles} />
+        <label className="label">
+          Attachments*
+          <span className="text-xs text-muted-foreground font-normal ml-1">(at least 1 file required)</span>
+        </label>
+        <FileUpload autoUpload={false} onChange={(f) => { setFiles(f); if (f.length > 0) setAttachmentError(null) }} />
+        {attachmentError && (
+          <p className="text-xs text-danger mt-1.5 flex items-center gap-1">
+            {attachmentError}
+          </p>
+        )}
       </div>
 
       {/* Actions */}
