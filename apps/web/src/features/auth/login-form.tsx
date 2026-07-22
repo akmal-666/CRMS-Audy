@@ -77,19 +77,6 @@ export function LoginForm() {
         {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
         {isSubmitting ? 'Signing in...' : 'Sign in'}
       </button>
-
-      <div className="relative my-4">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="bg-background px-2 text-muted-foreground">No account needed to submit a request</span>
-        </div>
-      </div>
-
-      <a href="/submit" className="btn-secondary w-full text-center block py-2.5 text-sm">
-        Submit a Request (Public)
-      </a>
     </form>
   )
 }

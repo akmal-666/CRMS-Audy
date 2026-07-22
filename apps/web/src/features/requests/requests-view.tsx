@@ -17,6 +17,7 @@ import { apiGet } from '@/lib/api'
 import { WorkflowStatus, Priority } from '@crms/types'
 import { STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, cn, exportToCSV } from '@/lib/utils'
 import { TicketDetailDrawer } from '../tickets/ticket-detail-drawer'
+import { useAuth } from '@/context/auth-context'
 
 interface WorkItem {
   id: string
@@ -39,6 +40,8 @@ export function RequestsView() {
   const [statusFilter, setStatusFilter] = useState('')
   const [priorityFilter, setPriorityFilter] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const { user } = useAuth()
+  const isReadOnly = user?.role === 'business_user'
 
   const { data, isLoading } = useQuery({
     queryKey: ['work-items', 'list', page, search, statusFilter, priorityFilter],
@@ -131,10 +134,12 @@ export function RequestsView() {
             >
               <Download size={14} /> Export
             </button>
-            <Link href="/requests/new" className="btn-primary flex items-center gap-1.5 text-sm">
-              <Plus size={15} />
-              New Request
-            </Link>
+            {!isReadOnly && (
+              <Link href="/requests/new" className="btn-primary flex items-center gap-1.5 text-sm">
+                <Plus size={15} />
+                New Request
+              </Link>
+            )}
           </div>
         </div>
 

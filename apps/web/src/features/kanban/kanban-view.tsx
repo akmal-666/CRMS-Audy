@@ -23,6 +23,7 @@ import { KanbanColumn } from './kanban-column'
 import { KanbanCard } from './kanban-card'
 import { TicketDetailDrawer } from '../tickets/ticket-detail-drawer'
 import { toast } from 'sonner'
+import { useAuth } from '@/context/auth-context'
 
 const COLUMNS = [
   WorkflowStatus.IN_PIPELINE,
@@ -56,6 +57,8 @@ export function KanbanView() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isReadOnly = user?.role === 'business_user'
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -89,10 +92,12 @@ export function KanbanView() {
   const activeItem = activeId ? workItems.find(i => i.id === activeId) : null
 
   function handleDragStart(event: DragStartEvent) {
+    if (isReadOnly) return
     setActiveId(event.active.id as string)
   }
 
   function handleDragEnd(event: DragEndEvent) {
+    if (isReadOnly) return
     const { active, over } = event
     setActiveId(null)
     if (!over) return
@@ -155,10 +160,12 @@ export function KanbanView() {
               Filter
             </button>
 
-            <Link href="/requests/new" className="btn-primary flex items-center gap-1.5 text-xs py-1.5">
-              <Plus size={13} />
-              <span className="hidden sm:inline">New Request</span>
-            </Link>
+            {!isReadOnly && (
+              <Link href="/requests/new" className="btn-primary flex items-center gap-1.5 text-xs py-1.5">
+                <Plus size={13} />
+                <span className="hidden sm:inline">New Request</span>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -178,6 +185,7 @@ export function KanbanView() {
                   items={getColumnItems(status)}
                   isLoading={isLoading}
                   onCardClick={(id) => setSelectedItemId(id)}
+                  isReadOnly={isReadOnly}
                 />
               ))}
 

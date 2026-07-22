@@ -18,6 +18,7 @@ export enum Priority {
 export enum UserRole {
   GUEST = 'guest',
   REQUESTER = 'requester',
+  BUSINESS_USER = 'business_user',
   MANAGER = 'manager',
   BUSINESS_ANALYST = 'business_analyst',
   VENDOR = 'vendor',

@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Kanban, ListChecks, Users, Building2,
   GitBranch, Package, Settings, ChevronDown, ChevronRight,
-  Sparkles, Bell, FileText, BarChart3, Shield, X, Calendar
+  Sparkles, Bell, FileText, BarChart3, Shield, X, Calendar,
+  PlusCircle,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { useAuth } from '@/context/auth-context'
@@ -21,12 +22,15 @@ interface NavItem {
   roles?: string[]
 }
 
-const navItems: NavItem[] = [
+// All nav items with optional role restrictions
+const allNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard size={16} /> },
   { label: 'Kanban Board', href: '/kanban', icon: <Kanban size={16} /> },
   { label: 'Calendar', href: '/requests/calendar', icon: <Calendar size={16} /> },
   { label: 'All Requests', href: '/requests', icon: <ListChecks size={16} /> },
-  { label: 'Reports', href: '/reports', icon: <BarChart3 size={16} /> },
+  // New Request is only for business_user (other roles use the button in-page)
+  { label: 'New Request', href: '/requests/new', icon: <PlusCircle size={16} />, roles: ['business_user'] },
+  { label: 'Reports', href: '/reports', icon: <BarChart3 size={16} />, roles: ['administrator', 'manager', 'business_analyst'] },
   { label: 'Notifications', href: '/notifications', icon: <Bell size={16} /> },
 ]
 
@@ -50,6 +54,19 @@ export function Sidebar({ collapsed, mobileOpen, onMobileClose }: SidebarProps) 
   const { user } = useAuth()
   const [adminExpanded, setAdminExpanded] = useState(false)
   const isAdmin = user?.role === 'administrator' || user?.role === 'manager'
+  const isBusinessUser = user?.role === 'business_user'
+
+  // Filter nav items based on role
+  const navItems = allNavItems.filter(item => {
+    if (!item.roles) return true // visible to all
+    if (!user) return false
+    return item.roles.includes(user.role)
+  })
+
+  // For business_user, only show: Kanban, Calendar, All Requests, New Request, Notifications
+  const filteredNavItems = isBusinessUser
+    ? navItems.filter(item => ['/kanban', '/requests/calendar', '/requests', '/requests/new', '/notifications'].includes(item.href ?? ''))
+    : navItems
 
   return (
     <>
@@ -67,6 +84,8 @@ export function Sidebar({ collapsed, mobileOpen, onMobileClose }: SidebarProps) 
           adminExpanded={adminExpanded}
           setAdminExpanded={setAdminExpanded}
           isAdmin={isAdmin}
+          isBusinessUser={isBusinessUser}
+          navItems={filteredNavItems}
         />
       </aside>
 
@@ -93,6 +112,8 @@ export function Sidebar({ collapsed, mobileOpen, onMobileClose }: SidebarProps) 
               adminExpanded={adminExpanded}
               setAdminExpanded={setAdminExpanded}
               isAdmin={isAdmin}
+              isBusinessUser={isBusinessUser}
+              navItems={filteredNavItems}
               onItemClick={onMobileClose}
             />
           </motion.aside>
@@ -122,7 +143,7 @@ function Logo({ collapsed }: { collapsed: boolean }) {
 }
 
 function SidebarContent({
-  collapsed, pathname, user, adminExpanded, setAdminExpanded, isAdmin, onItemClick
+  collapsed, pathname, user, adminExpanded, setAdminExpanded, isAdmin, isBusinessUser, navItems, onItemClick
 }: {
   collapsed: boolean
   pathname: string
@@ -130,6 +151,8 @@ function SidebarContent({
   adminExpanded: boolean
   setAdminExpanded: (v: boolean) => void
   isAdmin: boolean
+  isBusinessUser: boolean
+  navItems: NavItem[]
   onItemClick?: () => void
 }) {
   return (
@@ -140,9 +163,18 @@ function SidebarContent({
       <nav className="flex-1 px-2 pb-4 overflow-y-auto scrollbar-hide">
         <div className="space-y-0.5">
           {navItems.map((item) => {
-            const isReqDetail = item.href === '/requests' && pathname.startsWith('/requests/') && pathname !== '/requests/calendar'
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && item.href !== '/requests' && pathname.startsWith(item.href!)) || isReqDetail
-            return <NavLink key={item.href} item={item} collapsed={collapsed} isActive={isActive} onClick={onItemClick} />
+            const isReqDetail = item.href === '/requests' && pathname.startsWith('/requests/') && pathname !== '/requests/calendar' && pathname !== '/requests/new'
+            const isActive = pathname === item.href || (item.href !== '/dashboard' && item.href !== '/requests' && item.href !== '/requests/new' && pathname.startsWith(item.href!)) || isReqDetail
+            return (
+              <NavLink
+                key={item.href}
+                item={item}
+                collapsed={collapsed}
+                isActive={isActive}
+                onClick={onItemClick}
+                highlight={item.href === '/requests/new'}
+              />
+            )
           })}
         </div>
 
@@ -187,7 +219,7 @@ function SidebarContent({
           {!collapsed && user && (
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-white truncate">{user.name}</p>
-              <p className="text-xs text-white/40 truncate capitalize">{user.role.replace('_', ' ')}</p>
+              <p className="text-xs text-white/40 truncate capitalize">{user.role.replace(/_/g, ' ')}</p>
             </div>
           )}
         </Link>
@@ -196,11 +228,12 @@ function SidebarContent({
   )
 }
 
-function NavLink({ item, collapsed, isActive, onClick }: {
+function NavLink({ item, collapsed, isActive, onClick, highlight }: {
   item: NavItem
   collapsed: boolean
   isActive: boolean
   onClick?: () => void
+  highlight?: boolean
 }) {
   return (
     <Link
@@ -211,7 +244,9 @@ function NavLink({ item, collapsed, isActive, onClick }: {
         collapsed ? 'justify-center px-2' : '',
         isActive
           ? 'bg-primary text-white shadow-sm shadow-primary/30'
-          : 'text-white/50 hover:text-white hover:bg-white/5'
+          : highlight
+            ? 'text-primary/90 hover:text-white hover:bg-primary/20 border border-primary/20'
+            : 'text-white/50 hover:text-white hover:bg-white/5'
       )}
       title={collapsed ? item.label : undefined}
     >

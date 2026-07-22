@@ -23,6 +23,7 @@ export const MANAGER_ROLES = [UserRole.ADMINISTRATOR, UserRole.MANAGER]
 export const STAFF_ROLES = [
   UserRole.ADMINISTRATOR,
   UserRole.MANAGER,
+  UserRole.BUSINESS_USER,
   UserRole.BUSINESS_ANALYST,
   UserRole.DEVELOPER,
   UserRole.QA,

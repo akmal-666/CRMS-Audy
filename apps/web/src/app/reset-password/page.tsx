@@ -1,9 +1,10 @@
 import { Metadata } from 'next'
-import { LoginForm } from '@/features/auth/login-form'
+import { Suspense } from 'react'
+import { ResetPasswordForm } from '@/features/auth/reset-password-form'
 
-export const metadata: Metadata = { title: 'Sign In | CRMS' }
+export const metadata: Metadata = { title: 'Reset Password | CRMS' }
 
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left panel */}
@@ -20,20 +21,6 @@ export default function LoginPage() {
           <p className="text-white/50 text-base leading-relaxed">
             Centralize all IT change requests with full lifecycle management, Kanban tracking, and real-time collaboration.
           </p>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mt-10">
-            {[
-              { label: 'Tracking', value: 'Real-Time' },
-              { label: 'Management', value: 'Centralized' },
-              { label: 'Process', value: 'Auditable' },
-            ].map(stat => (
-              <div key={stat.label} className="p-4 rounded-xl bg-white/5 border border-white/10">
-                <div className="text-2xl font-bold text-white">{stat.value}</div>
-                <div className="text-xs text-white/40 mt-0.5">{stat.label}</div>
-              </div>
-            ))}
-          </div>
         </div>
 
         <p className="text-white/20 text-xs">© 2026 CRMS. Enterprise Change Request Management.</p>
@@ -46,10 +33,15 @@ export default function LoginPage() {
             <div className="lg:hidden flex items-center gap-2 mb-6">
               <img src="/audy-logo.svg" alt="Audy Dental" className="h-12 w-auto bg-white rounded-lg px-2 py-1" />
             </div>
-            <h2 className="text-2xl font-semibold text-foreground">Welcome back</h2>
-            <p className="text-muted-foreground text-sm mt-1">Sign in to your account</p>
+            <h2 className="text-2xl font-semibold text-foreground">Set new password</h2>
+            <p className="text-muted-foreground text-sm mt-1">
+              Choose a strong password for your account.
+            </p>
           </div>
-          <LoginForm />
+          {/* Suspense required because ResetPasswordForm uses useSearchParams */}
+          <Suspense fallback={<div className="h-40 animate-pulse bg-muted rounded-xl" />}>
+            <ResetPasswordForm />
+          </Suspense>
         </div>
       </div>
     </div>

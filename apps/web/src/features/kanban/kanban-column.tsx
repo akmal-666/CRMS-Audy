@@ -37,9 +37,10 @@ interface KanbanColumnProps {
   items: WorkItem[]
   isLoading: boolean
   onCardClick: (id: string) => void
+  isReadOnly?: boolean
 }
 
-export function KanbanColumn({ status, items, isLoading, onCardClick }: KanbanColumnProps) {
+export function KanbanColumn({ status, items, isLoading, onCardClick, isReadOnly }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
 
   return (
@@ -55,9 +56,11 @@ export function KanbanColumn({ status, items, isLoading, onCardClick }: KanbanCo
             {items.length}
           </span>
         </div>
-        <button className="p-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-          <Plus size={14} />
-        </button>
+        {!isReadOnly && (
+          <button className="p-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+            <Plus size={14} />
+          </button>
+        )}
       </div>
 
       {/* Drop zone */}
@@ -73,7 +76,7 @@ export function KanbanColumn({ status, items, isLoading, onCardClick }: KanbanCo
             {isLoading
               ? [...Array(2)].map((_, i) => <KanbanCardSkeleton key={i} />)
               : items.map((item) => (
-                  <KanbanCard key={item.id} item={item} onClick={() => onCardClick(item.id)} />
+                  <KanbanCard key={item.id} item={item} onClick={() => onCardClick(item.id)} isReadOnly={isReadOnly} />
                 ))
             }
           </AnimatePresence>

@@ -8,7 +8,7 @@ export const users = sqliteTable('users', {
   name: text('name').notNull(),
   passwordHash: text('password_hash').notNull(),
   role: text('role', {
-    enum: ['guest','requester','manager','business_analyst','vendor','developer','qa','uat_user','administrator'],
+    enum: ['guest','requester','business_user','manager','business_analyst','vendor','developer','qa','uat_user','administrator'],
   }).notNull().default('requester'),
   departmentId: text('department_id').references(() => departments.id),
   branchId: text('branch_id').references(() => branches.id),

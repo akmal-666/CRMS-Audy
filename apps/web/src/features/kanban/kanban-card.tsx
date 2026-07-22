@@ -26,9 +26,10 @@ interface KanbanCardProps {
   item: WorkItem
   isDragging?: boolean
   onClick?: () => void
+  isReadOnly?: boolean
 }
 
-export function KanbanCard({ item, isDragging, onClick }: KanbanCardProps) {
+export function KanbanCard({ item, isDragging, onClick, isReadOnly }: KanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -36,7 +37,7 @@ export function KanbanCard({ item, isDragging, onClick }: KanbanCardProps) {
     transform,
     transition,
     isDragging: isSortableDragging,
-  } = useSortable({ id: item.id })
+  } = useSortable({ id: item.id, disabled: isReadOnly })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -52,12 +53,13 @@ export function KanbanCard({ item, isDragging, onClick }: KanbanCardProps) {
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
+      {...(isReadOnly ? {} : listeners)}
       onClick={onClick}
       className={cn(
         'kanban-card group select-none border-l-[3px]',
         STATUS_BORDER_COLORS[item.status as WorkflowStatus],
         isDragging && 'rotate-1 scale-105 shadow-soft-lg',
+        isReadOnly ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing',
       )}
     >
       {/* Ticket number + priority */}

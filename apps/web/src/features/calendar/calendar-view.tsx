@@ -12,6 +12,7 @@ import { WorkflowStatus } from '@crms/types'
 import { TicketDetailDrawer } from '../tickets/ticket-detail-drawer'
 import { Plus, ChevronLeft, ChevronRight, Check, Download } from 'lucide-react'
 import Link from 'next/link'
+import { useAuth } from '@/context/auth-context'
 
 const locales = {
   'en-US': enUS,
@@ -55,6 +56,8 @@ export function CalendarView() {
   )
   const [view, setView] = useState<View>('month')
   const [date, setDate] = useState(new Date())
+  const { user } = useAuth()
+  const isReadOnly = user?.role === 'business_user'
 
   const { data, isLoading } = useQuery({
     queryKey: ['work-items', 'calendar'],
@@ -166,13 +169,15 @@ export function CalendarView() {
         {/* Left Sidebar (Google Calendar style) */}
         <div className="w-64 flex-shrink-0 border-r border-border flex flex-col">
           <div className="p-4 lg:p-6 pb-2 space-y-3">
-            <Link 
-              href="/requests/new" 
-              className="flex items-center gap-2 px-4 py-3 bg-card border border-border shadow-sm rounded-full hover:shadow-md transition-shadow text-foreground w-max font-medium text-sm"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" className="text-primary mr-1"><path fill="currentColor" d="M20 13h-7v7h-2v-7H4v-2h7V4h2v7h7v2z"></path></svg>
-              Create
-            </Link>
+            {!isReadOnly && (
+              <Link
+                href="/requests/new"
+                className="flex items-center gap-2 px-4 py-3 bg-card border border-border shadow-sm rounded-full hover:shadow-md transition-shadow text-foreground w-max font-medium text-sm"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" className="text-primary mr-1"><path fill="currentColor" d="M20 13h-7v7h-2v-7H4v-2h7V4h2v7h7v2z"></path></svg>
+                Create
+              </Link>
+            )}
             <button
               onClick={() => exportToCSV(workItems.map(i => ({
                 ID: i.ticketNumber, Title: i.title, Status: STATUS_LABELS[i.status as WorkflowStatus], Priority: i.priority,
