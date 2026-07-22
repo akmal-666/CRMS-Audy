@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import Image from 'next/image'
 import { ForgotPasswordForm } from '@/features/auth/forgot-password-form'
 
 export const metadata: Metadata = { title: 'Forgot Password | CRMS' }
@@ -9,7 +10,9 @@ export default function ForgotPasswordPage() {
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#0F0F23] flex-col justify-between p-10">
         <div className="flex items-center gap-2.5">
-          <img src="/audy-logo.svg" alt="Audy Dental" className="h-20 w-auto bg-white rounded-xl px-3 py-2" />
+          <div className="bg-white rounded-xl px-3 py-2">
+            <Image src="/audy-logo.svg" alt="Audy Dental" width={140} height={80} />
+          </div>
         </div>
 
         <div>
@@ -30,11 +33,13 @@ export default function ForgotPasswordPage() {
         <div className="w-full max-w-sm">
           <div className="mb-8">
             <div className="lg:hidden flex items-center gap-2 mb-6">
-              <img src="/audy-logo.svg" alt="Audy Dental" className="h-12 w-auto bg-white rounded-lg px-2 py-1" />
+              <div className="bg-white rounded-lg px-2 py-1">
+                <Image src="/audy-logo.svg" alt="Audy Dental" width={100} height={48} />
+              </div>
             </div>
             <h2 className="text-2xl font-semibold text-foreground">Forgot password?</h2>
             <p className="text-muted-foreground text-sm mt-1">
-              Enter your email and we'll send you a reset link.
+              Enter your email and we&apos;ll send you a reset link.
             </p>
           </div>
           <ForgotPasswordForm />

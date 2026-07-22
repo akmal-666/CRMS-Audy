@@ -44,11 +44,11 @@ export function ForgotPasswordForm() {
         <div>
           <h3 className="text-lg font-semibold text-foreground">Check your email</h3>
           <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-            If <strong>{submittedEmail}</strong> is registered, you'll receive a password reset link within a few minutes.
+            If <strong>{submittedEmail}</strong> is registered, you&apos;ll receive a password reset link within a few minutes.
           </p>
         </div>
         <p className="text-xs text-muted-foreground">
-          Didn't receive it? Check your spam folder or{' '}
+          Didn&apos;t receive it? Check your spam folder or{' '}
           <button
             onClick={() => setSubmitted(false)}
             className="text-primary hover:underline font-medium"
