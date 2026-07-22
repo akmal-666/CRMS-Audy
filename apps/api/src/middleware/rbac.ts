@@ -25,8 +25,5 @@ export const STAFF_ROLES = [
   UserRole.MANAGER,
   UserRole.BUSINESS_USER,
   UserRole.BUSINESS_ANALYST,
-  UserRole.DEVELOPER,
-  UserRole.QA,
   UserRole.VENDOR,
-  UserRole.UAT_USER,
 ]

@@ -17,11 +17,7 @@ const ROLE_LABELS: Record<string, string> = {
   manager: 'Manager',
   business_user: 'Business User',
   business_analyst: 'Business Analyst',
-  developer: 'Developer',
-  qa: 'QA',
-  uat_user: 'UAT User',
   vendor: 'Vendor',
-  requester: 'Requester',
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -29,11 +25,7 @@ const ROLE_COLORS: Record<string, string> = {
   manager: 'bg-purple-100 text-purple-700',
   business_user: 'bg-emerald-100 text-emerald-700',
   business_analyst: 'bg-blue-100 text-blue-700',
-  developer: 'bg-violet-100 text-violet-700',
-  qa: 'bg-amber-100 text-amber-700',
-  uat_user: 'bg-orange-100 text-orange-700',
   vendor: 'bg-cyan-100 text-cyan-700',
-  requester: 'bg-slate-100 text-slate-600',
 }
 
 const createUserSchema = z.object({

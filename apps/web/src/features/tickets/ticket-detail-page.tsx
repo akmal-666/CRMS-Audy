@@ -64,7 +64,7 @@ export function TicketDetailPage({ id }: { id: string }) {
     </div>
   )
 
-  const canChangeStatus = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST, UserRole.DEVELOPER, UserRole.QA].includes(user.role as UserRole)
+  const canChangeStatus = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
   const canEditAssessment = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST, UserRole.VENDOR].includes(user.role as UserRole)
   const allowedTransitions = WORKFLOW_TRANSITIONS[item.status] ?? []
 
@@ -193,9 +193,7 @@ export function TicketDetailPage({ id }: { id: string }) {
             <h3 className="text-sm font-semibold text-foreground">Team</h3>
             <div className="space-y-4">
               <AssignSelect workItemId={id} label="Manager" field="managerId" currentUser={item.manager} canEdit={canEditAssignment} />
-              <AssignSelect workItemId={id} label="Developer" field="developerId" currentUser={item.developer} canEdit={canEditAssignment} />
               <AssignSelect workItemId={id} label="Business Analyst" field="businessAnalystId" currentUser={item.businessAnalyst} canEdit={canEditAssignment} />
-              <AssignSelect workItemId={id} label="QA" field="qaId" currentUser={item.qa} canEdit={canEditAssignment} />
               {item.vendor && <AssigneeItem label="Platform / Vendor" user={item.vendor} />}
               <MandaysEdit workItemId={id} currentValue={item.mandays} canEdit={canEditAssignment} />
             </div>
