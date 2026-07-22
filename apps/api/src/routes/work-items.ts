@@ -369,4 +369,46 @@ app.patch('/:id/mandays', authMiddleware, requireRole(...STAFF_ROLES), zValidato
   return c.json(ok({ id, mandays }, 'Mandays updated'))
 })
 
+// Delete work item (Administrator only)
+app.delete('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), async (c) => {
+  const { id } = c.req.param()
+  const user = c.get('user')!
+  const db = c.get('db')
+
+  // Check if work item exists
+  const item = await db.query.workItems.findFirst({ where: eq(schema.workItems.id, id) })
+  if (!item) return c.json(err('Work item not found'), 404)
+
+  // Store info for audit log before deletion
+  const ticketNumber = item.ticketNumber
+  const title = item.title
+
+  // Delete related records first (cascade)
+  await Promise.all([
+    db.delete(schema.comments).where(eq(schema.comments.workItemId, id)),
+    db.delete(schema.attachments).where(eq(schema.attachments.workItemId, id)),
+    db.delete(schema.activityLogs).where(eq(schema.activityLogs.workItemId, id)),
+    db.delete(schema.tasks).where(eq(schema.tasks.workItemId, id)),
+    db.delete(schema.assessments).where(eq(schema.assessments.workItemId, id)),
+    db.delete(schema.deployments).where(eq(schema.deployments.workItemId, id)),
+  ])
+
+  // Delete the work item
+  await db.delete(schema.workItems).where(eq(schema.workItems.id, id))
+
+  // Audit log
+  await db.insert(schema.auditLogs).values({
+    id: generateId(),
+    userId: user.sub,
+    action: 'delete',
+    entityType: 'work_item',
+    entityId: id,
+    oldValues: { ticketNumber, title },
+    newValues: null,
+    createdAt: new Date(),
+  })
+
+  return c.json(ok(null, 'Work item deleted successfully'))
+})
+
 export default app

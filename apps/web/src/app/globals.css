@@ -105,6 +105,19 @@
     color: hsl(var(--foreground));
   }
 
+  .btn-danger {
+    @apply px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+           focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: #DC2626;
+    color: #FFFFFF;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background-color: #B91C1C;
+  }
+  .btn-danger:focus {
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.3);
+  }
+
   .input {
     @apply w-full px-3 py-2 rounded-lg text-sm transition-all duration-150;
     border: 1px solid hsl(var(--border));

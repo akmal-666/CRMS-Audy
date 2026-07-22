@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   useReactTable,
   getCoreRowModel,
@@ -10,11 +10,13 @@ import {
   type ColumnDef,
 } from '@tanstack/react-table'
 import { motion } from 'framer-motion'
-import { Search, Filter, ChevronLeft, ChevronRight, Download } from 'lucide-react'
-import { apiGet } from '@/lib/api'
+import { Search, Filter, ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react'
+import { apiGet, apiDelete } from '@/lib/api'
 import { WorkflowStatus, Priority } from '@crms/types'
 import { STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, cn, exportToCSV } from '@/lib/utils'
 import { TicketDetailDrawer } from '../tickets/ticket-detail-drawer'
+import { useAuth } from '@/context/auth-context'
+import { toast } from 'sonner'
 
 interface WorkItem {
   id: string
@@ -32,11 +34,16 @@ interface WorkItem {
 const columnHelper = createColumnHelper<WorkItem>()
 
 export function RequestsView() {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [priorityFilter, setPriorityFilter] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+
+  const isAdmin = user?.role === 'administrator'
 
   const { data, isLoading } = useQuery({
     queryKey: ['work-items', 'list', page, search, statusFilter, priorityFilter],
@@ -50,6 +57,27 @@ export function RequestsView() {
 
   const items = (data?.data as WorkItem[]) ?? []
   const pagination = data?.pagination
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiDelete(`/api/work-items/${id}`),
+    onSuccess: () => {
+      toast.success('Request deleted successfully')
+      queryClient.invalidateQueries({ queryKey: ['work-items'] })
+      setDeleteConfirm(null)
+    },
+    onError: () => {
+      toast.error('Failed to delete request')
+    },
+  })
+
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setDeleteConfirm(id)
+  }
+
+  const confirmDelete = (id: string) => {
+    deleteMutation.mutate(id)
+  }
 
   const columns: ColumnDef<WorkItem, any>[] = [
     columnHelper.accessor('ticketNumber', {
@@ -103,6 +131,25 @@ export function RequestsView() {
       cell: info => <span className="text-sm text-muted-foreground">{formatDate(info.getValue())}</span>,
     }),
   ]
+
+  // Add delete action column for administrators
+  if (isAdmin) {
+    columns.push(
+      columnHelper.display({
+        id: 'actions',
+        header: 'Actions',
+        cell: info => (
+          <button
+            onClick={(e) => handleDelete(info.row.original.id, e)}
+            className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive hover:text-destructive transition-colors"
+            title="Delete request"
+          >
+            <Trash2 size={14} />
+          </button>
+        ),
+      })
+    )
+  }
 
   const table = useReactTable({
     data: items,
@@ -249,6 +296,56 @@ export function RequestsView() {
       </div>
 
       <TicketDetailDrawer itemId={selectedId} onClose={() => setSelectedId(null)} />
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setDeleteConfirm(null)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={e => e.stopPropagation()}
+            className="bg-card border border-border rounded-xl p-6 max-w-md w-full shadow-xl"
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-destructive/10">
+                <Trash2 size={20} className="text-destructive" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-semibold text-foreground">Delete Request</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Are you sure you want to delete this request? This action cannot be undone. All related data (comments, attachments, activity logs) will be permanently deleted.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deleteMutation.isPending}
+                className="btn-ghost px-4 py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => confirmDelete(deleteConfirm)}
+                disabled={deleteMutation.isPending}
+                className="btn-danger px-4 py-2 text-sm flex items-center gap-2"
+              >
+                {deleteMutation.isPending ? (
+                  <>
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={14} />
+                    Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </>
   )
 }
