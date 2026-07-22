@@ -18,6 +18,7 @@ import { apiGet, apiPatch } from '@/lib/api'
 import { WorkflowStatus } from '@crms/types'
 import { STATUS_LABELS, STATUS_DOT_COLORS, cn, exportToCSV } from '@/lib/utils'
 import { KanbanColumn } from './kanban-column'
+import { KanbanGroupedColumn } from './kanban-grouped-column'
 import { KanbanCard } from './kanban-card'
 import { TicketDetailDrawer } from '../tickets/ticket-detail-drawer'
 import { toast } from 'sonner'
@@ -41,7 +42,7 @@ interface WorkItem {
   priority: string
   requesterName: string
   departmentId: string
-  department?: { name: string }
+  department?: { id: string; name: string }
   dueDate?: string
   manager?: { id: string; name: string; avatarUrl?: string }
   developer?: { id: string; name: string; avatarUrl?: string }
@@ -169,16 +170,33 @@ export function KanbanView() {
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
-              {COLUMNS.map(status => (
-                <KanbanColumn
-                  key={status}
-                  status={status}
-                  items={getColumnItems(status)}
-                  isLoading={isLoading}
-                  onCardClick={(id) => setSelectedItemId(id)}
-                  isReadOnly={isReadOnly}
-                />
-              ))}
+              {COLUMNS.map(status => {
+                // Use grouped column for Go Live and Drop
+                if (status === WorkflowStatus.GO_LIVE || status === WorkflowStatus.DROP) {
+                  return (
+                    <KanbanGroupedColumn
+                      key={status}
+                      status={status}
+                      items={getColumnItems(status)}
+                      isLoading={isLoading}
+                      onCardClick={(id) => setSelectedItemId(id)}
+                      isReadOnly={isReadOnly}
+                    />
+                  )
+                }
+                
+                // Use regular column for other statuses
+                return (
+                  <KanbanColumn
+                    key={status}
+                    status={status}
+                    items={getColumnItems(status)}
+                    isLoading={isLoading}
+                    onCardClick={(id) => setSelectedItemId(id)}
+                    isReadOnly={isReadOnly}
+                  />
+                )
+              })}
 
               <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }}>
                 {activeItem && (
