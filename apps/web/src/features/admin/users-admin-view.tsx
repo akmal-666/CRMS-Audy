@@ -248,7 +248,7 @@ export function UsersAdminView() {
                 <X size={18} />
               </button>
             </div>
-            <EditUserFormComponent user={editUser} departments={departments} onSave={(data: any) => updateUser.mutate({ id: editUser.id, data })} onCancel={() => setEditUser(null)} isLoading={updateUser.isPending} />
+            <EditUserFormComponent user={editUser} departments={departments || []} onSave={(data: any) => updateUser.mutate({ id: editUser.id, data })} onCancel={() => setEditUser(null)} isLoading={updateUser.isPending} />
           </motion.div>
         </div>
       )}
