@@ -14,7 +14,6 @@ import { useAuth } from '@/context/auth-context'
 import { ActivityTimeline } from './activity-timeline'
 import { CommentSection } from './comment-section'
 import { AssessmentPanel } from './assessment-panel'
-import { StatusAgingSummary } from './status-aging-summary'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { useState } from 'react'
@@ -162,14 +161,6 @@ export function TicketDetailPage({ id }: { id: string }) {
             </motion.div>
           )}
 
-          {/* Status Aging Summary */}
-          <StatusAgingSummary 
-            logs={item.activityLogs ?? []}
-            currentStatus={item.status}
-            createdAt={item.createdAt}
-            goLiveDate={item.goLiveDate}
-          />
-
           {/* Comments */}
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card">
             <CommentSection workItemId={id} comments={item.comments ?? []} />
@@ -177,7 +168,12 @@ export function TicketDetailPage({ id }: { id: string }) {
 
           {/* Activity */}
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card">
-            <ActivityTimeline logs={item.activityLogs ?? []} />
+            <ActivityTimeline 
+              logs={item.activityLogs ?? []}
+              currentStatus={item.status}
+              createdAt={item.createdAt}
+              goLiveDate={item.goLiveDate}
+            />
           </motion.div>
         </div>
 

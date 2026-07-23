@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { Clock, User2, MessageSquare, FileUp, ArrowRight, GitMerge } from 'lucide-react'
 import { timeAgo, getInitials, cn } from '@/lib/utils'
+import { StatusAgingSummaryInline } from './status-aging-summary-inline'
 
 interface ActivityLog {
   id: string
@@ -35,45 +36,59 @@ const ACTION_COLORS: Record<string, string> = {
 
 interface ActivityTimelineProps {
   logs: ActivityLog[]
+  currentStatus: string
+  createdAt: string
+  goLiveDate?: string
 }
 
-export function ActivityTimeline({ logs }: ActivityTimelineProps) {
+export function ActivityTimeline({ logs, currentStatus, createdAt, goLiveDate }: ActivityTimelineProps) {
   if (logs.length === 0) return null
 
   return (
-    <div>
-      <h4 className="text-sm font-semibold text-foreground mb-3">Activity Timeline</h4>
-      <div className="relative">
-        {/* Line */}
-        <div className="absolute left-3.5 top-0 bottom-0 w-px bg-border" />
+    <div className="space-y-6">
+      <div>
+        <h4 className="text-sm font-semibold text-foreground mb-3">Activity Timeline</h4>
+        
+        {/* Status Aging Summary */}
+        <StatusAgingSummaryInline 
+          logs={logs}
+          currentStatus={currentStatus}
+          createdAt={createdAt}
+          goLiveDate={goLiveDate}
+        />
+        
+        <div className="relative mt-6">
+          {/* Line */}
+          <div className="absolute left-3.5 top-0 bottom-0 w-px bg-border" />
 
-        <div className="space-y-3">
-          {logs.map((log, i) => {
-            const actorName = log.user?.name || log.guestName || 'System'
-            const icon = ACTION_ICONS[log.action] ?? <Clock size={12} />
-            const color = ACTION_COLORS[log.action] ?? 'bg-muted text-muted-foreground'
+          <div className="space-y-3">
+            {logs.map((log, i) => {
+              const actorName = log.user?.name || log.guestName || 'System'
+              const icon = ACTION_ICONS[log.action] ?? <Clock size={12} />
+              const color = ACTION_COLORS[log.action] ?? 'bg-muted text-muted-foreground'
 
-            return (
-              <motion.div
-                key={log.id}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.02 }}
-                className="flex gap-3 pl-1"
-              >
-                <div className={cn('w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 z-10 mt-0.5', color)}>
-                  {icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-1.5 flex-wrap">
-                    <span className="text-xs font-medium text-foreground">{actorName}</span>
-                    <span className="text-xs text-muted-foreground">{log.description}</span>
+              return (
+                <motion.div
+                  key={log.id}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.02 }}
+                  className="flex gap-3 pl-1"
+                >
+                  <div className={cn('w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 z-10 mt-0.5', color)}>
+                    {icon}
                   </div>
-                  <span className="text-xs text-muted-foreground/60">{timeAgo(log.createdAt)}</span>
-                </div>
-              </motion.div>
-            )
-          })}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-1.5 flex-wrap">
+                      <span className="text-xs font-medium text-foreground">{actorName}</span>
+                      <span className="text-xs text-muted-foreground">{log.description}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground/60">{timeAgo(log.createdAt)}</span>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
