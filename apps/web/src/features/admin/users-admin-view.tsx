@@ -327,12 +327,12 @@ function EditUserFormComponent({ user, departments, onSave, onCancel, isLoading 
     <form onSubmit={handleSubmit(onSave)} className="space-y-4">
       <div>
         <label className="label">Full Name</label>
-        <input {...register('name', { required: 'Name is required', minLength: 2 })} className="input" />
+        <input {...register('name')} className="input" />
         {errors.name && <p className="text-xs text-danger mt-1">{errors.name.message as string}</p>}
       </div>
       <div>
         <label className="label">Email</label>
-        <input {...register('email', { required: 'Email is required' })} type="email" className="input" />
+        <input {...register('email')} type="email" className="input" />
         {errors.email && <p className="text-xs text-danger mt-1">{errors.email.message as string}</p>}
       </div>
       <div>
@@ -352,6 +352,7 @@ function EditUserFormComponent({ user, departments, onSave, onCancel, isLoading 
         <label className="label">New Password (optional)</label>
         <input {...register('password')} type="password" className="input" placeholder="Leave empty to keep current" />
         <p className="text-xs text-muted-foreground mt-1">Only fill if you want to change the password</p>
+        {errors.password && <p className="text-xs text-danger mt-1">{errors.password.message as string}</p>}
       </div>
       <div className="flex gap-2 justify-end pt-2">
         <button type="button" onClick={onCancel} disabled={isLoading} className="btn-ghost px-4 py-2 text-sm">
