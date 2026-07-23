@@ -36,7 +36,16 @@ const createUserSchema = z.object({
   departmentId: z.string().optional(),
 })
 
+const editUserSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().optional(),
+  role: z.nativeEnum(UserRole),
+  departmentId: z.string().optional(),
+})
+
 type CreateUserForm = z.infer<typeof createUserSchema>
+type EditUserForm = z.infer<typeof editUserSchema>
 
 export function UsersAdminView() {
   const [search, setSearch] = useState('')
@@ -239,7 +248,7 @@ export function UsersAdminView() {
                 <X size={18} />
               </button>
             </div>
-            <EditUserForm user={editUser} departments={departments} onSave={(data) => updateUser.mutate({ id: editUser.id, data })} onCancel={() => setEditUser(null)} isLoading={updateUser.isPending} />
+            <EditUserFormComponent user={editUser} departments={departments} onSave={(data: any) => updateUser.mutate({ id: editUser.id, data })} onCancel={() => setEditUser(null)} isLoading={updateUser.isPending} />
           </motion.div>
         </div>
       )}
@@ -294,13 +303,23 @@ export function UsersAdminView() {
 }
 
 // Edit User Form Component
-function EditUserForm({ user, departments, onSave, onCancel, isLoading }: any) {
-  const { register, handleSubmit, formState: { errors } } = useForm({
+interface EditUserFormProps {
+  user: any
+  departments: any[]
+  onSave: (data: EditUserForm) => void
+  onCancel: () => void
+  isLoading: boolean
+}
+
+function EditUserFormComponent({ user, departments, onSave, onCancel, isLoading }: EditUserFormProps) {
+  const { register, handleSubmit, formState: { errors } } = useForm<EditUserForm>({
+    resolver: zodResolver(editUserSchema),
     defaultValues: {
       name: user.name,
       email: user.email,
       role: user.role,
       departmentId: user.departmentId || '',
+      password: '',
     },
   })
 
