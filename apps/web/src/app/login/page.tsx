@@ -1,5 +1,4 @@
 import { Metadata } from 'next'
-import Image from 'next/image'
 import { LoginForm } from '@/features/auth/login-form'
 
 export const metadata: Metadata = { title: 'Sign In | CRMS' }
@@ -10,9 +9,7 @@ export default function LoginPage() {
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#0F0F23] flex-col justify-between p-10">
         <div className="flex items-center gap-2.5">
-          <div className="bg-white rounded-xl px-3 py-2">
-            <Image src="/audy-logo.svg" alt="Audy Dental" width={140} height={80} />
-          </div>
+          {/* Logo removed */}
         </div>
 
         <div>
@@ -46,11 +43,6 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-6 bg-background">
         <div className="w-full max-w-sm">
           <div className="mb-8">
-            <div className="lg:hidden flex items-center gap-2 mb-6">
-              <div className="bg-white rounded-lg px-2 py-1">
-                <Image src="/audy-logo.svg" alt="Audy Dental" width={100} height={48} />
-              </div>
-            </div>
             <h2 className="text-2xl font-semibold text-foreground">Welcome back</h2>
             <p className="text-muted-foreground text-sm mt-1">Sign in to your account</p>
           </div>
