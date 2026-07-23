@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Plus, Search, Edit2, UserX, ShieldCheck, Loader2, Trash2, X } from 'lucide-react'
+import { Plus, Search, Edit2, UserX, ShieldCheck, Loader2, Trash2, X, UserCheck } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -88,6 +88,14 @@ export function UsersAdminView() {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       toast.success('User deactivated')
       setDeleteConfirm(null)
+    },
+  })
+
+  const reactivate = useMutation({
+    mutationFn: (id: string) => apiPatch(`/api/users/${id}`, { isActive: true }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      toast.success('User reactivated')
     },
   })
 
@@ -215,13 +223,22 @@ export function UsersAdminView() {
                     >
                       <Edit2 size={14} />
                     </button>
-                    {user.isActive && (
+                    {user.isActive ? (
                       <button 
                         onClick={() => setDeleteConfirm(user.id)} 
                         className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-danger" 
                         title="Deactivate user"
                       >
                         <UserX size={14} />
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => reactivate.mutate(user.id)} 
+                        className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-success" 
+                        title="Reactivate user"
+                        disabled={reactivate.isPending}
+                      >
+                        <UserCheck size={14} />
                       </button>
                     )}
                   </div>
