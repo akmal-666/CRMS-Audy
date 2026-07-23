@@ -74,6 +74,16 @@ app.patch('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), async (c)
   const body = await c.req.json()
   const db = c.get('db')
 
+  // If password is provided, hash it
+  if (body.password && body.password.length > 0) {
+    const bcrypt = await import('bcryptjs')
+    body.passwordHash = await bcrypt.hash(body.password, 12)
+    delete body.password
+  } else {
+    // Remove password field if empty
+    delete body.password
+  }
+
   await db.update(schema.users).set({ ...body, updatedAt: new Date() }).where(eq(schema.users.id, id))
   return c.json(ok(null, 'User updated'))
 })

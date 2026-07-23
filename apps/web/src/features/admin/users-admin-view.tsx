@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Plus, Search, Edit2, UserX, ShieldCheck, Loader2 } from 'lucide-react'
+import { Plus, Search, Edit2, UserX, ShieldCheck, Loader2, Trash2, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -41,6 +41,8 @@ type CreateUserForm = z.infer<typeof createUserSchema>
 export function UsersAdminView() {
   const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [editUser, setEditUser] = useState<any | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery({
@@ -76,7 +78,18 @@ export function UsersAdminView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       toast.success('User deactivated')
+      setDeleteConfirm(null)
     },
+  })
+
+  const updateUser = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateUserForm> }) => apiPatch(`/api/users/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      toast.success('User updated')
+      setEditUser(null)
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to update'),
   })
 
   const users: any[] = Array.isArray(data) ? data : []
@@ -185,11 +198,24 @@ export function UsersAdminView() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {user.isActive && (
-                    <button onClick={() => deactivate.mutate(user.id)} className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-danger" title="Deactivate">
-                      <UserX size={14} />
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => setEditUser(user)} 
+                      className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-primary" 
+                      title="Edit user"
+                    >
+                      <Edit2 size={14} />
                     </button>
-                  )}
+                    {user.isActive && (
+                      <button 
+                        onClick={() => setDeleteConfirm(user.id)} 
+                        className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-danger" 
+                        title="Deactivate user"
+                      >
+                        <UserX size={14} />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </motion.tr>
             ))}
@@ -197,6 +223,126 @@ export function UsersAdminView() {
         </table>
         {!isLoading && users.length === 0 && <p className="text-center py-8 text-sm text-muted-foreground">No users found</p>}
       </div>
+
+      {/* Edit Modal */}
+      {editUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditUser(null)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={e => e.stopPropagation()}
+            className="bg-card border border-border rounded-xl p-6 max-w-lg w-full shadow-xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-foreground">Edit User</h3>
+              <button onClick={() => setEditUser(null)} className="p-1 rounded hover:bg-muted transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <EditUserForm user={editUser} departments={departments} onSave={(data) => updateUser.mutate({ id: editUser.id, data })} onCancel={() => setEditUser(null)} isLoading={updateUser.isPending} />
+          </motion.div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setDeleteConfirm(null)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={e => e.stopPropagation()}
+            className="bg-card border border-border rounded-xl p-6 max-w-md w-full shadow-xl"
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-destructive/10">
+                <UserX size={20} className="text-destructive" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-semibold text-foreground">Deactivate User</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Are you sure you want to deactivate this user? They will no longer be able to access the system.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setDeleteConfirm(null)} disabled={deactivate.isPending} className="btn-ghost px-4 py-2 text-sm">
+                Cancel
+              </button>
+              <button
+                onClick={() => deactivate.mutate(deleteConfirm)}
+                disabled={deactivate.isPending}
+                className="btn-danger px-4 py-2 text-sm flex items-center gap-2"
+              >
+                {deactivate.isPending ? (
+                  <>
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Deactivating...
+                  </>
+                ) : (
+                  <>
+                    <UserX size={14} />
+                    Deactivate
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
+  )
+}
+
+// Edit User Form Component
+function EditUserForm({ user, departments, onSave, onCancel, isLoading }: any) {
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    defaultValues: {
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      departmentId: user.departmentId || '',
+    },
+  })
+
+  return (
+    <form onSubmit={handleSubmit(onSave)} className="space-y-4">
+      <div>
+        <label className="label">Full Name</label>
+        <input {...register('name', { required: 'Name is required', minLength: 2 })} className="input" />
+        {errors.name && <p className="text-xs text-danger mt-1">{errors.name.message as string}</p>}
+      </div>
+      <div>
+        <label className="label">Email</label>
+        <input {...register('email', { required: 'Email is required' })} type="email" className="input" />
+        {errors.email && <p className="text-xs text-danger mt-1">{errors.email.message as string}</p>}
+      </div>
+      <div>
+        <label className="label">Role</label>
+        <select {...register('role')} className="input">
+          {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="label">Department</label>
+        <select {...register('departmentId')} className="input">
+          <option value="">Select department</option>
+          {departments?.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="label">New Password (optional)</label>
+        <input {...register('password')} type="password" className="input" placeholder="Leave empty to keep current" />
+        <p className="text-xs text-muted-foreground mt-1">Only fill if you want to change the password</p>
+      </div>
+      <div className="flex gap-2 justify-end pt-2">
+        <button type="button" onClick={onCancel} disabled={isLoading} className="btn-ghost px-4 py-2 text-sm">
+          Cancel
+        </button>
+        <button type="submit" disabled={isLoading} className="btn-primary px-4 py-2 text-sm flex items-center gap-2">
+          {isLoading && <Loader2 size={14} className="animate-spin" />}
+          Save Changes
+        </button>
+      </div>
+    </form>
   )
 }
