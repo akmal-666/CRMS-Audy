@@ -38,11 +38,13 @@ export function StatusAgingSummaryInline({ logs, currentStatus, createdAt, goLiv
     ]
 
     // Extract status changes from activity logs
+    // API stores metadata as { oldStatus, newStatus } - use newStatus field
     logs
-      .filter(log => log.action === 'status_changed' && log.metadata?.to)
+      .filter(log => log.action === 'status_changed' && (log.metadata?.newStatus || log.metadata?.to))
       .forEach(log => {
+        const newStatus = (log.metadata?.newStatus || log.metadata?.to) as string
         statusChanges.push({
-          status: log.metadata!.to as string,
+          status: newStatus,
           timestamp: new Date(log.createdAt)
         })
       })
