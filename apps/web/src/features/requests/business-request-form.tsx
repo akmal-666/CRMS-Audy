@@ -7,19 +7,19 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion } from 'framer-motion'
 import { CheckCircle2, Loader2 } from 'lucide-react'
-import { apiGet, apiPost, apiUpload } from '@/lib/api'
+import { useRouter } from 'next/navigation'
+import { apiGet, apiPost } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { FileUpload } from '@/components/file-upload'
 import { useAuth } from '@/context/auth-context'
-import Link from 'next/link'
 
 const requestSchema = z.object({
   requesterName: z.string().min(2, 'Name must be at least 2 characters'),
   requesterEmail: z.string().email('Invalid email address'),
   departmentId: z.string().min(1, 'Please select a department'),
   vendorId: z.string().min(1, 'Please select a platform/vendor'),
-  managerEmail: z.string().email('Invalid manager email address'),
+  managerEmail: z.string().email('Invalid email address'),
   title: z.string().min(5, 'Title must be at least 5 characters'),
   problemDescription: z.string().min(10, 'Description must be at least 10 characters'),
   expectedSolution: z.string().min(10, 'Expected solution must be at least 10 characters'),
@@ -30,17 +30,20 @@ const requestSchema = z.object({
 type FormData = z.infer<typeof requestSchema>
 
 export function BusinessRequestForm() {
+  const router = useRouter()
   const { user } = useAuth()
   const [ticketNumber, setTicketNumber] = useState<string | null>(null)
   const [files, setFiles] = useState<File[]>([])
-  const [attachmentError, setAttachmentError] = useState<string | null>(null)
+  
+  const isBusinessUser = user?.role === 'business_user'
+  const isAdministrator = user?.role === 'administrator'
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors }, watch } = useForm<FormData>({
     resolver: zodResolver(requestSchema),
-    defaultValues: {
+    defaultValues: { 
       priority: 'medium',
-      requesterName: user?.name ?? '',
-      requesterEmail: user?.email ?? '',
+      requesterName: isBusinessUser ? user?.name : '',
+      requesterEmail: isBusinessUser ? user?.email : '',
     },
   })
 
@@ -58,35 +61,29 @@ export function BusinessRequestForm() {
 
   const submit = useMutation({
     mutationFn: async (data: FormData) => {
-      // Validate attachment is required
-      if (files.length === 0) {
-        throw new Error('ATTACHMENT_REQUIRED')
+      // Validate attachments for business_user
+      if (isBusinessUser && files.length === 0) {
+        throw new Error('Attachments are mandatory for business user requests')
       }
 
-      // Submit ticket via the public submit endpoint (same form, now authenticated)
-      const res = await apiPost<{ ticketNumber: string; id: string }>('/api/work-items/public/submit', data)
-
-      // Upload attachments
-      if (res.data?.id) {
+      // 1. Submit ticket
+      const res = await apiPost<{ ticketNumber: string; id: string }>('/api/work-items', data)
+      
+      // 2. Upload files if any
+      if (files.length > 0 && res.data?.id) {
+        const { apiUpload } = await import('@/lib/api')
         const formData = new globalThis.FormData()
         files.forEach(f => formData.append('files', f))
-        formData.append('guestName', data.requesterName)
         await apiUpload(`/api/work-items/${res.data.id}/attachments`, formData)
       }
-
       return res
     },
     onSuccess: (res) => {
       setTicketNumber(res.data?.ticketNumber ?? 'N/A')
-      setAttachmentError(null)
       toast.success('Request submitted successfully')
     },
-    onError: (err: any) => {
-      if (err?.message === 'ATTACHMENT_REQUIRED') {
-        setAttachmentError('Please attach at least one file before submitting.')
-      } else {
-        toast.error('Failed to submit request. Please try again.')
-      }
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to submit request')
     },
   })
 
@@ -103,41 +100,40 @@ export function BusinessRequestForm() {
         <div className="inline-block px-6 py-3 bg-primary/10 rounded-xl">
           <span className="text-2xl font-mono font-bold text-primary">{ticketNumber}</span>
         </div>
-        <p className="text-sm text-muted-foreground mt-6 max-w-sm mx-auto">
-          The IT team will review your request and contact you if clarification is needed.
+        <p className="text-sm text-muted-foreground mt-6">
+          A confirmation email has been sent to your email address. You can use this ticket number to track your request.
         </p>
-        <div className="flex gap-3 justify-center mt-6">
-          <Link href="/requests" className="btn-secondary">
-            View All Requests
-          </Link>
-          <button onClick={() => setTicketNumber(null)} className="btn-primary">
-            Submit Another
-          </button>
-        </div>
+        <button onClick={() => router.push('/requests')} className="btn-primary mt-6">
+          View My Requests
+        </button>
       </motion.div>
     )
   }
 
   return (
     <form onSubmit={handleSubmit(data => submit.mutate(data))} className="card space-y-5">
-      {/* Requester Info — pre-filled from auth, but editable */}
+      {/* Requester Info */}
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="label">Your Name*</label>
-          <input
-            {...register('requesterName')}
-            className="input"
+          <input 
+            {...register('requesterName')} 
+            className="input" 
             placeholder="John Doe"
+            readOnly={isBusinessUser}
+            disabled={isBusinessUser}
           />
           {errors.requesterName && <p className="text-xs text-danger mt-1">{errors.requesterName.message}</p>}
         </div>
         <div>
           <label className="label">Your Email*</label>
-          <input
-            {...register('requesterEmail')}
-            type="email"
-            className="input"
+          <input 
+            {...register('requesterEmail')} 
+            type="email" 
+            className="input" 
             placeholder="john@company.com"
+            readOnly={isBusinessUser}
+            disabled={isBusinessUser}
           />
           {errors.requesterEmail && <p className="text-xs text-danger mt-1">{errors.requesterEmail.message}</p>}
         </div>
@@ -147,10 +143,7 @@ export function BusinessRequestForm() {
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="label">Department*</label>
-          <select
-            {...register('departmentId')}
-            className={cn('input', errors.departmentId && 'border-destructive/50 focus:ring-destructive')}
-          >
+          <select {...register('departmentId')} className={cn('input', errors.departmentId && 'border-destructive/50 focus:ring-destructive')}>
             <option value="">Select department</option>
             {departments?.map((dept: any) => (
               <option key={dept.id} value={dept.id}>{dept.name}</option>
@@ -160,10 +153,7 @@ export function BusinessRequestForm() {
         </div>
         <div>
           <label className="label">Platform*</label>
-          <select
-            {...register('vendorId')}
-            className={cn('input', errors.vendorId && 'border-destructive/50 focus:ring-destructive')}
-          >
+          <select {...register('vendorId')} className={cn('input', errors.vendorId && 'border-destructive/50 focus:ring-destructive')}>
             <option value="">Select platform</option>
             {vendors?.map((v: any) => (
               <option key={v.id} value={v.id}>{v.name}</option>
@@ -172,51 +162,32 @@ export function BusinessRequestForm() {
           {errors.vendorId && <p className="text-xs text-danger mt-1">{errors.vendorId.message}</p>}
         </div>
       </div>
-
-      {/* Manager Email */}
+      
+      {/* Assign Email Manager */}
       <div>
-        <label className="label">Assign Manager Email*</label>
-        <input
-          {...register('managerEmail')}
-          type="email"
-          className={cn('input', errors.managerEmail && 'border-destructive/50 focus:ring-destructive')}
-          placeholder="manager@company.com"
-        />
+        <label className="label">Assign Email Manager*</label>
+        <input {...register('managerEmail')} type="email" className={cn('input', errors.managerEmail && 'border-destructive/50 focus:ring-destructive')} placeholder="manager@company.com" />
         {errors.managerEmail && <p className="text-xs text-danger mt-1">{errors.managerEmail.message}</p>}
       </div>
 
       {/* Title */}
       <div>
         <label className="label">Request Title*</label>
-        <input
-          {...register('title')}
-          className="input"
-          placeholder="Brief title of your change request"
-        />
+        <input {...register('title')} className="input" placeholder="Brief title of your request" />
         {errors.title && <p className="text-xs text-danger mt-1">{errors.title.message}</p>}
       </div>
 
       {/* Problem Description */}
       <div>
         <label className="label">Problem Description*</label>
-        <textarea
-          {...register('problemDescription')}
-          rows={4}
-          className="input"
-          placeholder="Describe the issue or requirement in detail..."
-        />
+        <textarea {...register('problemDescription')} rows={4} className="input" placeholder="Describe the issue or requirement in detail..." />
         {errors.problemDescription && <p className="text-xs text-danger mt-1">{errors.problemDescription.message}</p>}
       </div>
 
       {/* Expected Solution */}
       <div>
         <label className="label">Expected Solution*</label>
-        <textarea
-          {...register('expectedSolution')}
-          rows={3}
-          className={cn('input', errors.expectedSolution && 'border-destructive/50 focus:ring-destructive')}
-          placeholder="Describe what outcome or solution you expect..."
-        />
+        <textarea {...register('expectedSolution')} rows={3} className={cn('input', errors.expectedSolution && 'border-destructive/50 focus:ring-destructive')} placeholder="Describe what outcome or solution you expect..." />
         {errors.expectedSolution && <p className="text-xs text-danger mt-1">{errors.expectedSolution.message}</p>}
       </div>
 
@@ -232,50 +203,37 @@ export function BusinessRequestForm() {
           </select>
         </div>
         <div>
-          <label className="label">Expected Go-Live*</label>
-          <input
-            {...register('dueDate')}
-            type="date"
-            className={cn('input', errors.dueDate && 'border-destructive/50 focus:ring-destructive')}
-          />
+          <label className="label">Expected go-live*</label>
+          <input {...register('dueDate')} type="date" className={cn('input', errors.dueDate && 'border-destructive/50 focus:ring-destructive')} />
           {errors.dueDate && <p className="text-xs text-danger mt-1">{errors.dueDate.message}</p>}
         </div>
       </div>
 
-      {/* Attachments — mandatory */}
+      {/* Attachments */}
       <div>
         <label className="label">
-          Attachments*
-          <span className="text-xs text-muted-foreground font-normal ml-1">(at least 1 file required)</span>
+          Attachments {isBusinessUser ? '(Required)' : '(Optional)'}
         </label>
-        <FileUpload autoUpload={false} onChange={(f) => { setFiles(f); if (f.length > 0) setAttachmentError(null) }} />
-        {attachmentError && (
-          <p className="text-xs text-danger mt-1.5 flex items-center gap-1">
-            {attachmentError}
-          </p>
+        <FileUpload 
+          autoUpload={false}
+          onChange={setFiles}
+        />
+        {isBusinessUser && files.length === 0 && (
+          <p className="text-xs text-warning mt-1">Attachments are mandatory for business user requests</p>
         )}
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-3 pt-2">
-        <button
-          type="submit"
-          disabled={submit.isPending}
-          className="btn-primary flex items-center justify-center gap-2 flex-1"
-        >
-          {submit.isPending ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              Submitting...
-            </>
-          ) : (
-            'Submit Request'
-          )}
-        </button>
-        <Link href="/kanban" className="btn-ghost px-6">
-          Cancel
-        </Link>
-      </div>
+      {/* Submit */}
+      <button type="submit" disabled={submit.isPending} className="btn-primary w-full flex items-center justify-center gap-2">
+        {submit.isPending ? (
+          <>
+            <Loader2 size={16} className="animate-spin" />
+            Submitting...
+          </>
+        ) : (
+          'Submit Request'
+        )}
+      </button>
 
       <p className="text-xs text-muted-foreground text-center">
         By submitting this request, you agree that the IT team may contact you for clarification.
