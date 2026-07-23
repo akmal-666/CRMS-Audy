@@ -161,7 +161,12 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
 
                   {/* Activity timeline */}
                   <div className="px-5 py-4">
-                    <ActivityTimeline logs={item.activityLogs ?? []} />
+                    <ActivityTimeline 
+                      logs={item.activityLogs ?? []}
+                      currentStatus={item.status}
+                      createdAt={item.createdAt}
+                      goLiveDate={item.goLiveDate}
+                    />
                   </div>
                 </div>
               ) : null}
