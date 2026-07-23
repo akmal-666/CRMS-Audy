@@ -28,8 +28,8 @@ const allNavItems: NavItem[] = [
   { label: 'Kanban Board', href: '/kanban', icon: <Kanban size={16} /> },
   { label: 'Calendar', href: '/requests/calendar', icon: <Calendar size={16} /> },
   { label: 'All Requests', href: '/requests', icon: <ListChecks size={16} /> },
-  // New Request is only for business_user (other roles use the button in-page)
-  { label: 'New Request', href: '/requests/new', icon: <PlusCircle size={16} />, roles: ['business_user'] },
+  // New Request is visible to business_user and administrator
+  { label: 'New Request', href: '/requests/new', icon: <PlusCircle size={16} />, roles: ['business_user', 'administrator'] },
   { label: 'Reports', href: '/reports', icon: <BarChart3 size={16} />, roles: ['administrator', 'manager', 'business_analyst'] },
   { label: 'Notifications', href: '/notifications', icon: <Bell size={16} /> },
 ]
