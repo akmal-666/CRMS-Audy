@@ -22,6 +22,7 @@ import masterDataRoutes from './routes/master-data'
 import notificationRoutes from './routes/notifications'
 import reportRoutes from './routes/reports'
 import timelineRoutes from './routes/timeline'
+import migrationRoutes from './routes/migration'
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
@@ -59,6 +60,7 @@ app.route('/api/master', masterDataRoutes)
 app.route('/api/notifications', notificationRoutes)
 app.route('/api/reports', reportRoutes)
 app.route('/api/timeline', timelineRoutes)
+app.route('/api/migration', migrationRoutes)
 
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }))

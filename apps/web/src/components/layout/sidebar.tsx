@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Kanban, ListChecks, Users, Building2,
   GitBranch, Package, Settings, ChevronDown, ChevronRight,
   Sparkles, Bell, FileText, BarChart3, Shield, X, Calendar,
-  PlusCircle, CalendarRange,
+  PlusCircle, CalendarRange, ArrowUpFromLine,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { useAuth } from '@/context/auth-context'
@@ -40,6 +40,7 @@ const adminItems: NavItem[] = [
   { label: 'Branches', href: '/admin/branches', icon: <GitBranch size={16} /> },
   { label: 'Vendors', href: '/admin/vendors', icon: <Package size={16} /> },
   { label: 'Audit Trail', href: '/admin/audit', icon: <Shield size={16} /> },
+  { label: 'Migration', href: '/admin/migration', icon: <ArrowUpFromLine size={16} /> },
   { label: 'Settings', href: '/admin/settings', icon: <Settings size={16} /> },
 ]
 
