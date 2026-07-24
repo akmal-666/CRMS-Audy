@@ -1,21 +1,21 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Plus, Loader2, GripVertical, Trash2, Edit2,
-  ChevronLeft, ChevronRight, Calendar, X, Check, AlertCircle,
+  ChevronLeft, ChevronRight, Calendar, X, Check,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/context/auth-context'
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
-import { cn, formatDate, STATUS_LABELS, STATUS_COLORS } from '@/lib/utils'
-import { WorkflowStatus, Priority, UserRole } from '@crms/types'
+import { cn, STATUS_LABELS, STATUS_COLORS } from '@/lib/utils'
+import { WorkflowStatus, UserRole } from '@crms/types'
 import { toast } from 'sonner'
 import {
-  addDays, startOfWeek, format, differenceInCalendarDays,
-  isSameDay, isToday, startOfDay, parseISO, isValid,
+  addDays, format, differenceInCalendarDays,
+  isToday, startOfDay,
 } from 'date-fns'
 import {
   DndContext, DragEndEvent, PointerSensor, useSensor, useSensors,
@@ -80,7 +80,6 @@ export function TimelinePage({ workItemId }: { workItemId: string }) {
   // UI state
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [editTask, setEditTask] = useState<TimelineTask | null>(null)
-  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   // Fetch data
   const { data, isLoading } = useQuery({
@@ -89,7 +88,7 @@ export function TimelinePage({ workItemId }: { workItemId: string }) {
   })
 
   const workItem = data?.data?.workItem
-  const tasks = data?.data?.tasks ?? []
+  const tasks = useMemo(() => data?.data?.tasks ?? [], [data?.data?.tasks])
 
   // Scroll to today on mount
   useEffect(() => {
@@ -190,7 +189,7 @@ export function TimelinePage({ workItemId }: { workItemId: string }) {
                   <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
                     <Calendar size={32} className="text-muted-foreground/30 mb-3" />
                     <p className="text-sm text-muted-foreground">No timeline tasks yet</p>
-                    {canEdit && <p className="text-xs text-muted-foreground/60 mt-1">Click "Add Row" to get started</p>}
+                    {canEdit && <p className="text-xs text-muted-foreground/60 mt-1">Click &quot;Add Row&quot; to get started</p>}
                   </div>
                 ) : (
                   tasks.map(task => (

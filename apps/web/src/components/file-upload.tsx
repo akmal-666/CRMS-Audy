@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { Upload, X, FileText, Image, Film, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Upload, X, FileText, Image as ImageIcon, Film, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { apiUpload } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
@@ -37,7 +37,7 @@ function formatBytes(bytes: number) {
 }
 
 function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith('image/')) return <Image size={16} className="text-blue-400" />
+  if (mimeType.startsWith('image/')) return <ImageIcon size={16} className="text-blue-400" />
   if (mimeType.startsWith('video/')) return <Film size={16} className="text-purple-400" />
   return <FileText size={16} className="text-muted-foreground" />
 }
@@ -81,14 +81,18 @@ export function FileUpload({ workItemId, guestName, onUploaded, autoUpload = tru
     }
 
     if (!newEntries.length) return
-    const updatedFiles = [...files, ...newEntries]
-    setFiles(updatedFiles)
 
-    if (!autoUpload) {
-      onChange?.(updatedFiles.map(f => f.file))
-      return
-    }
+    setFiles(prev => {
+      const updatedFiles = [...prev, ...newEntries]
 
+      if (!autoUpload) {
+        onChange?.(updatedFiles.map(f => f.file))
+      }
+
+      return updatedFiles
+    })
+
+    if (!autoUpload) return
     if (!workItemId) return
 
     // Upload each file via Worker (no B2 CORS needed)
@@ -116,7 +120,7 @@ export function FileUpload({ workItemId, guestName, onUploaded, autoUpload = tru
         toast.error(`Gagal mengunggah ${entry.name}`)
       }
     }
-  }, [workItemId, guestName, onUploaded, queryClient])
+  }, [workItemId, guestName, onUploaded, onChange, autoUpload, queryClient])
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
