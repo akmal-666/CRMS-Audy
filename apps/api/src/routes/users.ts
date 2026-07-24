@@ -23,21 +23,24 @@ const createUserSchema = z.object({
 
 app.get('/', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER), async (c) => {
   const db = c.get('db')
-  const { page = '1', pageSize = '20' } = c.req.query()
+  const { page = '1', pageSize = '20', role } = c.req.query()
 
   const pageNum = parseInt(page)
   const pageSizeNum = parseInt(pageSize)
   const offset = (pageNum - 1) * pageSizeNum
 
+  const whereCondition = role ? eq(schema.users.role, role as any) : undefined
+
   const [users, totalResult] = await Promise.all([
     db.query.users.findMany({
+      where: whereCondition,
       limit: pageSizeNum,
       offset,
       orderBy: [desc(schema.users.createdAt)],
       with: { department: true, branch: true },
       columns: { passwordHash: false },
     }),
-    db.select({ count: count() }).from(schema.users),
+    db.select({ count: count() }).from(schema.users).where(whereCondition),
   ])
 
   return c.json(paginate(users, totalResult[0]?.count ?? 0, pageNum, pageSizeNum))

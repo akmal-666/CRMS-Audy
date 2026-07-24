@@ -21,14 +21,22 @@ interface AssignSelectProps {
   canEdit: boolean
 }
 
+// Map field → role to filter the dropdown
+const FIELD_ROLE_MAP: Record<string, string> = {
+  managerId: 'manager',
+  businessAnalystId: 'business_analyst',
+}
+
 export function AssignSelect({ workItemId, label, field, currentUser, canEdit }: AssignSelectProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [selectedId, setSelectedId] = useState(currentUser?.id || '')
   const queryClient = useQueryClient()
 
+  const roleFilter = FIELD_ROLE_MAP[field]
+
   const { data, isLoading } = useQuery({
-    queryKey: ['users', 'list'],
-    queryFn: () => apiGet<User[]>('/api/users', { pageSize: 100 }),
+    queryKey: ['users', 'list', roleFilter],
+    queryFn: () => apiGet<User[]>('/api/users', { pageSize: 100, role: roleFilter }),
     enabled: isEditing,
   })
   
@@ -92,9 +100,15 @@ export function AssignSelect({ workItemId, label, field, currentUser, canEdit }:
           className="input py-1 text-xs px-2 flex-1 min-w-0"
         >
           <option value="">Unassigned</option>
-          {users.map((u: User) => (
-            <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-          ))}
+          {isLoading ? (
+            <option disabled>Loading...</option>
+          ) : users.length === 0 ? (
+            <option disabled>No {label} users found</option>
+          ) : (
+            users.map((u: User) => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))
+          )}
         </select>
         
         <button 
