@@ -73,7 +73,8 @@ export function MigrationView() {
         status: r.status,
         dueDate: r.dueDate || undefined,
       }))
-      return apiPost('/api/migration/import', { rows: validRows })
+      const res = await api.post('/api/migration/import', { rows: validRows })
+      return res.data
     },
     onSuccess: (res) => {
       setImportResult(res.data)
@@ -231,7 +232,7 @@ export function MigrationView() {
                       <td className="px-3 py-2 text-muted-foreground">{row.departmentName}</td>
                       <td className="px-3 py-2 text-muted-foreground">{row.vendorName}</td>
                       <td className="px-3 py-2">
-                        <span className="badge badge-sm">{STATUS_LABELS[row.status as any] ?? row.status}</span>
+                        <span className="badge badge-sm">{STATUS_LABELS[row.status as keyof typeof STATUS_LABELS] || row.status}</span>
                       </td>
                       <td className="px-3 py-2">
                         {row.errors.length > 0 && (
