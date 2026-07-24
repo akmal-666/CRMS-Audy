@@ -13,10 +13,10 @@ import {
   closestCenter,
 } from '@dnd-kit/core'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Filter, Search, Download } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { apiGet, apiPatch } from '@/lib/api'
 import { WorkflowStatus } from '@crms/types'
-import { STATUS_LABELS, STATUS_DOT_COLORS, cn, exportToCSV } from '@/lib/utils'
+import { STATUS_LABELS, STATUS_DOT_COLORS, cn } from '@/lib/utils'
 import { KanbanColumn } from './kanban-column'
 import { KanbanGroupedColumn } from './kanban-grouped-column'
 import { KanbanCard } from './kanban-card'
@@ -150,22 +150,6 @@ export function KanbanView() {
                 className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/30 w-40"
               />
             </div>
-
-            <button
-              onClick={() => exportToCSV(workItems.map(i => ({
-                ID: i.ticketNumber, Title: i.title, Status: STATUS_LABELS[i.status as WorkflowStatus], Priority: i.priority,
-                Requester: i.requesterName, Department: i.department?.name, Vendor: i.vendor?.name, Created: i.createdAt
-              })), 'kanban_export')}
-              className="btn-ghost text-xs flex items-center gap-1.5 py-1.5"
-            >
-              <Download size={13} />
-              Export
-            </button>
-
-            <button className="btn-ghost text-xs flex items-center gap-1.5 py-1.5">
-              <Filter size={13} />
-              Filter
-            </button>
           </div>
         </div>
 
