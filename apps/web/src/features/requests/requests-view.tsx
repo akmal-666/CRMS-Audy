@@ -40,18 +40,27 @@ export function RequestsView() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [priorityFilter, setPriorityFilter] = useState('')
+  const [vendorFilter, setVendorFilter] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   const isAdmin = user?.role === 'administrator'
 
+  const { data: vendorsData } = useQuery({
+    queryKey: ['vendors'],
+    queryFn: () => apiGet<any[]>('/api/master/vendors'),
+    select: (res) => res.data ?? [],
+  })
+  const vendors = (vendorsData as any[]) ?? []
+
   const { data, isLoading } = useQuery({
-    queryKey: ['work-items', 'list', page, search, statusFilter, priorityFilter],
+    queryKey: ['work-items', 'list', page, search, statusFilter, priorityFilter, vendorFilter],
     queryFn: () => apiGet<WorkItem[]>('/api/work-items', {
       page, pageSize: 20,
       ...(search && { search }),
       ...(statusFilter && { status: statusFilter }),
       ...(priorityFilter && { priority: priorityFilter }),
+      ...(vendorFilter && { vendorId: vendorFilter }),
     }),
   })
 
@@ -210,6 +219,17 @@ export function RequestsView() {
             <option value="">All Priority</option>
             {Object.values(Priority).map(p => (
               <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>
+            ))}
+          </select>
+
+          <select
+            value={vendorFilter}
+            onChange={e => { setVendorFilter(e.target.value); setPage(1) }}
+            className="input py-1.5 text-xs w-36"
+          >
+            <option value="">All Platform</option>
+            {vendors.map((v: any) => (
+              <option key={v.id} value={v.id}>{v.name}</option>
             ))}
           </select>
         </div>

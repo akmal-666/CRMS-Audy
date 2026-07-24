@@ -131,7 +131,7 @@ app.get('/public/track', zValidator('query', z.object({ query: z.string().min(3)
 app.get('/', authMiddleware, async (c) => {
   const db = c.get('db')
   const user = c.get('user')!
-  const { page = '1', pageSize = '20', search, status, priority, departmentId, assignee } = c.req.query()
+  const { page = '1', pageSize = '20', search, status, priority, departmentId, assignee, vendorId } = c.req.query()
 
   const pageNum = parseInt(page)
   const pageSizeNum = Math.min(parseInt(pageSize), 100)
@@ -152,6 +152,7 @@ app.get('/', authMiddleware, async (c) => {
   if (status) conditions.push(eq(schema.workItems.status, status as any))
   if (priority) conditions.push(eq(schema.workItems.priority, priority as any))
   if (departmentId) conditions.push(eq(schema.workItems.departmentId, departmentId))
+  if (vendorId) conditions.push(eq(schema.workItems.vendorId, vendorId))
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
