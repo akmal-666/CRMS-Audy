@@ -61,9 +61,9 @@ export function BusinessRequestForm() {
 
   const submit = useMutation({
     mutationFn: async (data: FormData) => {
-      // Validate attachments for business_user
-      if (isBusinessUser && files.length === 0) {
-        throw new Error('Attachments are mandatory for business user requests')
+      // Validate attachments - mandatory for all users
+      if (files.length === 0) {
+        throw new Error('Please upload at least one attachment (BRD or supporting document)')
       }
 
       // 1. Submit ticket
@@ -212,14 +212,16 @@ export function BusinessRequestForm() {
       {/* Attachments */}
       <div>
         <label className="label">
-          Attachments {isBusinessUser ? '(Required)' : '(Optional)'}
+          Attachments (Required)*
         </label>
         <FileUpload 
           autoUpload={false}
           onChange={setFiles}
         />
-        {isBusinessUser && files.length === 0 && (
-          <p className="text-xs text-warning mt-1">Attachments are mandatory for business user requests</p>
+        {files.length === 0 && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Please upload BRD or supporting documents (PDF, Word, Excel, PPT — Max 50MB)
+          </p>
         )}
       </div>
 
