@@ -4,6 +4,7 @@ import { departments, branches, vendors } from './departments'
 import { users } from './users'
 import { tasks } from './tasks'
 import { comments, attachments, activityLogs } from './communications'
+import { timelineTasks } from './timeline'
 
 export const workItems = sqliteTable('work_items', {
   id: text('id').primaryKey(),
@@ -87,4 +88,5 @@ export const workItemsRelations = relations(workItems, ({ one, many }) => ({
   comments: many(comments),
   attachments: many(attachments),
   activityLogs: many(activityLogs),
+  timelineTasks: many(timelineTasks),
 }))

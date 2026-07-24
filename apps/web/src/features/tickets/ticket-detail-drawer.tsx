@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ExternalLink, Paperclip, FileText, Download } from 'lucide-react'
+import { X, ExternalLink, Paperclip, FileText, Download, CalendarRange } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 import { STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, timeAgo, cn } from '@/lib/utils'
 import { WorkflowStatus, Priority } from '@crms/types'
@@ -62,6 +62,9 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
                   <Link href={`/requests/${item.id}`} className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
                     <ExternalLink size={14} />
                   </Link>
+                  <Link href={`/timeline/${item.id}`} className="p-1 rounded text-muted-foreground hover:text-primary transition-colors flex-shrink-0" title="View Timeline">
+                    <CalendarRange size={14} />
+                  </Link>
                 </div>
               ) : (
                 <div className="h-5 bg-muted rounded w-40 animate-pulse" />
@@ -94,6 +97,14 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
                         <p className="text-sm text-muted-foreground">{item.expectedSolution}</p>
                       </div>
                     )}
+                    {/* Timeline shortcut */}
+                    <Link
+                      href={`/timeline/${item.id}`}
+                      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-primary/30 bg-primary/5 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
+                    >
+                      <CalendarRange size={15} />
+                      View / Edit Timeline
+                    </Link>
                   </div>
 
                   {/* Info grid */}

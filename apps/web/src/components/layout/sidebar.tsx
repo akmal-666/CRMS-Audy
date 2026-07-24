@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Kanban, ListChecks, Users, Building2,
   GitBranch, Package, Settings, ChevronDown, ChevronRight,
   Sparkles, Bell, FileText, BarChart3, Shield, X, Calendar,
-  PlusCircle,
+  PlusCircle, CalendarRange,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { useAuth } from '@/context/auth-context'
@@ -164,7 +164,8 @@ function SidebarContent({
         <div className="space-y-0.5">
           {navItems.map((item) => {
             const isReqDetail = item.href === '/requests' && pathname.startsWith('/requests/') && pathname !== '/requests/calendar' && pathname !== '/requests/new'
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && item.href !== '/requests' && item.href !== '/requests/new' && pathname.startsWith(item.href!)) || isReqDetail
+            const isKanbanTimeline = item.href === '/kanban' && pathname.startsWith('/timeline/')
+            const isActive = pathname === item.href || (item.href !== '/dashboard' && item.href !== '/requests' && item.href !== '/requests/new' && pathname.startsWith(item.href!)) || isReqDetail || isKanbanTimeline
             return (
               <NavLink
                 key={item.href}
