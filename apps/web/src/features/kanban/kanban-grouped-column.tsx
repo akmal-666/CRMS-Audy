@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { WorkflowStatus } from '@crms/types'
 import { STATUS_LABELS, STATUS_DOT_COLORS, cn } from '@/lib/utils'
 import { KanbanCard } from './kanban-card'
@@ -117,11 +117,6 @@ export function KanbanGroupedColumn({ status, items, isLoading, onCardClick, isR
                 Collapse
               </button>
             </>
-          )}
-          {!isReadOnly && (
-            <button className="p-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-              <Plus size={14} />
-            </button>
           )}
         </div>
       </div>

@@ -3,7 +3,6 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus } from 'lucide-react'
 import { WorkflowStatus } from '@crms/types'
 import { STATUS_LABELS, STATUS_DOT_COLORS, cn } from '@/lib/utils'
 import { KanbanCard } from './kanban-card'
@@ -56,11 +55,6 @@ export function KanbanColumn({ status, items, isLoading, onCardClick, isReadOnly
             {items.length}
           </span>
         </div>
-        {!isReadOnly && (
-          <button className="p-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
-            <Plus size={14} />
-          </button>
-        )}
       </div>
 
       {/* Drop zone */}
