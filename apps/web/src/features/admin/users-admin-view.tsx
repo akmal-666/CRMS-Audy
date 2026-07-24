@@ -56,7 +56,7 @@ export function UsersAdminView() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-users', search],
-    queryFn: () => apiGet<any[]>('/api/users', { search: search || undefined }),
+    queryFn: () => apiGet<any[]>('/api/users', { search: search || undefined, pageSize: 200 }),
     select: r => (r.data as any)?.data ?? r.data ?? [],
   })
 

@@ -26,7 +26,7 @@ app.get('/', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGE
   const { page = '1', pageSize = '20', role } = c.req.query()
 
   const pageNum = parseInt(page)
-  const pageSizeNum = parseInt(pageSize)
+  const pageSizeNum = Math.min(parseInt(pageSize), 500) // allow up to 500 for admin views
   const offset = (pageNum - 1) * pageSizeNum
 
   const whereCondition = role ? eq(schema.users.role, role as any) : undefined
