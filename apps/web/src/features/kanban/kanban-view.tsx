@@ -74,8 +74,11 @@ export function KanbanView() {
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       apiPatch(`/api/work-items/${id}/status`, { status }),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Invalidate kanban list
       queryClient.invalidateQueries({ queryKey: ['work-items'] })
+      // Invalidate the specific work-item detail (used by drawer)
+      queryClient.invalidateQueries({ queryKey: ['work-item', variables.id] })
     },
     onError: () => {
       toast.error('Failed to update status')
@@ -109,13 +112,18 @@ export function KanbanView() {
     const targetColumn = COLUMNS.find(col => col === overId || col === workItems.find(i => i.id === overId)?.status)
 
     if (targetColumn && draggedItem.status !== targetColumn) {
-      // Optimistic update
+      // Optimistic update kanban list
       queryClient.setQueryData(['work-items', 'kanban', search], (old: any) => {
         if (!old || !old.data) return old
         return {
           ...old,
           data: old.data.map((item: any) => item.id === draggedItem.id ? { ...item, status: targetColumn } : item)
         }
+      })
+      // Optimistic update drawer cache so it shows new status immediately
+      queryClient.setQueryData(['work-item', draggedItem.id], (old: any) => {
+        if (!old?.data) return old
+        return { ...old, data: { ...old.data, status: targetColumn } }
       })
       updateStatusMutation.mutate({ id: draggedItem.id, status: targetColumn })
     }
