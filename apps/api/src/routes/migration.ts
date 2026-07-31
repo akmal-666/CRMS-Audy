@@ -17,9 +17,47 @@ app.use('*', authMiddleware, requireRole(UserRole.ADMINISTRATOR))
 const VALID_STATUSES = ['in_pipeline', 'assessment', 'development', 'uat', 'deployment', 'go_live', 'drop']
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'critical']
 
-// ─── CSV Parser (no external library needed) ──────────────────────────────────
+// ─── Date Parser (supports multiple formats) ──────────────────────────────────
+function parseFlexibleDate(dateStr: string): Date | null {
+  if (!dateStr?.trim()) return null
+  
+  const str = dateStr.trim()
+  
+  // Try ISO format first (YYYY-MM-DD)
+  const isoDate = new Date(str)
+  if (!isNaN(isoDate.getTime())) return isoDate
+  
+  // Try dd/MM/yyyy or dd-MM-yyyy
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
+  if (dmyMatch) {
+    const day = parseInt(dmyMatch[1], 10)
+    const month = parseInt(dmyMatch[2], 10) - 1 // JS months are 0-indexed
+    const year = parseInt(dmyMatch[3], 10)
+    const parsed = new Date(year, month, day)
+    if (!isNaN(parsed.getTime())) return parsed
+  }
+  
+  // Try MM/dd/yyyy or MM-dd-yyyy
+  const mdyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/)
+  if (mdyMatch) {
+    const month = parseInt(mdyMatch[1], 10) - 1
+    const day = parseInt(mdyMatch[2], 10)
+    const year = parseInt(mdyMatch[3], 10)
+    const parsed = new Date(year, month, day)
+    if (!isNaN(parsed.getTime())) return parsed
+  }
+  
+  return null
+}
+
+// ─── CSV Parser (supports both comma and semicolon) ──────────────────────────
 function parseCSV(text: string): string[][] {
   const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
+  
+  // Auto-detect delimiter (comma or semicolon)
+  const firstLine = lines[0] || ''
+  const delimiter = firstLine.includes(';') ? ';' : ','
+  
   return lines
     .filter(line => line.trim() !== '')
     .map(line => {
@@ -31,7 +69,7 @@ function parseCSV(text: string): string[][] {
         if (char === '"') {
           if (inQuotes && line[i + 1] === '"') { current += '"'; i++ }
           else inQuotes = !inQuotes
-        } else if (char === ',' && !inQuotes) {
+        } else if (char === delimiter && !inQuotes) {
           result.push(current.trim())
           current = ''
         } else {
@@ -80,7 +118,10 @@ function validateRow(
   if (vendorName && !vendor) errors.push(`Platform/Vendor "${vendorName}" not found in system`)
 
   const dueDate = row['Expected Go-Live Date']?.trim()
-  if (dueDate && isNaN(Date.parse(dueDate))) errors.push('Expected Go-Live Date is invalid (use YYYY-MM-DD)')
+  if (dueDate) {
+    const parsed = parseFlexibleDate(dueDate)
+    if (!parsed) errors.push('Expected Go-Live Date is invalid (use dd/MM/yyyy or YYYY-MM-DD)')
+  }
 
   return {
     valid: errors.length === 0,
@@ -231,7 +272,7 @@ app.post('/import', async (c) => {
         status: row.status as any,
         requesterName: row.requesterName,
         requesterEmail: row.requesterEmail,
-        dueDate: row.dueDate ? new Date(row.dueDate) : undefined,
+        dueDate: row.dueDate ? (parseFlexibleDate(row.dueDate) ?? undefined) : undefined,
         createdAt: now,
         updatedAt: now,
       })
