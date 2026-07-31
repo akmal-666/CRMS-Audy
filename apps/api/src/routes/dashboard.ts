@@ -10,7 +10,7 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 app.get('/stats', authMiddleware, async (c) => {
   const db = c.get('db')
 
-  const [statusCounts, priorityCounts, overdueCount, recentItems, monthlyStats] = await Promise.all([
+  const [statusCounts, priorityCounts, overdueCount, recentItems, monthlyStats, baWorkload] = await Promise.all([
     // Status breakdown
     db.select({ status: schema.workItems.status, count: count() })
       .from(schema.workItems)
@@ -29,12 +29,27 @@ app.get('/stats', authMiddleware, async (c) => {
         sql`${schema.workItems.status} NOT IN ('go_live', 'drop')`
       )),
 
-    // Recent items
+    // Recent items with all assigned users
     db.query.workItems.findMany({
-      limit: 5,
+      limit: 10,
       orderBy: [desc(schema.workItems.createdAt)],
-      with: { department: true },
-      columns: { id: true, ticketNumber: true, title: true, status: true, priority: true, createdAt: true },
+      with: { 
+        department: true,
+        manager: { columns: { id: true, name: true } },
+        businessAnalyst: { columns: { id: true, name: true } },
+        developer: { columns: { id: true, name: true } },
+        qa: { columns: { id: true, name: true } },
+      },
+      columns: { 
+        id: true, 
+        ticketNumber: true, 
+        title: true, 
+        status: true, 
+        priority: true, 
+        createdAt: true,
+        dueDate: true,
+        goLiveDate: true,
+      },
     }),
 
     // Monthly requests (last 6 months)
@@ -45,6 +60,18 @@ app.get('/stats', authMiddleware, async (c) => {
       .from(schema.workItems)
       .where(gte(schema.workItems.createdAt, new Date(Date.now() - 6 * 30 * 24 * 3600 * 1000)))
       .groupBy(sql`strftime('%Y-%m', datetime(${schema.workItems.createdAt}/1000, 'unixepoch'))`),
+
+    // Business Analyst workload
+    db.select({
+      businessAnalystId: schema.workItems.businessAnalystId,
+      count: count(),
+    })
+      .from(schema.workItems)
+      .where(and(
+        sql`${schema.workItems.businessAnalystId} IS NOT NULL`,
+        sql`${schema.workItems.status} NOT IN ('go_live', 'drop')`
+      ))
+      .groupBy(schema.workItems.businessAnalystId),
   ])
 
   const totalCount = statusCounts.reduce((sum, s) => sum + s.count, 0)
@@ -55,6 +82,20 @@ app.get('/stats', authMiddleware, async (c) => {
   const byPriority: Record<string, number> = {}
   priorityCounts.forEach(p => { byPriority[p.priority] = p.count })
 
+  // Get BA users
+  const baUserIds = baWorkload.map(r => r.businessAnalystId).filter(Boolean) as string[]
+  const baUsers = baUserIds.length > 0 ? await db.select({ id: schema.users.id, name: schema.users.name })
+    .from(schema.users)
+    .where(sql`${schema.users.id} IN (${sql.join(baUserIds.map(id => sql`${id}`), sql`, `)})`) : []
+
+  const baUserMap = Object.fromEntries(baUsers.map(u => [u.id, u.name]))
+
+  const businessAnalysts = baWorkload.map(r => ({
+    id: r.businessAnalystId!,
+    name: baUserMap[r.businessAnalystId!] || 'Unknown',
+    count: r.count,
+  }))
+
   return c.json(ok({
     total: totalCount,
     byStatus,
@@ -62,6 +103,7 @@ app.get('/stats', authMiddleware, async (c) => {
     overdue: overdueCount[0]?.count ?? 0,
     recentItems,
     monthlyTrend: monthlyStats,
+    businessAnalysts,
   }))
 })
 

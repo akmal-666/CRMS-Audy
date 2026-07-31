@@ -25,11 +25,15 @@ interface DashboardStats {
     priority: string
     createdAt: string
     dueDate?: string
+    goLiveDate?: string
     department?: { name: string }
-    manager?: { name: string; avatarUrl?: string }
-    developer?: { name: string; avatarUrl?: string }
+    manager?: { name: string; id: string }
+    businessAnalyst?: { name: string; id: string }
+    developer?: { name: string; id: string }
+    qa?: { name: string; id: string }
   }>
   monthlyTrend: Array<{ month: string; count: number }>
+  businessAnalysts: Array<{ id: string; name: string; count: number }>
 }
 
 export function DashboardView() {
@@ -43,6 +47,36 @@ export function DashboardView() {
 
   if (isLoading) return <DashboardSkeleton />
 
+  // === DATA SOURCE & CALCULATION EXPLANATION ===
+  // 
+  // 1. Total Projects: Total semua work items (all statuses)
+  //    Source: stats.total
+  //
+  // 2. Active Tasks: Projects dalam status development, uat, deployment
+  //    Source: stats.byStatus['development'] + stats.byStatus['uat'] + stats.byStatus['deployment']
+  //
+  // 3. Completed Milestones: Projects yang sudah status go_live
+  //    Source: stats.byStatus['go_live']
+  //
+  // 4. Portfolio Progress: Persentase completion rate = (go_live / total) * 100%
+  //    100% tercapai ketika semua projects sudah go_live
+  //    Source: (stats.byStatus['go_live'] / stats.total) * 100
+  //
+  // 5. Project Progress Bar: Berdasarkan status kanban dengan bobot:
+  //    - in_pipeline: 0%
+  //    - assessment: 10%
+  //    - development: 40%
+  //    - uat: 70%
+  //    - deployment: 90%
+  //    - go_live: 100%
+  //    - drop: 0%
+  //
+  // 6. Business Analysts: Jumlah BA beserta project count (exclude go_live & drop)
+  //    Source: stats.businessAnalysts array
+  //
+  // 7. Trends: Perbandingan bulan ini vs bulan lalu
+  //    Source: stats.monthlyTrend
+
   const totalProjects = stats?.total ?? 0
   const activeTasks = (stats?.byStatus['development'] ?? 0) + (stats?.byStatus['uat'] ?? 0) + (stats?.byStatus['deployment'] ?? 0)
   const completedMilestones = stats?.byStatus['go_live'] ?? 0
@@ -53,9 +87,20 @@ export function DashboardView() {
   const lastMonthCount = stats?.monthlyTrend?.[stats.monthlyTrend.length - 2]?.count ?? 0
   const projectsTrend = lastMonthCount > 0 ? Math.round(((currentMonthCount - lastMonthCount) / lastMonthCount) * 100) : 0
 
+  // Status to progress percentage mapping (based on kanban order)
+  const STATUS_PROGRESS: Record<string, number> = {
+    'in_pipeline': 0,
+    'assessment': 10,
+    'development': 40,
+    'uat': 70,
+    'deployment': 90,
+    'go_live': 100,
+    'drop': 0,
+  }
+
   // Get ongoing projects (in progress statuses)
   const ongoingProjects = stats?.recentItems?.filter(item => 
-    ['development', 'uat', 'deployment'].includes(item.status)
+    ['assessment', 'development', 'uat', 'deployment'].includes(item.status)
   ).slice(0, 3) ?? []
 
   // Get upcoming deadlines
@@ -63,6 +108,9 @@ export function DashboardView() {
     ?.filter(item => item.dueDate && new Date(item.dueDate) > new Date())
     ?.sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
     ?.slice(0, 3) ?? []
+
+  // Business Analysts data
+  const businessAnalysts = stats?.businessAnalysts ?? []
 
   return (
     <div className="space-y-6">
@@ -135,7 +183,7 @@ export function DashboardView() {
 
           <div className="space-y-3">
             {ongoingProjects.map((project, i) => (
-              <ProjectCard key={project.id} project={project} delay={i * 0.05} />
+              <ProjectCard key={project.id} project={project} statusProgress={STATUS_PROGRESS} delay={i * 0.05} />
             ))}
             {ongoingProjects.length === 0 && (
               <div className="card text-center py-8 text-muted-foreground text-sm">
@@ -172,10 +220,10 @@ export function DashboardView() {
             </div>
           </div>
 
-          {/* Team Workload - Placeholder */}
+          {/* Team Workload - Business Analysts */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-foreground">Team Workload</h3>
+              <h3 className="text-sm font-semibold text-foreground">Business Analysts</h3>
               <button className="text-muted-foreground hover:text-foreground">
                 <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" />
@@ -183,9 +231,12 @@ export function DashboardView() {
               </button>
             </div>
             <div className="space-y-3">
-              <WorkloadItem name="Developers" tasks={activeTasks} progress={75} delay={0} />
-              <WorkloadItem name="QA Team" tasks={stats?.byStatus['uat'] ?? 0} progress={45} delay={0.05} />
-              <WorkloadItem name="Managers" tasks={stats?.byStatus['assessment'] ?? 0} progress={30} delay={0.1} />
+              {businessAnalysts.map((ba, i) => (
+                <BAWorkloadItem key={ba.id} name={ba.name} count={ba.count} delay={i * 0.05} />
+              ))}
+              {businessAnalysts.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-4">No assigned BA</p>
+              )}
             </div>
           </div>
         </div>
@@ -257,12 +308,22 @@ function ProgressCard({ value, delay }: { value: number; delay: number }) {
   )
 }
 
-function ProjectCard({ project, delay }: { project: any; delay: number }) {
-  const progress = Math.floor(Math.random() * 60) + 20 // Mock progress
+function ProjectCard({ project, statusProgress, delay }: { 
+  project: any
+  statusProgress: Record<string, number>
+  delay: number 
+}) {
+  // Calculate actual progress based on kanban status
+  const progress = statusProgress[project.status] ?? 0
+  
   const statusBadgeMap: Record<string, { label: string; color: string }> = {
+    in_pipeline: { label: 'Pipeline', color: 'bg-gray-100 text-gray-700' },
+    assessment: { label: 'Assessment', color: 'bg-blue-100 text-blue-700' },
     development: { label: 'On Track', color: 'bg-blue-100 text-blue-700' },
     uat: { label: 'Testing', color: 'bg-amber-100 text-amber-700' },
     deployment: { label: 'Deploying', color: 'bg-green-100 text-green-700' },
+    go_live: { label: 'Live', color: 'bg-green-100 text-green-700' },
+    drop: { label: 'Dropped', color: 'bg-red-100 text-red-700' },
   }
   const statusBadge = statusBadgeMap[project.status] || { label: 'In Progress', color: 'bg-gray-100 text-gray-700' }
 
@@ -301,13 +362,23 @@ function ProjectCard({ project, delay }: { project: any; delay: number }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
           {project.manager && (
-            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary">
+            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary" title={project.manager.name}>
               {project.manager.name.charAt(0)}
             </div>
           )}
+          {project.businessAnalyst && (
+            <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-medium text-indigo-700" title={project.businessAnalyst.name}>
+              {project.businessAnalyst.name.charAt(0)}
+            </div>
+          )}
           {project.developer && (
-            <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center text-xs font-medium text-violet-700">
+            <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center text-xs font-medium text-violet-700" title={project.developer.name}>
               {project.developer.name.charAt(0)}
+            </div>
+          )}
+          {project.qa && (
+            <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-medium text-emerald-700" title={project.qa.name}>
+              {project.qa.name.charAt(0)}
             </div>
           )}
         </div>
@@ -340,6 +411,31 @@ function DeadlineItem({ item, delay }: { item: any; delay: number }) {
           {item.title}
         </Link>
         <p className="text-xs text-muted-foreground truncate">{item.department?.name}</p>
+      </div>
+    </motion.div>
+  )
+}
+
+function BAWorkloadItem({ name, count, delay }: {
+  name: string
+  count: number
+  delay: number
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -5 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay }}
+      className="flex items-center justify-between py-2 border-b border-border last:border-0"
+    >
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+          <Users size={14} className="text-indigo-600" />
+        </div>
+        <span className="text-sm font-medium text-foreground">{name}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">{count} {count === 1 ? 'Project' : 'Projects'}</span>
       </div>
     </motion.div>
   )
