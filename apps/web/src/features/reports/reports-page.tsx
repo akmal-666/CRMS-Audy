@@ -22,10 +22,12 @@ export function ReportsPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [departmentId, setDepartmentId] = useState('')
+  const [vendorId, setVendorId] = useState('')
 
   const queryParams = useMemo(() => {
     const params: any = {}
     if (departmentId) params.departmentId = departmentId
+    if (vendorId) params.vendorId = vendorId
     
     if (filterType === 'custom' && startDate && endDate) {
       params.startDate = startDate
@@ -40,7 +42,7 @@ export function ReportsPage() {
       params.year = year
     }
     return params
-  }, [filterType, year, quarter, month, startDate, endDate, departmentId])
+  }, [filterType, year, quarter, month, startDate, endDate, departmentId, vendorId])
 
   const { data: reportData, isLoading } = useQuery({
     queryKey: ['reports', queryParams],
@@ -94,6 +96,8 @@ export function ReportsPage() {
         setEndDate={setEndDate}
         departmentId={departmentId}
         setDepartmentId={setDepartmentId}
+        vendorId={vendorId}
+        setVendorId={setVendorId}
       />
 
       {/* KPI Cards */}

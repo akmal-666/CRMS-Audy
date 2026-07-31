@@ -18,12 +18,20 @@ interface ReportFiltersProps {
   setEndDate: (date: string) => void
   departmentId: string
   setDepartmentId: (id: string) => void
+  vendorId: string
+  setVendorId: (id: string) => void
 }
 
 export function ReportFilters(props: ReportFiltersProps) {
   const { data: departments } = useQuery({
     queryKey: ['departments'],
     queryFn: () => apiGet<any[]>('/api/master/departments'),
+    select: (res) => res.data ?? [],
+  })
+
+  const { data: vendors } = useQuery({
+    queryKey: ['vendors'],
+    queryFn: () => apiGet<any[]>('/api/master/vendors'),
     select: (res) => res.data ?? [],
   })
 
@@ -125,13 +133,26 @@ export function ReportFilters(props: ReportFiltersProps) {
         )}
 
         {/* Department */}
-        <div className={props.filterType === 'custom' ? '' : 'lg:col-span-2'}>
+        <div>
           <label className="label text-xs">Department</label>
           <select value={props.departmentId} onChange={(e) => props.setDepartmentId(e.target.value)} className="input text-sm py-2">
             <option value="">All Departments</option>
             {departments?.map((dept: any) => (
               <option key={dept.id} value={dept.id}>
                 {dept.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Platform/Vendor */}
+        <div>
+          <label className="label text-xs">Platform</label>
+          <select value={props.vendorId} onChange={(e) => props.setVendorId(e.target.value)} className="input text-sm py-2">
+            <option value="">All Platforms</option>
+            {vendors?.map((vendor: any) => (
+              <option key={vendor.id} value={vendor.id}>
+                {vendor.name}
               </option>
             ))}
           </select>

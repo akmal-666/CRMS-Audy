@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { WorkflowStatus, Priority } from '@crms/types'
 import { STATUS_LABELS, PRIORITY_LABELS } from '@/lib/utils'
-import { TrendingUp, Users } from 'lucide-react'
+import { TrendingUp } from 'lucide-react'
 
 const STATUS_COLORS: Record<string, string> = {
   in_pipeline: '#64748B',
@@ -42,7 +42,7 @@ export function ChartsGrid({ data, isLoading }: ChartsGridProps) {
     )
   }
 
-  const { byStatus, byPriority, byDepartment, byVendor, monthlyTrend, developerStats } = data
+  const { byStatus, byPriority, byDepartment, byVendor, monthlyTrend } = data
 
   const statusChartData = Object.entries(byStatus || {}).map(([status, count]) => ({
     name: STATUS_LABELS[status as WorkflowStatus] || status,
@@ -65,11 +65,6 @@ export function ChartsGrid({ data, isLoading }: ChartsGridProps) {
     .sort(([, a], [, b]) => (b as number) - (a as number))
     .slice(0, 10)
     .map(([vendor, count]) => ({ vendor, count }))
-
-  const developerChartData = Object.entries(developerStats || {})
-    .sort(([, a]: any, [, b]: any) => b.total - a.total)
-    .slice(0, 10)
-    .map(([name, stats]: any) => ({ name, ...stats }))
 
   return (
     <>
@@ -165,44 +160,19 @@ export function ChartsGrid({ data, isLoading }: ChartsGridProps) {
         </motion.div>
       </div>
 
-      {/* Charts Row 3 */}
-      <div className="grid lg:grid-cols-2 gap-4">
-        {/* Vendor Breakdown */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} className="card">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Top 10 Platforms/Vendors</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={vendorChartData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="vendor" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={120} />
-              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-              <Bar dataKey="count" fill="#06B6D4" radius={[0, 6, 6, 0]} name="Requests" />
-            </BarChart>
-          </ResponsiveContainer>
-        </motion.div>
-
-        {/* Developer Performance */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="card">
-          <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Users size={16} className="text-primary" />
-            Developer Performance (Top 10)
-          </h3>
-          {developerChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={developerChartData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={100} />
-                <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                <Bar dataKey="completed" fill="#22C55E" radius={[0, 6, 6, 0]} name="Completed" stackId="a" />
-                <Bar dataKey="inProgress" fill="#F59E0B" radius={[0, 6, 6, 0]} name="In Progress" stackId="a" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-60 text-muted-foreground text-sm">No developer assignments in this period</div>
-          )}
-        </motion.div>
-      </div>
+      {/* Charts Row 3: Vendor Breakdown (Full Width) */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} className="card">
+        <h3 className="text-sm font-semibold text-foreground mb-4">Top 10 Platforms/Vendors</h3>
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={vendorChartData} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
+            <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis type="category" dataKey="vendor" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={120} />
+            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+            <Bar dataKey="count" fill="#06B6D4" radius={[0, 6, 6, 0]} name="Requests" />
+          </BarChart>
+        </ResponsiveContainer>
+      </motion.div>
     </>
   )
 }
