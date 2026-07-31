@@ -15,6 +15,7 @@ const reportQuerySchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   departmentId: z.string().optional(),
+  vendorId: z.string().optional(),
   year: z.string().optional(),
   quarter: z.string().optional(),
   month: z.string().optional(),
@@ -22,7 +23,7 @@ const reportQuerySchema = z.object({
 
 // Get comprehensive report data
 app.get('/', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST), zValidator('query', reportQuerySchema), async (c) => {
-  const { startDate, endDate, departmentId, year, quarter, month } = c.req.valid('query')
+  const { startDate, endDate, departmentId, vendorId, year, quarter, month } = c.req.valid('query')
   const db = c.get('db')
 
   // Build date filter
@@ -56,6 +57,11 @@ app.get('/', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGE
   // Department filter
   if (departmentId) {
     dateConditions.push(eq(schema.workItems.departmentId, departmentId))
+  }
+
+  // Vendor/Platform filter
+  if (vendorId) {
+    dateConditions.push(eq(schema.workItems.vendorId, vendorId))
   }
 
   const where = dateConditions.length > 0 ? and(...dateConditions) : undefined
