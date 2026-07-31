@@ -32,6 +32,16 @@ interface DashboardStats {
     developer?: { name: string; id: string }
     qa?: { name: string; id: string }
   }>
+  upcomingDeadlines: Array<{
+    id: string
+    ticketNumber: string
+    title: string
+    status: string
+    priority: string
+    createdAt: string
+    dueDate: string
+    department?: { name: string }
+  }>
   monthlyTrend: Array<{ month: string; count: number }>
   businessAnalysts: Array<{ id: string; name: string; count: number }>
 }
@@ -76,6 +86,12 @@ export function DashboardView() {
   //
   // 7. Trends: Perbandingan bulan ini vs bulan lalu
   //    Source: stats.monthlyTrend
+  //
+  // 8. Upcoming Deadlines: Filtered by backend (dueDate > now, active items only)
+  //    Source: stats.upcomingDeadlines (already sorted by dueDate ASC)
+  //
+  // 9. Ongoing Projects: Filtered by backend (status: assessment/development/uat/deployment)
+  //    Source: stats.recentItems (already filtered, sorted by createdAt DESC)
 
   const totalProjects = stats?.total ?? 0
   const activeTasks = (stats?.byStatus['development'] ?? 0) + (stats?.byStatus['uat'] ?? 0) + (stats?.byStatus['deployment'] ?? 0)
@@ -98,16 +114,11 @@ export function DashboardView() {
     'drop': 0,
   }
 
-  // Get ongoing projects (in progress statuses)
-  const ongoingProjects = stats?.recentItems?.filter(item => 
-    ['assessment', 'development', 'uat', 'deployment'].includes(item.status)
-  ).slice(0, 3) ?? []
+  // Get ongoing projects (in progress statuses) - already filtered by backend
+  const ongoingProjects = stats?.recentItems?.slice(0, 3) ?? []
 
-  // Get upcoming deadlines
-  const upcomingDeadlines = stats?.recentItems
-    ?.filter(item => item.dueDate && new Date(item.dueDate) > new Date())
-    ?.sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
-    ?.slice(0, 3) ?? []
+  // Get upcoming deadlines - already filtered and sorted by backend
+  const upcomingDeadlines = stats?.upcomingDeadlines?.slice(0, 3) ?? []
 
   // Business Analysts data
   const businessAnalysts = stats?.businessAnalysts ?? []

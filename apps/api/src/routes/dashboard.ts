@@ -10,7 +10,9 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 app.get('/stats', authMiddleware, async (c) => {
   const db = c.get('db')
 
-  const [statusCounts, priorityCounts, overdueCount, recentItems, monthlyStats, baWorkload] = await Promise.all([
+  const now = Date.now()
+
+  const [statusCounts, priorityCounts, overdueCount, recentItems, upcomingDeadlines, monthlyStats, baWorkload] = await Promise.all([
     // Status breakdown
     db.select({ status: schema.workItems.status, count: count() })
       .from(schema.workItems)
@@ -25,14 +27,15 @@ app.get('/stats', authMiddleware, async (c) => {
     db.select({ count: count() })
       .from(schema.workItems)
       .where(and(
-        sql`${schema.workItems.dueDate} < ${Date.now()}`,
+        sql`${schema.workItems.dueDate} < ${now}`,
         sql`${schema.workItems.status} NOT IN ('go_live', 'drop')`
       )),
 
-    // Recent items with all assigned users
+    // Recent items with all assigned users (for ongoing projects)
     db.query.workItems.findMany({
       limit: 10,
       orderBy: [desc(schema.workItems.createdAt)],
+      where: sql`${schema.workItems.status} IN ('assessment', 'development', 'uat', 'deployment')`,
       with: { 
         department: true,
         manager: { columns: { id: true, name: true } },
@@ -49,6 +52,28 @@ app.get('/stats', authMiddleware, async (c) => {
         createdAt: true,
         dueDate: true,
         goLiveDate: true,
+      },
+    }),
+
+    // Upcoming deadlines (future deadlines only, active items)
+    db.query.workItems.findMany({
+      limit: 10,
+      where: and(
+        sql`${schema.workItems.dueDate} > ${now}`,
+        sql`${schema.workItems.status} NOT IN ('go_live', 'drop')`
+      ),
+      orderBy: [sql`${schema.workItems.dueDate} ASC`],
+      with: { 
+        department: true,
+      },
+      columns: { 
+        id: true, 
+        ticketNumber: true, 
+        title: true, 
+        status: true, 
+        priority: true, 
+        createdAt: true,
+        dueDate: true,
       },
     }),
 
@@ -102,6 +127,7 @@ app.get('/stats', authMiddleware, async (c) => {
     byPriority,
     overdue: overdueCount[0]?.count ?? 0,
     recentItems,
+    upcomingDeadlines,
     monthlyTrend: monthlyStats,
     businessAnalysts,
   }))

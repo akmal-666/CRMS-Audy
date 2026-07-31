@@ -184,19 +184,34 @@ GROUP BY business_analyst_id
 ### Display
 3 CR terdekat yang akan deadline (berdasarkan `dueDate`)
 
-### Filter Logic:
+### Source:
 ```typescript
-stats.recentItems
-  .filter(item => item.dueDate && new Date(item.dueDate) > new Date())
-  .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
-  .slice(0, 3)
+stats.upcomingDeadlines
+// Already filtered and sorted by backend
 ```
 
-### Rules:
-- Hanya menampilkan CR yang punya `dueDate`
-- Hanya future deadlines (belum lewat)
+### Backend Query:
+```sql
+SELECT *
+FROM work_items
+WHERE due_date > CURRENT_TIMESTAMP
+  AND status NOT IN ('go_live', 'drop')
+ORDER BY due_date ASC
+LIMIT 10
+```
+
+### Filter Logic:
+- **Server-side filtering** untuk akurasi timezone
+- `dueDate > NOW()` - hanya future deadlines
+- Exclude status: go_live, drop (karena sudah selesai/dibatalkan)
 - Sorted ascending (deadline terdekat di atas)
-- Max 3 items
+- Backend return max 10, frontend ambil 3 teratas
+
+### Why Server-Side?
+Backend filtering menggunakan `Date.now()` di server untuk menghindari:
+- Timezone issues (browser vs server time)
+- Client-side date parsing errors
+- Inconsistent date comparison
 
 ---
 
@@ -205,20 +220,27 @@ stats.recentItems
 ### Display
 3 projects yang sedang dalam pengerjaan aktif
 
-### Filter Logic:
+### Source:
 ```typescript
 stats.recentItems
-  .filter(item => 
-    ['assessment', 'development', 'uat', 'deployment'].includes(item.status)
-  )
-  .slice(0, 3)
+// Already filtered by backend
 ```
 
-### Rules:
+### Backend Query:
+```sql
+SELECT *
+FROM work_items
+WHERE status IN ('assessment', 'development', 'uat', 'deployment')
+ORDER BY created_at DESC
+LIMIT 10
+```
+
+### Filter Logic:
+- **Server-side filtering** by status
 - Status: assessment, development, uat, deployment
-- Exclude: in_pipeline, go_live, drop
-- Max 3 items
+- Exclude: in_pipeline (belum dimulai), go_live (sudah selesai), drop (dibatalkan)
 - Sorted by latest `createdAt`
+- Backend return max 10, frontend ambil 3 teratas
 
 ---
 
