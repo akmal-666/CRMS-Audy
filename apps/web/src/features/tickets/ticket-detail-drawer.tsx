@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { useAuth } from '@/context/auth-context'
 import { AssignSelect } from './assign-select'
 import { MandaysEdit } from './mandays-edit'
+import { EditableDetailField } from './editable-detail-field'
 import { FileUpload } from '@/components/file-upload'
 import { UserRole } from '@crms/types'
 
@@ -24,6 +25,7 @@ interface TicketDetailDrawerProps {
 export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps) {
   const { user } = useAuth()
   const canEditAssignment = user?.role === UserRole.ADMINISTRATOR || user?.role === UserRole.MANAGER
+  const canEditDetails = user?.role === UserRole.ADMINISTRATOR
   const { data, isLoading } = useQuery({
     queryKey: ['work-item', itemId],
     queryFn: () => apiGet<any>(`/api/work-items/${itemId}`),
@@ -109,15 +111,60 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
 
                   {/* Info grid */}
                   <div className="px-5 py-4">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Details</h3>
                     <div className="grid grid-cols-2 gap-3 text-sm">
+                      <EditableDetailField
+                        workItemId={item.id}
+                        field="priority"
+                        label="Priority"
+                        currentValue={item.priority}
+                        canEdit={canEditDetails}
+                      />
+                      <EditableDetailField
+                        workItemId={item.id}
+                        field="dueDate"
+                        label="Due Date"
+                        currentValue={item.dueDate}
+                        canEdit={canEditDetails}
+                        type="date"
+                      />
+                      <EditableDetailField
+                        workItemId={item.id}
+                        field="departmentId"
+                        label="Department"
+                        currentValue={item.departmentId}
+                        displayValue={item.department?.name}
+                        canEdit={canEditDetails}
+                      />
+                      <EditableDetailField
+                        workItemId={item.id}
+                        field="branchId"
+                        label="Branch"
+                        currentValue={item.branchId}
+                        displayValue={item.branch?.name}
+                        canEdit={canEditDetails}
+                      />
                       <InfoRow label="Requester" value={item.requesterName} />
                       <InfoRow label="Email" value={item.requesterEmail} />
                       <InfoRow label="Created" value={formatDate(item.createdAt)} />
                       {item.goLiveDate && <InfoRow label="Go-Live" value={formatDate(item.goLiveDate)} />}
-                      <InfoRow label="Due Date" value={item.dueDate ? formatDate(item.dueDate) : '—'} />
+                    </div>
+                  </div>
+
+                  {/* Team */}
+                  <div className="px-5 py-4">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Team</h3>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
                       <AssignSelect workItemId={item.id} label="Manager" field="managerId" currentUser={item.manager} canEdit={canEditAssignment} />
                       <AssignSelect workItemId={item.id} label="Business Analyst" field="businessAnalystId" currentUser={item.businessAnalyst} canEdit={canEditAssignment} />
-                      {item.vendor && <InfoRow label="Platform / Vendor" value={item.vendor.name} />}
+                      <EditableDetailField
+                        workItemId={item.id}
+                        field="vendorId"
+                        label="Platform / Vendor"
+                        currentValue={item.vendorId}
+                        displayValue={item.vendor?.name}
+                        canEdit={canEditDetails}
+                      />
                       <MandaysEdit workItemId={item.id} currentValue={item.mandays} canEdit={canEditAssignment} />
                     </div>
                   </div>

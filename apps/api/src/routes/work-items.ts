@@ -370,6 +370,66 @@ app.patch('/:id/mandays', authMiddleware, requireRole(...STAFF_ROLES), zValidato
   return c.json(ok({ id, mandays }, 'Mandays updated'))
 })
 
+// Update work item details (Administrator only)
+const updateDetailsSchema = z.object({
+  priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+  dueDate: z.string().optional(),
+  departmentId: z.string().optional(),
+  branchId: z.string().optional().nullable(),
+  vendorId: z.string().optional(),
+})
+
+app.patch('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), zValidator('json', updateDetailsSchema), async (c) => {
+  const { id } = c.req.param()
+  const data = c.req.valid('json')
+  const user = c.get('user')!
+  const db = c.get('db')
+
+  const item = await db.query.workItems.findFirst({ where: eq(schema.workItems.id, id) })
+  if (!item) return c.json(err('Work item not found'), 404)
+
+  // Build update object
+  const updateData: any = { updatedAt: new Date() }
+  if (data.priority) updateData.priority = data.priority
+  if (data.dueDate) updateData.dueDate = new Date(data.dueDate)
+  if (data.departmentId) updateData.departmentId = data.departmentId
+  if (data.branchId !== undefined) updateData.branchId = data.branchId
+  if (data.vendorId) updateData.vendorId = data.vendorId
+
+  await db.update(schema.workItems)
+    .set(updateData)
+    .where(eq(schema.workItems.id, id))
+
+  await db.insert(schema.activityLogs).values({
+    id: generateId(),
+    workItemId: id,
+    userId: user.sub,
+    action: 'updated',
+    description: 'Work item details updated',
+    metadata: data,
+    createdAt: new Date(),
+  })
+
+  await db.insert(schema.auditLogs).values({
+    id: generateId(),
+    userId: user.sub,
+    action: 'update',
+    entityType: 'work_item',
+    entityId: id,
+    oldValues: {
+      priority: item.priority,
+      dueDate: item.dueDate,
+      departmentId: item.departmentId,
+      branchId: item.branchId,
+      vendorId: item.vendorId,
+    },
+    newValues: data,
+    createdAt: new Date(),
+  })
+
+  return c.json(ok({ id }, 'Work item updated successfully'))
+})
+
 // Delete work item (Administrator only)
 app.delete('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), async (c) => {
   const { id } = c.req.param()
