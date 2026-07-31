@@ -88,8 +88,12 @@ export function MigrationView() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0]
     if (!selected) return
-    if (!selected.name.toLowerCase().endsWith('.csv')) {
-      toast.error('Please upload a CSV file')
+    
+    const fileName = selected.name.toLowerCase()
+    const isValid = fileName.endsWith('.csv') || fileName.endsWith('.xlsx') || fileName.endsWith('.xls')
+    
+    if (!isValid) {
+      toast.error('Please upload a CSV or Excel file (.csv, .xlsx, .xls)')
       return
     }
     setFile(selected)
@@ -132,7 +136,7 @@ export function MigrationView() {
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-foreground">Download Template</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Use the CSV template below. Fill in your data matching the required columns.
+              Use the CSV or Excel template below. Fill in your data matching the required columns.
             </p>
             <a
               href="/Template_Migration_CR.csv"
@@ -155,15 +159,15 @@ export function MigrationView() {
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-foreground">Upload Filled Template</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Upload your completed CSV file for validation
+              Upload your completed CSV or Excel file for validation
             </p>
             <div className="mt-3 space-y-3">
               <label className="flex items-center gap-3 px-4 py-3 rounded-lg border-2 border-dashed border-border hover:border-primary/40 transition-colors cursor-pointer">
                 <FileSpreadsheet size={20} className="text-muted-foreground" />
                 <span className="text-sm text-muted-foreground flex-1">
-                  {file ? file.name : 'Choose CSV file...'}
+                  {file ? file.name : 'Choose CSV or Excel file...'}
                 </span>
-                <input type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+                <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="hidden" />
               </label>
               {file && !parseResult && (
                 <button

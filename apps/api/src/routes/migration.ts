@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
+import * as XLSX from 'xlsx'
 import type { Bindings, Variables } from '../types'
 import { schema } from '@crms/db'
 import { ok, err } from '../lib/response'
@@ -81,6 +82,18 @@ function parseCSV(text: string): string[][] {
     })
 }
 
+// ─── Excel Parser ─────────────────────────────────────────────────────────────
+function parseExcel(buffer: ArrayBuffer): string[][] {
+  const workbook = XLSX.read(buffer, { type: 'array' })
+  const sheetName = workbook.SheetNames[0]
+  if (!sheetName) throw new Error('Excel file has no sheets')
+  
+  const sheet = workbook.Sheets[sheetName]
+  const data = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false }) as string[][]
+  
+  return data.filter(row => row.some(cell => cell?.toString().trim() !== ''))
+}
+
 // ─── Row validator ────────────────────────────────────────────────────────────
 function validateRow(
   row: Record<string, string>,
@@ -132,7 +145,7 @@ function validateRow(
 }
 
 // ─── POST /api/migration/parse ────────────────────────────────────────────────
-// Upload CSV, parse and validate each row, return preview with errors
+// Upload CSV or Excel, parse and validate each row, return preview with errors
 app.post('/parse', async (c) => {
   const db = c.get('db')
 
@@ -141,12 +154,27 @@ app.post('/parse', async (c) => {
   if (!file) return c.json(err('No file uploaded'), 400)
 
   const fileName = file.name.toLowerCase()
-  if (!fileName.endsWith('.csv')) {
-    return c.json(err('Only CSV files are supported. Please use the provided template.'), 400)
+  const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls')
+  const isCSV = fileName.endsWith('.csv')
+  
+  if (!isCSV && !isExcel) {
+    return c.json(err('Only CSV or Excel (.xlsx/.xls) files are supported'), 400)
   }
 
-  const text = await file.text()
-  const rows = parseCSV(text)
+  let rows: string[][]
+  
+  try {
+    if (isExcel) {
+      const buffer = await file.arrayBuffer()
+      rows = parseExcel(buffer)
+    } else {
+      const text = await file.text()
+      rows = parseCSV(text)
+    }
+  } catch (e: any) {
+    return c.json(err(`Failed to parse file: ${e.message}`), 400)
+  }
+
   if (rows.length < 2) return c.json(err('File is empty or has no data rows'), 400)
 
   // Build header map (case-insensitive)
