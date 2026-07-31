@@ -10,7 +10,7 @@ import { Priority } from '@crms/types'
 
 interface EditableDetailFieldProps {
   workItemId: string
-  field: 'priority' | 'dueDate' | 'departmentId' | 'vendorId'
+  field: 'priority' | 'dueDate' | 'departmentId' | 'vendorId' | 'createdAt'
   label: string
   currentValue: any
   displayValue?: string
@@ -92,7 +92,7 @@ export function EditableDetailField({
   if (!display) {
     if (field === 'priority') {
       display = PRIORITY_LABELS[currentValue as Priority] || currentValue
-    } else if (field === 'dueDate' && currentValue) {
+    } else if ((field === 'dueDate' || field === 'createdAt') && currentValue) {
       display = formatDate(currentValue)
     } else if (field === 'departmentId' || field === 'vendorId') {
       const item = selectOptions?.find((opt: any) => opt.id === currentValue)
@@ -151,7 +151,7 @@ export function EditableDetailField({
         {type === 'date' ? (
           <input
             type="date"
-            value={value}
+            value={value ? new Date(value).toISOString().split('T')[0] : ''}
             onChange={(e) => setValue(e.target.value)}
             className="input text-xs py-1 flex-1"
             autoFocus

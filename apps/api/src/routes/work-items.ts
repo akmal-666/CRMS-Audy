@@ -376,6 +376,7 @@ const updateDetailsSchema = z.object({
   dueDate: z.string().optional(),
   departmentId: z.string().optional(),
   vendorId: z.string().optional(),
+  createdAt: z.string().optional(),
 })
 
 app.patch('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), zValidator('json', updateDetailsSchema), async (c) => {
@@ -393,6 +394,7 @@ app.patch('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), zValidato
   if (data.dueDate) updateData.dueDate = new Date(data.dueDate)
   if (data.departmentId) updateData.departmentId = data.departmentId
   if (data.vendorId) updateData.vendorId = data.vendorId
+  if (data.createdAt) updateData.createdAt = new Date(data.createdAt)
 
   await db.update(schema.workItems)
     .set(updateData)
@@ -419,6 +421,7 @@ app.patch('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), zValidato
       dueDate: item.dueDate,
       departmentId: item.departmentId,
       vendorId: item.vendorId,
+      createdAt: item.createdAt,
     },
     newValues: data,
     createdAt: new Date(),
