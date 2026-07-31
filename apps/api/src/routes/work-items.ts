@@ -275,10 +275,20 @@ app.patch('/:id/assign', authMiddleware, requireRole(...MANAGER_ROLES), zValidat
   const user = c.get('user')!
   const db = c.get('db')
 
+  // Get work item details
+  const workItem = await db.query.workItems.findFirst({
+    where: eq(schema.workItems.id, id),
+    columns: { id: true, ticketNumber: true, title: true },
+  })
+
+  if (!workItem) return c.json(err('Work item not found'), 404)
+
+  // Update assignments
   await db.update(schema.workItems)
     .set({ ...data, updatedAt: new Date() })
     .where(eq(schema.workItems.id, id))
 
+  // Create activity log
   await db.insert(schema.activityLogs).values({
     id: generateId(),
     workItemId: id,
@@ -288,6 +298,45 @@ app.patch('/:id/assign', authMiddleware, requireRole(...MANAGER_ROLES), zValidat
     metadata: data,
     createdAt: new Date(),
   })
+
+  // Create notifications for newly assigned users
+  const notifications: Array<{
+    id: string
+    userId: string
+    type: 'assignment'
+    title: string
+    message: string
+    workItemId: string
+    isRead: boolean
+    createdAt: Date
+  }> = []
+
+  const roleLabels = {
+    managerId: 'Manager',
+    businessAnalystId: 'Business Analyst',
+    developerId: 'Developer',
+    qaId: 'QA',
+  }
+
+  for (const [field, userId] of Object.entries(data)) {
+    if (userId && (field === 'managerId' || field === 'businessAnalystId' || field === 'developerId' || field === 'qaId')) {
+      const roleLabel = roleLabels[field as keyof typeof roleLabels]
+      notifications.push({
+        id: generateId(),
+        userId: userId as string,
+        type: 'assignment',
+        title: 'You have been assigned to a CR',
+        message: `You have been assigned as ${roleLabel} to ${workItem.ticketNumber}: ${workItem.title}`,
+        workItemId: id,
+        isRead: false,
+        createdAt: new Date(),
+      })
+    }
+  }
+
+  if (notifications.length > 0) {
+    await db.insert(schema.notifications).values(notifications)
+  }
 
   return c.json(ok(null, 'Assignment updated'))
 })
