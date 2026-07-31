@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Kanban, ListChecks, Users, Building2,
   GitBranch, Package, Settings, ChevronDown, ChevronRight,
-  Sparkles, Bell, FileText, BarChart3, Shield, X, Calendar,
+  Bell, FileText, BarChart3, Shield, X, Calendar,
   PlusCircle, CalendarRange, ArrowUpFromLine,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
@@ -127,8 +127,12 @@ export function Sidebar({ collapsed, mobileOpen, onMobileClose }: SidebarProps) 
 function Logo({ collapsed }: { collapsed: boolean }) {
   return (
     <div className="flex items-center gap-2.5 px-3 py-4">
-      <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-        <Sparkles size={16} className="text-white" />
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0">
+        <img 
+          src="/audy-logo.svg" 
+          alt="Audy Dental" 
+          className="w-full h-full object-contain"
+        />
       </div>
       {!collapsed && (
         <motion.span
@@ -136,7 +140,7 @@ function Logo({ collapsed }: { collapsed: boolean }) {
           animate={{ opacity: 1 }}
           className="font-bold text-foreground text-sm tracking-tight"
         >
-          CRMS
+          IT Workflow
         </motion.span>
       )}
     </div>
