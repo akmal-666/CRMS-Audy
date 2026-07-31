@@ -89,7 +89,10 @@ export function LoginForm() {
       <button 
         type="submit" 
         disabled={isSubmitting} 
-        className="w-full bg-[#2D3E9F] hover:bg-[#253587] text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-900/20"
+        className="w-full text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-1"
+        style={{ backgroundColor: '#2D3E9F' }}
+        onMouseEnter={e => !isSubmitting && ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#253587')}
+        onMouseLeave={e => !isSubmitting && ((e.currentTarget as HTMLButtonElement).style.backgroundColor = '#2D3E9F')}
       >
         {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : null}
         {isSubmitting ? 'Signing in...' : 'Sign in'}
