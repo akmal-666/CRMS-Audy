@@ -37,8 +37,8 @@ export default function LoginPage() {
             <img
               src="/audy-logo.png"
               alt="Audy Dental"
-              className="h-20 w-auto object-contain"
-              style={{ maxWidth: '180px' }}
+              className="w-auto object-contain"
+              style={{ height: '140px', maxWidth: '280px' }}
             />
           </div>
 
