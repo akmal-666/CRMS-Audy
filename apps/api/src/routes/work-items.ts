@@ -375,7 +375,6 @@ const updateDetailsSchema = z.object({
   priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   dueDate: z.string().optional(),
   departmentId: z.string().optional(),
-  branchId: z.string().optional().nullable(),
   vendorId: z.string().optional(),
 })
 
@@ -393,7 +392,6 @@ app.patch('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), zValidato
   if (data.priority) updateData.priority = data.priority
   if (data.dueDate) updateData.dueDate = new Date(data.dueDate)
   if (data.departmentId) updateData.departmentId = data.departmentId
-  if (data.branchId !== undefined) updateData.branchId = data.branchId
   if (data.vendorId) updateData.vendorId = data.vendorId
 
   await db.update(schema.workItems)
@@ -420,7 +418,6 @@ app.patch('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), zValidato
       priority: item.priority,
       dueDate: item.dueDate,
       departmentId: item.departmentId,
-      branchId: item.branchId,
       vendorId: item.vendorId,
     },
     newValues: data,

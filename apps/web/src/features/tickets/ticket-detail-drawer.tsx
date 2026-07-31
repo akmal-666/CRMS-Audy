@@ -136,14 +136,7 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
                         displayValue={item.department?.name}
                         canEdit={canEditDetails}
                       />
-                      <EditableDetailField
-                        workItemId={item.id}
-                        field="branchId"
-                        label="Branch"
-                        currentValue={item.branchId}
-                        displayValue={item.branch?.name}
-                        canEdit={canEditDetails}
-                      />
+                      {item.branch && <InfoRow label="Branch" value={item.branch.name} />}
                       <InfoRow label="Requester" value={item.requesterName} />
                       <InfoRow label="Email" value={item.requesterEmail} />
                       <InfoRow label="Created" value={formatDate(item.createdAt)} />

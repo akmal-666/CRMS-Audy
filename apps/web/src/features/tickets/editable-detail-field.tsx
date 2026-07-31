@@ -10,7 +10,7 @@ import { Priority } from '@crms/types'
 
 interface EditableDetailFieldProps {
   workItemId: string
-  field: 'priority' | 'dueDate' | 'departmentId' | 'branchId' | 'vendorId'
+  field: 'priority' | 'dueDate' | 'departmentId' | 'vendorId'
   label: string
   currentValue: any
   displayValue?: string
@@ -33,19 +33,12 @@ export function EditableDetailField({
   const [value, setValue] = useState(currentValue || '')
   const queryClient = useQueryClient()
 
-  // Fetch options for departments, branches, vendors
+  // Fetch options for departments, vendors
   const { data: departments } = useQuery({
     queryKey: ['departments'],
     queryFn: () => apiGet<any[]>('/api/master/departments'),
     select: (res) => res.data ?? [],
     enabled: field === 'departmentId' && !options,
-  })
-
-  const { data: branches } = useQuery({
-    queryKey: ['branches'],
-    queryFn: () => apiGet<any[]>('/api/master/branches'),
-    select: (res) => res.data ?? [],
-    enabled: field === 'branchId' && !options,
   })
 
   const { data: vendors } = useQuery({
@@ -57,7 +50,6 @@ export function EditableDetailField({
 
   const selectOptions = options || 
     (field === 'departmentId' ? departments : 
-     field === 'branchId' ? branches : 
      field === 'vendorId' ? vendors : [])
 
   const priorityOptions = [
@@ -102,7 +94,7 @@ export function EditableDetailField({
       display = PRIORITY_LABELS[currentValue as Priority] || currentValue
     } else if (field === 'dueDate' && currentValue) {
       display = formatDate(currentValue)
-    } else if (field === 'departmentId' || field === 'branchId' || field === 'vendorId') {
+    } else if (field === 'departmentId' || field === 'vendorId') {
       const item = selectOptions?.find((opt: any) => opt.id === currentValue)
       display = item?.name || '—'
     } else {
