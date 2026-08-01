@@ -22,6 +22,7 @@ export function MandaysKPICards({ data, isLoading }: MandaysKPICardsProps) {
   }
 
   const summary = data?.summary || {}
+  const comparison = data?.comparison || {} // Data perbandingan dari API (jika ada)
 
   const cards = [
     {
@@ -31,7 +32,7 @@ export function MandaysKPICards({ data, isLoading }: MandaysKPICardsProps) {
       icon: CheckCircle2,
       color: 'text-green-600',
       bgColor: 'bg-green-50 dark:bg-green-900/20',
-      change: '+9.2% vs last period',
+      change: comparison.totalUsed ? `${comparison.totalUsed > 0 ? '+' : ''}${comparison.totalUsed}% vs last period` : undefined,
     },
     {
       title: 'Mandays Used (%)',
@@ -40,7 +41,7 @@ export function MandaysKPICards({ data, isLoading }: MandaysKPICardsProps) {
       icon: TrendingUp,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50 dark:bg-purple-900/20',
-      change: summary.avgUtilization >= 80 ? '+6.1% vs last period' : '',
+      change: comparison.avgUtilization ? `${comparison.avgUtilization > 0 ? '+' : ''}${comparison.avgUtilization}% vs last period` : undefined,
     },
     {
       title: 'Remaining Mandays',
@@ -49,16 +50,16 @@ export function MandaysKPICards({ data, isLoading }: MandaysKPICardsProps) {
       icon: Clock,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50 dark:bg-orange-900/20',
-      change: summary.totalRemaining < 50 ? '-18.2% vs last period' : '',
+      change: comparison.totalRemaining ? `${comparison.totalRemaining > 0 ? '+' : ''}${comparison.totalRemaining}% vs last period` : undefined,
     },
     {
       title: 'Avg. Deviation',
-      value: '-12.4',
+      value: summary.avgDeviation || 0,
       suffix: '%',
-      icon: summary.avgUtilization > 100 ? TrendingUp : TrendingDown,
-      color: summary.avgUtilization > 100 ? 'text-red-600' : 'text-green-600',
-      bgColor: summary.avgUtilization > 100 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20',
-      change: '↓ Better vs last period',
+      icon: (summary.avgDeviation || 0) > 0 ? TrendingUp : TrendingDown,
+      color: (summary.avgDeviation || 0) > 0 ? 'text-red-600' : 'text-green-600',
+      bgColor: (summary.avgDeviation || 0) > 0 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-green-50 dark:bg-green-900/20',
+      change: comparison.avgDeviation ? `${comparison.avgDeviation > 0 ? '↑' : '↓'} ${Math.abs(comparison.avgDeviation)}% vs last period` : undefined,
     },
     {
       title: 'Top-up Mandays',
@@ -67,7 +68,7 @@ export function MandaysKPICards({ data, isLoading }: MandaysKPICardsProps) {
       icon: AlertTriangle,
       color: 'text-amber-600',
       bgColor: 'bg-amber-50 dark:bg-amber-900/20',
-      change: summary.totalTopup > 0 ? `+${summary.totalTopup} MD added` : 'No top-ups',
+      change: summary.totalTopup > 0 ? `+${summary.totalTopup} MD added` : undefined,
     },
   ]
 
