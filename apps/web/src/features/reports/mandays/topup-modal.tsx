@@ -28,7 +28,7 @@ export function TopupModal({ isOpen, onClose, onSuccess }: TopupModalProps) {
   // Use React Query to fetch vendors - consistent with other components
   const { data: vendorsData, isLoading: isLoadingVendors } = useQuery({
     queryKey: ['vendors-list'],
-    queryFn: () => apiGet<Vendor[]>('/api/master-data/vendors'),
+    queryFn: () => apiGet<Vendor[]>('/api/master/vendors'),
     enabled: isOpen,
     staleTime: 5 * 60 * 1000,
   })
