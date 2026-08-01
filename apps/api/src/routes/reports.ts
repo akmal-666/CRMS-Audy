@@ -244,24 +244,27 @@ app.get('/project-health', authMiddleware, requireRole(UserRole.ADMINISTRATOR, U
     },
   })
 
-  // Filter items: include ACTIVE projects OR projects in selected period
+  // Filter items berdasarkan periode yang dipilih
   const items = allItems.filter(item => {
-    // Selalu tampilkan project yang masih aktif (belum selesai)
-    const isActive = !['go_live', 'drop', 'in_pipeline'].includes(item.status)
-    if (isActive) return true
+    const createdAt = new Date(item.createdAt)
+    const completedAt = item.goLiveDate ? new Date(item.goLiveDate) : null
+    const isDropped = item.status === 'drop'
 
-    // Untuk project yang sudah selesai, cek apakah dalam periode
-    if (periodStart && periodEnd) {
-      const createdAt = new Date(item.createdAt)
-      const completedAt = item.goLiveDate ? new Date(item.goLiveDate) : null
-      
-      // Include jika dibuat atau selesai dalam periode
-      return (createdAt >= periodStart && createdAt <= periodEnd) ||
-             (completedAt && completedAt >= periodStart && completedAt <= periodEnd)
+    // Jika tidak ada filter periode, tampilkan semua kecuali drop
+    if (!periodStart || !periodEnd) {
+      return !isDropped
     }
 
-    // Jika tidak ada filter periode, tampilkan semua
-    return true
+    // Jangan tampilkan yang di-drop
+    if (isDropped) return false
+
+    // Tampilkan project yang aktif/berjalan dalam periode ini:
+    // 1. Dibuat sebelum/selama periode berakhir
+    // 2. DAN (belum selesai ATAU selesai dalam/setelah periode mulai)
+    const createdBeforePeriodEnd = createdAt <= periodEnd
+    const notCompletedBeforePeriod = !completedAt || completedAt >= periodStart
+
+    return createdBeforePeriodEnd && notCompletedBeforePeriod
   })
 
   const activeProjects = items.filter(i => !['go_live', 'drop', 'in_pipeline'].includes(i.status))
@@ -385,25 +388,34 @@ app.get('/project-health', authMiddleware, requireRole(UserRole.ADMINISTRATOR, U
     ? Math.round(projectsWithHealth.reduce((sum, p) => sum + p.progress, 0) / totalProjects)
     : 0
 
-  // Health distribution over time (last 6 months)
+  // Health distribution over time - 6 bulan berdasarkan periode yang dipilih (atau 6 bulan terakhir)
   const healthTrend: any[] = []
+  const trendEndDate = periodEnd ?? new Date()
   for (let i = 5; i >= 0; i--) {
-    const d = new Date()
+    const d = new Date(trendEndDate)
     d.setMonth(d.getMonth() - i)
     const monthStart = new Date(d.getFullYear(), d.getMonth(), 1)
     const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59)
     
-    const monthProjects = projectsWithHealth.filter(p => {
+    // Ambil dari allItems (semua, tidak hanya yang difilter period) untuk trend yang lebih akurat
+    const monthProjects = allItems.filter(p => {
+      if (p.status === 'drop') return false
       const created = new Date(p.createdAt)
       return created >= monthStart && created <= monthEnd
     })
     
     healthTrend.push({
       month: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-      excellent: monthProjects.filter(p => p.healthStatus === 'excellent').length,
-      good: monthProjects.filter(p => p.healthStatus === 'good').length,
-      atRisk: monthProjects.filter(p => p.healthStatus === 'at-risk').length,
-      critical: monthProjects.filter(p => p.healthStatus === 'critical').length,
+      excellent: monthProjects.filter(p => {
+        const score = p.assessment?.risk === 'high' ? 50 : 90
+        return score >= 80
+      }).length,
+      good: monthProjects.length,
+      atRisk: monthProjects.filter(p => p.priority === 'high' || p.priority === 'critical').length,
+      critical: monthProjects.filter(p => {
+        if (!p.dueDate) return false
+        return new Date(p.dueDate) < new Date() && !['go_live', 'drop'].includes(p.status)
+      }).length,
     })
   }
 
