@@ -2,7 +2,7 @@ name = "crms-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
-# Updated: Enhanced email logging and Resend API configuration
+# Updated: Force redeploy - public/submit endpoint fix
 
 [[d1_databases]]
 binding = "DB"
