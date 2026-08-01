@@ -808,7 +808,7 @@ app.get('/mandays', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole
   const { startDate, endDate, departmentId, vendorId, year, quarter, month } = c.req.valid('query')
   const db = c.get('db')
 
-  // Build date filter
+  // Build date filter untuk trend & topup filtering
   let periodStart: Date | null = null
   let periodEnd: Date | null = null
   
@@ -831,26 +831,18 @@ app.get('/mandays', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole
     const y = parseInt(year)
     periodStart = new Date(y, 0, 1)
     periodEnd = new Date(y, 11, 31, 23, 59, 59)
-  } else {
-    // Default to current year if no filter
-    const currentYear = new Date().getFullYear()
-    periodStart = new Date(currentYear, 0, 1)
-    periodEnd = new Date(currentYear, 11, 31, 23, 59, 59)
   }
 
-  // Build query conditions
+  // Untuk work items: TIDAK filter by date - tampilkan semua CR yang punya mandays data
+  // Filter hanya by departmentId dan vendorId
   let workItemConditions: any[] = []
-  if (periodStart && periodEnd) {
-    workItemConditions.push(gte(schema.workItems.createdAt, periodStart))
-    workItemConditions.push(lte(schema.workItems.createdAt, periodEnd))
-  }
   if (departmentId) workItemConditions.push(eq(schema.workItems.departmentId, departmentId))
   if (vendorId) workItemConditions.push(eq(schema.workItems.vendorId, vendorId))
 
   const workItemWhere = workItemConditions.length > 0 ? and(...workItemConditions) : undefined
 
-  // Get all work items with mandays
-  const workItems = await db.query.workItems.findMany({
+  // Get ALL work items yang punya vendor (untuk mandays tracking)
+  const allWorkItems = await db.query.workItems.findMany({
     where: workItemWhere,
     with: {
       department: true,
@@ -860,7 +852,22 @@ app.get('/mandays', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole
     },
   })
 
-  // Get all mandays topups
+  // Filter: hanya tampilkan work items yang punya mandays data (actual atau planned)
+  // Jika ada period filter, juga include items yang dibuat dalam periode
+  const workItems = allWorkItems.filter(item => {
+    const hasMandays = item.mandays || item.assessment?.estimatedManDays
+    if (!hasMandays) return false
+
+    // Jika ada period filter, filter berdasarkan createdAt
+    if (periodStart && periodEnd) {
+      const created = new Date(item.createdAt)
+      return created >= periodStart && created <= periodEnd
+    }
+
+    return true
+  })
+
+  // Get all mandays topups - filter by period jika ada
   let topupConditions: any[] = []
   if (periodStart && periodEnd) {
     topupConditions.push(gte(schema.mandaysTopups.createdAt, periodStart))
@@ -1002,7 +1009,7 @@ app.get('/mandays', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole
     }))
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-  // Mandays trend (by month for last 6 months)
+  // Mandays trend (by month for last 6 months) - gunakan allWorkItems agar trend akurat
   const mandaysTrend: any[] = []
   const endDateObj = periodEnd || new Date()
   
@@ -1012,7 +1019,10 @@ app.get('/mandays', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole
     const monthStart = new Date(d.getFullYear(), d.getMonth(), 1)
     const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59)
     
-    const monthItems = workItems.filter(item => {
+    // Gunakan allWorkItems untuk trend yang akurat (tidak difilter period)
+    const monthItems = allWorkItems.filter(item => {
+      if (!item.vendor) return false
+      if (vendorId && item.vendor.id !== vendorId) return false
       const created = new Date(item.createdAt)
       return created >= monthStart && created <= monthEnd
     })
@@ -1028,9 +1038,9 @@ app.get('/mandays', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole
     
     mandaysTrend.push({
       month: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-      planned,
-      actual,
-      topup,
+      planned: Math.round(planned * 10) / 10,
+      actual: Math.round(actual * 10) / 10,
+      topup: Math.round(topup * 10) / 10,
     })
   }
 

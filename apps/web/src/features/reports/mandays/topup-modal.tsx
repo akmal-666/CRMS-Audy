@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, PlusCircle, Loader2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { apiGet, apiPost } from '@/lib/api'
 
 interface TopupModalProps {
@@ -18,22 +19,22 @@ interface Vendor {
 }
 
 export function TopupModal({ isOpen, onClose, onSuccess }: TopupModalProps) {
-  const [vendors, setVendors] = useState<Vendor[]>([])
   const [vendorId, setVendorId] = useState('')
   const [mandays, setMandays] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [isLoadingVendors, setIsLoadingVendors] = useState(true)
 
-  useEffect(() => {
-    if (!isOpen) return
-    setIsLoadingVendors(true)
-    apiGet<Vendor[]>('/api/master-data/vendors')
-      .then(res => setVendors(res.data || []))
-      .catch(() => setVendors([]))
-      .finally(() => setIsLoadingVendors(false))
-  }, [isOpen])
+  // Use React Query to fetch vendors - consistent with other components
+  const { data: vendorsData, isLoading: isLoadingVendors } = useQuery({
+    queryKey: ['vendors-list'],
+    queryFn: () => apiGet<Vendor[]>('/api/master-data/vendors'),
+    enabled: isOpen,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // vendors is inside res.data (ApiResponse<Vendor[]> -> .data is Vendor[])
+  const vendors: Vendor[] = vendorsData?.data || []
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,7 +55,8 @@ export function TopupModal({ isOpen, onClose, onSuccess }: TopupModalProps) {
       })
       onSuccess()
     } catch (err: any) {
-      setError(err?.message || 'Failed to add top-up. Please try again.')
+      const msg = err?.response?.data?.message || err?.message || 'Failed to add top-up. Please try again.'
+      setError(msg)
     } finally {
       setIsSubmitting(false)
     }
