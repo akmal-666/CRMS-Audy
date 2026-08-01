@@ -12,7 +12,6 @@ import { ProjectsHealthTable } from './projects-health-table'
 import { HealthScoreDistribution } from './health-score-distribution'
 import { IssuesSummary } from './issues-summary'
 import { HealthScoreOverTime } from './health-score-over-time'
-import { HealthByCategory } from './health-by-category'
 import { TopRisks } from './top-risks'
 import { Recommendations } from './recommendations'
 
@@ -214,11 +213,8 @@ export function ProjectHealthPage() {
       {/* Issues Summary - HIDDEN FOR NOW */}
       {/* <IssuesSummary data={safeReportData.issuesSummary} isLoading={isLoading} /> */}
 
-      {/* Health Score Over Time & By Category */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <HealthScoreOverTime data={safeReportData.healthTrend} isLoading={isLoading} />
-        <HealthByCategory data={safeReportData.healthByCategory} isLoading={isLoading} />
-      </div>
+      {/* Health Score Over Time */}
+      <HealthScoreOverTime data={safeReportData.healthTrend} isLoading={isLoading} />
 
       {/* Top Risks & Recommendations */}
       <div className="grid lg:grid-cols-2 gap-6">
