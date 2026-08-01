@@ -44,7 +44,8 @@ export function HealthScoreDistribution({ data, isLoading, total }: HealthScoreD
         </div>
       ) : (
         <>
-          <div className="relative flex-1">
+          {/* Chart container with relative positioning for center text */}
+          <div className="relative" style={{ height: '300px' }}>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -73,7 +74,7 @@ export function HealthScoreDistribution({ data, isLoading, total }: HealthScoreD
               </PieChart>
             </ResponsiveContainer>
 
-            {/* Center text - positioned absolutely on top of chart */}
+            {/* Center text overlay - absolutely positioned within relative parent */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center">
                 <div className="text-4xl font-bold text-foreground">{totalProjects}</div>
