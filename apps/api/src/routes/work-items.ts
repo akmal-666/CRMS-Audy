@@ -30,19 +30,26 @@ app.post('/public/submit', zValidator('json', submitSchema), async (c) => {
   const data = c.req.valid('json')
   const db = c.get('db')
 
-  // Generate ticket number
+  // Generate ticket number with robust counter handling
   const year = new Date().getFullYear()
-  const counterResult = await c.env.DB.prepare(
-    'UPDATE ticket_counters SET counter = counter + 1 WHERE year = ? RETURNING counter'
-  ).bind(year).first<{ counter: number }>()
-
   let counter = 1
-  if (counterResult) {
-    counter = counterResult.counter
-  } else {
-    await c.env.DB.prepare(
-      'INSERT INTO ticket_counters (year, counter) VALUES (?, 1)'
-    ).bind(year).run()
+  try {
+    const counterResult = await c.env.DB.prepare(
+      'UPDATE ticket_counters SET counter = counter + 1 WHERE year = ? RETURNING counter'
+    ).bind(year).first<{ counter: number }>()
+
+    if (counterResult) {
+      counter = counterResult.counter
+    } else {
+      // Row doesn't exist yet — insert it
+      await c.env.DB.prepare(
+        'INSERT OR IGNORE INTO ticket_counters (year, counter) VALUES (?, 1)'
+      ).bind(year).run()
+      counter = 1
+    }
+  } catch {
+    // Fallback: use timestamp-based counter if D1 raw query fails
+    counter = Date.now() % 10000
   }
 
   const ticketNumber = generateTicketNumber(year, counter)

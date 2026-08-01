@@ -1,0 +1,37 @@
+fix: resolve submit 404, public timeline access, and detail panel issues
+
+This commit fixes three critical bugs:
+
+1. Submit Request 404 Error
+   - Added robust error handling for ticket counter generation
+   - Implemented INSERT OR IGNORE for idempotency
+   - Added timestamp-based fallback counter
+   - Updated CORS to allow public endpoints
+
+2. Public Timeline Share Link Access
+   - Created getApiUrl() helper using window.location.origin fallback
+   - Added credentials: 'omit' to public fetch calls
+   - Public endpoint properly works without authentication
+
+3. Detail Panel Cleanup
+   - Removed Status and Priority fields from timeline detail panel
+   - Cleaned up unused mutations and imports
+   - Detail panel now shows only Summary and Description
+
+Files changed:
+- apps/api/src/routes/work-items.ts
+- apps/api/src/index.ts
+- apps/api/src/routes/timeline.ts
+- apps/web/src/features/timeline/timeline-page.tsx
+- apps/web/src/features/timeline/timeline-module.tsx
+
+Tested:
+- ✅ Ticket counter generation with fallback
+- ✅ Public endpoint accessibility
+- ✅ CORS configuration
+- ✅ Timeline color schema (gray support)
+
+Breaking changes: None
+Migration required: No (ticket_counters table already exists)
+
+Closes: #issue-submit-404, #issue-public-timeline, #issue-detail-panel

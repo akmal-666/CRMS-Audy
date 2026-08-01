@@ -40,7 +40,9 @@ app.use('*', cors({
       'http://localhost:3000',
       'http://localhost:3001',
     ]
-    return allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
+    // Allow any origin for public endpoints (submit, track, timeline share)
+    // For authenticated routes the auth middleware enforces security
+    return allowedOrigins.includes(origin) ? origin : origin || allowedOrigins[0]
   },
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

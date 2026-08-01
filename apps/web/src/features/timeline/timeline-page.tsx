@@ -589,9 +589,11 @@ export function TimelinePage({ workItemId, readOnly = false, publicToken }: { wo
     queryFn: async () => {
       if (publicToken) {
         // Public endpoint — no auth required
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787'
+        const API_URL = process.env.NEXT_PUBLIC_API_URL
+          || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8787')
         const res = await fetch(`${API_URL}/api/timeline/public/${publicToken}`, {
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'omit',
         })
         if (!res.ok) throw new Error('Not found')
         return res.json() as Promise<{ data: { workItem: WorkItemInfo; tasks: TimelineTask[] } }>
@@ -1258,19 +1260,32 @@ function TimelineSkeleton() {
 
 // ─── Public Read-Only Timeline Page ──────────────────────────────────────────
 export function PublicTimelinePage({ token }: { token: string }) {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787'
+  // Use relative path via Next.js rewrites OR the explicit env var.
+  // Never fall back to localhost in production — use window.location.origin as base.
+  const getApiUrl = () => {
+    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL
+    if (typeof window !== 'undefined') {
+      // Same-origin fallback (works if API is on same domain)
+      return window.location.origin
+    }
+    return 'http://localhost:8787'
+  }
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['timeline-public', token],
     queryFn: async () => {
-      // Use plain fetch — no auth header — for the public endpoint
+      const API_URL = getApiUrl()
       const res = await fetch(`${API_URL}/api/timeline/public/${token}`, {
         headers: { 'Content-Type': 'application/json' },
+        // Explicitly no credentials — this is a public endpoint
+        credentials: 'omit',
       })
       if (!res.ok) throw new Error('Not found or expired')
       return res.json() as Promise<{ data: { workItem: WorkItemInfo; tasks: TimelineTask[] } }>
     },
     retry: false,
+    // Don't retry 404s
+    retryOnMount: false,
   })
 
   if (isLoading) return <TimelineSkeleton />

@@ -670,7 +670,6 @@ function DetailPanel({ workItem, selectedTask, onClose, canEdit, onEditTask }: {
   canEdit: boolean
   onEditTask: (t: TimelineTask) => void
 }) {
-  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'details' | 'subitems' | 'activity'>('details')
   const tasks = workItem.tasks
   const completedCount = tasks.filter(t => t.status === 'completed').length
@@ -692,30 +691,6 @@ function DetailPanel({ workItem, selectedTask, onClose, canEdit, onEditTask }: {
     staleTime: 30_000,
   })
   const activityLogs: any[] = activityData?.data?.activityLogs ?? []
-
-  // Mutations for inline edits
-  const statusMut = useMutation({
-    mutationFn: (status: string) => apiPatch(`/api/work-items/${workItem.id}/status`, { status }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['timeline-all'] }); toast.success('Status updated') },
-    onError: () => toast.error('Failed to update status'),
-  })
-  const priorityMut = useMutation({
-    mutationFn: (priority: string) => apiPatch(`/api/work-items/${workItem.id}`, { priority }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['timeline-all'] }); toast.success('Priority updated') },
-    onError: () => toast.error('Failed to update priority'),
-  })
-
-  const WF_STATUS_OPTIONS = (Object.keys(STATUS_LABELS) as WorkflowStatus[]).map(v => ({
-    value: v,
-    label: STATUS_LABELS[v],
-    className: STATUS_COLORS[v],
-  }))
-
-  const PRIORITY_OPTIONS = (Object.keys(PRIORITY_LABELS) as Priority[]).map(v => ({
-    value: v as string,
-    label: PRIORITY_LABELS[v],
-    className: PRIORITY_COLORS[v],
-  }))
 
   const TABS = [
     { key: 'details', label: 'Details' },
@@ -768,26 +743,6 @@ function DetailPanel({ workItem, selectedTask, onClose, canEdit, onEditTask }: {
                 <p className="text-sm text-foreground/80 leading-relaxed line-clamp-4">{workItem.problemDescription}</p>
               </div>
             )}
-            <div>
-              <p className="text-xs text-muted-foreground mb-1.5">Status</p>
-              <InlineSelect
-                label="Status"
-                value={workItem.status as WorkflowStatus}
-                options={WF_STATUS_OPTIONS}
-                onChange={v => statusMut.mutate(v)}
-                disabled={!canEdit}
-              />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1.5">Priority</p>
-              <InlineSelect
-                label="Priority"
-                value={workItem.priority}
-                options={PRIORITY_OPTIONS}
-                onChange={v => priorityMut.mutate(v)}
-                disabled={!canEdit}
-              />
-            </div>
             {workItem.manager && (
               <div>
                 <p className="text-xs text-muted-foreground mb-1.5">Assignee</p>
