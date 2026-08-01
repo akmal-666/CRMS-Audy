@@ -17,32 +17,20 @@ export function TopRisks({ data, isLoading }: TopRisksProps) {
     )
   }
 
-  const risks = data || [
-    {
-      project: 'Mobile App',
-      risk: 'Scope creep',
-      impact: 'High',
-      status: 'Open',
-      owner: 'Jessica Lee',
-      updated: '30m ago',
-    },
-    {
-      project: 'Data Warehouse',
-      risk: 'Resource constraint',
-      impact: 'High',
-      status: 'Open',
-      owner: 'Budi Santoso',
-      updated: '1h ago',
-    },
-    {
-      project: 'CRM Integration',
-      risk: 'Dependency delay',
-      impact: 'Medium',
-      status: 'In Progress',
-      owner: 'Rama Putra',
-      updated: '2h ago',
-    },
-  ]
+  const risks = data && data.length > 0 ? data : []
+
+  if (risks.length === 0) {
+    return (
+      <div className="card h-[350px] flex flex-col">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-foreground">Top Risks</h3>
+        </div>
+        <div className="flex items-center justify-center flex-1 text-muted-foreground text-sm">
+          No risk data available
+        </div>
+      </div>
+    )
+  }
 
   const getImpactColor = (impact: string) => {
     if (impact === 'High') return 'text-red-600 bg-red-100 dark:bg-red-900/30'

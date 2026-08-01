@@ -77,7 +77,7 @@ export function ProjectHealthTable({ data, isLoading }: ProjectHealthTableProps)
             </thead>
             <tbody>
               {data.map((project, index) => {
-                const healthConfig = HEALTH_CONFIG[project.health as keyof typeof HEALTH_CONFIG]
+                const healthConfig = HEALTH_CONFIG[project.health as keyof typeof HEALTH_CONFIG] ?? HEALTH_CONFIG['good']
                 const HealthIcon = healthConfig.icon
 
                 return (

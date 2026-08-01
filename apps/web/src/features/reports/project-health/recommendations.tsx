@@ -17,23 +17,20 @@ export function Recommendations({ data, isLoading }: RecommendationsProps) {
     )
   }
 
-  const recommendations = data || [
-    {
-      title: 'Mobile App project is behind schedule by 12 days',
-      description: 'Consider re-allocating resources to avoid further delay',
-      action: 'View',
-    },
-    {
-      title: 'Data Warehouse has high risk due to resource constraint',
-      description: 'Add more developer resources to avoid further delay',
-      action: 'View',
-    },
-    {
-      title: 'CRM Integration dependency on Odoo Implementation',
-      description: 'Coordinate with Odoo team to unblock the dependency',
-      action: 'View',
-    },
-  ]
+  const recommendations = data && data.length > 0 ? data : []
+
+  if (recommendations.length === 0) {
+    return (
+      <div className="card h-[350px] flex flex-col">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-foreground">Recommendations</h3>
+        </div>
+        <div className="flex items-center justify-center flex-1 text-muted-foreground text-sm">
+          No recommendations available
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="card h-[350px] flex flex-col">
