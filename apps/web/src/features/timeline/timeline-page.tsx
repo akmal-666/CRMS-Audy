@@ -167,7 +167,7 @@ function Tooltip({ children, content, disabled }: { children: React.ReactNode; c
             width: TOOLTIP_W,
           }}
           className="pointer-events-none">
-          <div className="bg-popover border border-border rounded-xl shadow-2xl p-3 text-xs backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-2xl p-3 text-xs ring-1 ring-black/5 dark:ring-white/10">
             {content}
           </div>
           <div

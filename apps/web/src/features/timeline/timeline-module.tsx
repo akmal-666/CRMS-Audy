@@ -161,7 +161,7 @@ function Tooltip({ children, content, disabled }: { children: React.ReactNode; c
         <motion.div key="tt" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.1 }}
           style={{ position: 'fixed', left: pos.x, top: pos.y, transform: pos.above ? 'translate(-50%,-100%)' : 'translate(-50%,0)', zIndex: 9999, width: TOOLTIP_W }}
-          className="pointer-events-none bg-popover border border-border rounded-xl shadow-2xl p-3 text-xs">
+          className="pointer-events-none bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-2xl p-3 text-xs ring-1 ring-black/5 dark:ring-white/10">
           {content}
           <div className={`absolute w-3 h-3 bg-popover border-border ${pos.above ? '-bottom-1.5 border-r border-b' : '-top-1.5 border-l border-t'}`}
             style={{ left: '50%', transform: 'translateX(-50%) rotate(45deg)' }} />
@@ -222,7 +222,7 @@ function MonthPicker({ value, onChange }: { value: Date; onChange: (d: Date) => 
           exit={{ opacity: 0, y: -4, scale: 0.97 }}
           transition={{ duration: 0.12 }}
           style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, width: 228 }}
-          className="bg-popover border border-border rounded-xl shadow-2xl p-3">
+          className="bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-2xl p-3 ring-1 ring-black/5 dark:ring-white/10">
           {/* Year nav */}
           <div className="flex items-center justify-between mb-3">
             <button onClick={() => setPickerYear(y => y - 1)}
@@ -318,20 +318,22 @@ function InlineSelect<T extends string>({ label, value, options, onChange, disab
           initial={{ opacity: 0, y: -4, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.1 }}
-          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
-          className="bg-popover border border-border rounded-xl shadow-2xl py-1.5 overflow-hidden">
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: Math.max(pos.width, 200), zIndex: 9999 }}
+          className="bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-2xl py-1.5 overflow-hidden ring-1 ring-black/5 dark:ring-white/10">
           {options.map(opt => (
             <button key={opt.value}
               onClick={() => { onChange(opt.value); setOpen(false) }}
               className={cn(
-                'w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-colors text-left',
-                opt.value === value ? 'bg-primary/10 text-primary' : 'hover:bg-muted text-foreground'
+                'w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition-colors text-left',
+                opt.value === value
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800'
               )}>
-              <span className={cn('w-2 h-2 rounded-full flex-shrink-0',
-                opt.className?.includes('text-') ? opt.className.replace(/bg-\S+/g, '').trim() : 'bg-muted-foreground/40'
+              <span className={cn('w-2 h-2 rounded-full flex-shrink-0 border border-black/10',
+                opt.className?.match(/bg-[\w-]+/)?.[0] ?? 'bg-zinc-400'
               )} />
-              {opt.label}
-              {opt.value === value && <Check size={11} className="ml-auto text-primary" />}
+              <span className="flex-1 truncate">{opt.label}</span>
+              {opt.value === value && <Check size={11} className="text-primary flex-shrink-0" />}
             </button>
           ))}
         </motion.div>,
@@ -576,29 +578,35 @@ function SidebarTaskRow({ task, canEdit, onEdit, onDelete, isSelected, onSelect 
 }
 
 // ─── Left Sidebar Project Group Header ────────────────────────────────────────
-function SidebarProjectRow({ workItem, expanded, onToggle, taskCount, canEdit, onAddTask, isSelected, onSelect }: {
+function SidebarProjectRow({ workItem, expanded, onToggle, taskCount, canEdit, onAddTask, isSelected, onSelect, onShare }: {
   workItem: WorkItem; expanded: boolean; onToggle: () => void
   taskCount: number; canEdit: boolean; onAddTask: () => void
-  isSelected: boolean; onSelect: () => void
+  isSelected: boolean; onSelect: () => void; onShare: () => void
 }) {
   return (
-    <div className={cn('flex items-center gap-1.5 px-3 border-b border-border/50 group hover:bg-muted/20 transition-colors cursor-pointer',
+    <div className={cn('flex items-center gap-1.5 px-3 border-b border-border/50 group hover:bg-muted/20 transition-colors',
       isSelected ? 'bg-primary/5' : 'bg-muted/5')}
       style={{ height: ROW_HEIGHT }}>
       <button onClick={e => { e.stopPropagation(); onToggle() }} className="p-0.5 rounded hover:bg-muted flex-shrink-0 text-muted-foreground">
         {expanded ? <ChevronDown size={12} /> : <ChevronRightIcon size={12} />}
       </button>
       <Folder size={12} className="text-muted-foreground flex-shrink-0" />
-      <div className="flex-1 min-w-0" onClick={onSelect}>
+      <div className="flex-1 min-w-0 cursor-pointer" onClick={onSelect}>
         <p className="text-xs font-semibold text-foreground truncate">{workItem.title}</p>
         <p className="text-[10px] text-muted-foreground">{workItem.ticketNumber} · {taskCount} items</p>
       </div>
-      {canEdit && (
-        <button onClick={e => { e.stopPropagation(); onAddTask() }}
-          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary flex-shrink-0">
-          <Plus size={11} />
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0">
+        {canEdit && (
+          <button onClick={e => { e.stopPropagation(); onAddTask() }}
+            className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary" title="Add task">
+            <Plus size={11} />
+          </button>
+        )}
+        <button onClick={e => { e.stopPropagation(); onShare() }}
+          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Share timeline">
+          <Share2 size={11} />
         </button>
-      )}
+      </div>
     </div>
   )
 }
@@ -1272,6 +1280,7 @@ export function TimelineModule() {
                     onAddTask={() => setAddTaskForWorkItem(wi.id)}
                     isSelected={isWiSelected}
                     onSelect={() => { setSelectedWorkItemId(wi.id); setSelectedTaskId(null) }}
+                    onShare={() => setShareWorkItemId(wi.id)}
                   />
                   <AnimatePresence>
                     {expanded && (
@@ -1301,10 +1310,7 @@ export function TimelineModule() {
                 </div>
               )
             })}
-            {/* Add Project shortcut */}
-            <button className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground px-3 py-3 hover:bg-muted/20 transition-colors border-t border-border/30 mt-1">
-              <Plus size={12} /> Add Project / Milestone
-            </button>
+            {/* Projects are auto-created when a new CR is added */}
           </div>
         </div>
 
