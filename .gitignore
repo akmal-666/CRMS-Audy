@@ -33,7 +33,11 @@ git-push.bat
 push.ps1
 push-with-token.*
 FIX_AND_PUSH.md
+FINAL_PUSH.md
+PUSH_INSTRUCTIONS.md
+GIT_COMMIT_EXECUTIVE_OVERVIEW.md
 *.credentials.bat
 *.credentials.ps1
 *token*.bat
 *token*.ps1
+*token*.md
