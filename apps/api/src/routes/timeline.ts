@@ -11,17 +11,39 @@ import { UserRole } from '@crms/types'
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-// All routes require auth
 app.use('*', authMiddleware)
 
-// ─── GET /api/timeline/:workItemId ─────────────────────────────────────────────
-// Get all timeline tasks for a work item
+// ─── GET /api/timeline/all ────────────────────────────────────────────────────
+// Fetch all timeline tasks across all work items (used by Calendar view)
+app.get('/all', async (c) => {
+  const db = c.get('db')
+  const user = c.get('user')!
+
+  const tasks = await db.query.timelineTasks.findMany({
+    orderBy: [asc(schema.timelineTasks.startDate)],
+    with: {
+      workItem: {
+        columns: { id: true, ticketNumber: true, title: true, status: true, priority: true },
+        with: { department: true },
+      },
+      assignee: { columns: { id: true, name: true, avatarUrl: true } },
+    },
+  })
+
+  // business_user: filter to only their work items
+  const filtered = user.role === UserRole.BUSINESS_USER
+    ? tasks.filter((t) => (t.workItem as any)?.requesterEmail === user.email)
+    : tasks
+
+  return c.json(ok(filtered))
+})
+
+// ─── GET /api/timeline/:workItemId ────────────────────────────────────────────
 app.get('/:workItemId', async (c) => {
   const { workItemId } = c.req.param()
   const db = c.get('db')
   const user = c.get('user')!
 
-  // Verify work item exists
   const workItem = await db.query.workItems.findFirst({
     where: eq(schema.workItems.id, workItemId),
     with: {
@@ -32,7 +54,6 @@ app.get('/:workItemId', async (c) => {
   })
   if (!workItem) return c.json(err('Work item not found'), 404)
 
-  // business_user can only view their own requests
   if (user.role === UserRole.BUSINESS_USER && workItem.requesterEmail !== user.email) {
     return c.json(err('Not found'), 404)
   }
@@ -50,12 +71,12 @@ app.get('/:workItemId', async (c) => {
 })
 
 // ─── POST /api/timeline/:workItemId ───────────────────────────────────────────
-// Create a new timeline task
 const createSchema = z.object({
   label: z.string().min(1).max(200),
   startDate: z.string(),
   endDate: z.string(),
   color: z.enum(['blue', 'green', 'yellow', 'orange', 'red', 'purple']).default('blue'),
+  status: z.enum(['not_started', 'in_progress', 'completed', 'on_hold', 'delayed', 'milestone']).default('not_started'),
   assigneeId: z.string().optional().nullable(),
   priority: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
   notes: z.string().optional().nullable(),
@@ -68,7 +89,6 @@ app.post('/:workItemId', zValidator('json', createSchema), async (c) => {
   const db = c.get('db')
   const user = c.get('user')!
 
-  // business_user cannot create
   if (user.role === UserRole.BUSINESS_USER) {
     return c.json(err('Permission denied'), 403)
   }
@@ -78,14 +98,11 @@ app.post('/:workItemId', zValidator('json', createSchema), async (c) => {
   })
   if (!workItem) return c.json(err('Work item not found'), 404)
 
-  // Determine sort order (append at end)
   const existing = await db.query.timelineTasks.findMany({
     where: eq(schema.timelineTasks.workItemId, workItemId),
     columns: { sortOrder: true },
   })
-  const maxOrder = existing.length > 0
-    ? Math.max(...existing.map(t => t.sortOrder))
-    : -1
+  const maxOrder = existing.length > 0 ? Math.max(...existing.map(t => t.sortOrder)) : -1
 
   const id = generateId()
   const task = {
@@ -95,6 +112,7 @@ app.post('/:workItemId', zValidator('json', createSchema), async (c) => {
     startDate: new Date(data.startDate),
     endDate: new Date(data.endDate),
     color: data.color,
+    status: data.status,
     assigneeId: data.assigneeId ?? null,
     priority: data.priority,
     notes: data.notes ?? null,
@@ -106,40 +124,31 @@ app.post('/:workItemId', zValidator('json', createSchema), async (c) => {
 
   await db.insert(schema.timelineTasks).values(task)
 
-  // Activity log
   await db.insert(schema.activityLogs).values({
     id: generateId(),
     workItemId,
     userId: user.sub,
     action: 'timeline_task_created',
     description: `Timeline task "${data.label}" added`,
-    metadata: {
-      taskId: id,
-      label: data.label,
-      startDate: data.startDate,
-      endDate: data.endDate,
-    },
+    metadata: { taskId: id, label: data.label, startDate: data.startDate, endDate: data.endDate },
     createdAt: new Date(),
   })
 
-  // Fetch with relations
   const created = await db.query.timelineTasks.findFirst({
     where: eq(schema.timelineTasks.id, id),
-    with: {
-      assignee: { columns: { id: true, name: true, avatarUrl: true } },
-    },
+    with: { assignee: { columns: { id: true, name: true, avatarUrl: true } } },
   })
 
   return c.json(ok(created, 'Timeline task created'), 201)
 })
 
 // ─── PATCH /api/timeline/:workItemId/:taskId ──────────────────────────────────
-// Update a timeline task (label, dates, color, etc.)
 const updateSchema = z.object({
   label: z.string().min(1).max(200).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   color: z.enum(['blue', 'green', 'yellow', 'orange', 'red', 'purple']).optional(),
+  status: z.enum(['not_started', 'in_progress', 'completed', 'on_hold', 'delayed', 'milestone']).optional(),
   assigneeId: z.string().optional().nullable(),
   priority: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   notes: z.string().optional().nullable(),
@@ -161,60 +170,45 @@ app.patch('/:workItemId/:taskId', zValidator('json', updateSchema), async (c) =>
   })
   if (!task || task.workItemId !== workItemId) return c.json(err('Task not found'), 404)
 
-  const oldLabel = task.label
-  const oldStart = task.startDate
-  const oldEnd = task.endDate
-
   const updates: Record<string, any> = { updatedAt: new Date() }
   if (data.label !== undefined) updates.label = data.label
   if (data.startDate !== undefined) updates.startDate = new Date(data.startDate)
   if (data.endDate !== undefined) updates.endDate = new Date(data.endDate)
   if (data.color !== undefined) updates.color = data.color
+  if (data.status !== undefined) updates.status = data.status
   if ('assigneeId' in data) updates.assigneeId = data.assigneeId ?? null
   if (data.priority !== undefined) updates.priority = data.priority
   if ('notes' in data) updates.notes = data.notes ?? null
   if (data.sortOrder !== undefined) updates.sortOrder = data.sortOrder
 
-  await db.update(schema.timelineTasks)
-    .set(updates)
-    .where(eq(schema.timelineTasks.id, taskId))
+  await db.update(schema.timelineTasks).set(updates).where(eq(schema.timelineTasks.id, taskId))
 
-  // Build descriptive activity log message
   const changes: string[] = []
-  if (data.label && data.label !== oldLabel) changes.push(`label renamed to "${data.label}"`)
-  if (data.startDate && new Date(data.startDate).getTime() !== oldStart.getTime()) changes.push(`start date changed`)
-  if (data.endDate && new Date(data.endDate).getTime() !== oldEnd.getTime()) changes.push(`end date changed`)
+  if (data.label && data.label !== task.label) changes.push(`label renamed to "${data.label}"`)
+  if (data.status && data.status !== task.status) changes.push(`status changed to ${data.status}`)
+  if (data.startDate && new Date(data.startDate).getTime() !== task.startDate.getTime()) changes.push('start date changed')
+  if (data.endDate && new Date(data.endDate).getTime() !== task.endDate.getTime()) changes.push('end date changed')
   if (data.color) changes.push(`color changed to ${data.color}`)
-
-  const description = changes.length > 0
-    ? `Timeline task "${oldLabel}": ${changes.join(', ')}`
-    : `Timeline task "${oldLabel}" updated`
 
   await db.insert(schema.activityLogs).values({
     id: generateId(),
     workItemId,
     userId: user.sub,
     action: 'timeline_task_updated',
-    description,
-    metadata: {
-      taskId,
-      changes: data,
-      oldValues: { label: oldLabel, startDate: oldStart, endDate: oldEnd },
-    },
+    description: changes.length > 0 ? `Timeline task "${task.label}": ${changes.join(', ')}` : `Timeline task "${task.label}" updated`,
+    metadata: { taskId, changes: data },
     createdAt: new Date(),
   })
 
   const updated = await db.query.timelineTasks.findFirst({
     where: eq(schema.timelineTasks.id, taskId),
-    with: {
-      assignee: { columns: { id: true, name: true, avatarUrl: true } },
-    },
+    with: { assignee: { columns: { id: true, name: true, avatarUrl: true } } },
   })
 
   return c.json(ok(updated, 'Task updated'))
 })
 
-// ─── DELETE /api/timeline/:workItemId/:taskId ──────────────────────────────────
+// ─── DELETE /api/timeline/:workItemId/:taskId ─────────────────────────────────
 app.delete('/:workItemId/:taskId', async (c) => {
   const { workItemId, taskId } = c.req.param()
   const db = c.get('db')
@@ -245,7 +239,6 @@ app.delete('/:workItemId/:taskId', async (c) => {
 })
 
 // ─── PATCH /api/timeline/:workItemId/reorder ──────────────────────────────────
-// Bulk reorder rows
 const reorderSchema = z.object({
   order: z.array(z.object({ id: z.string(), sortOrder: z.number().int() })),
 })
@@ -262,9 +255,7 @@ app.patch('/:workItemId/reorder', zValidator('json', reorderSchema), async (c) =
 
   await Promise.all(
     order.map(({ id, sortOrder }) =>
-      db.update(schema.timelineTasks)
-        .set({ sortOrder, updatedAt: new Date() })
-        .where(eq(schema.timelineTasks.id, id))
+      db.update(schema.timelineTasks).set({ sortOrder, updatedAt: new Date() }).where(eq(schema.timelineTasks.id, id))
     )
   )
 
