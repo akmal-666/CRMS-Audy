@@ -433,37 +433,41 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
   const { startDate, endDate, departmentId, vendorId, year, quarter, month } = c.req.valid('query')
   const db = c.get('db')
 
-  // Build date filter
+  // Build date filter - FLEXIBLE untuk menampilkan project aktif + project dalam periode
   let dateConditions: any[] = []
+  let periodStart: Date | null = null
+  let periodEnd: Date | null = null
   
   if (startDate && endDate) {
-    dateConditions.push(gte(schema.workItems.createdAt, new Date(startDate)))
-    dateConditions.push(lte(schema.workItems.createdAt, new Date(endDate)))
+    periodStart = new Date(startDate)
+    periodEnd = new Date(endDate)
   } else if (year && quarter) {
     const y = parseInt(year)
     const q = parseInt(quarter)
     const startMonth = (q - 1) * 3
     const endMonth = startMonth + 2
-    dateConditions.push(gte(schema.workItems.createdAt, new Date(y, startMonth, 1)))
-    dateConditions.push(lte(schema.workItems.createdAt, new Date(y, endMonth + 1, 0, 23, 59, 59)))
+    periodStart = new Date(y, startMonth, 1)
+    periodEnd = new Date(y, endMonth + 1, 0, 23, 59, 59)
   } else if (year && month) {
     const y = parseInt(year)
     const m = parseInt(month) - 1
-    dateConditions.push(gte(schema.workItems.createdAt, new Date(y, m, 1)))
-    dateConditions.push(lte(schema.workItems.createdAt, new Date(y, m + 1, 0, 23, 59, 59)))
+    periodStart = new Date(y, m, 1)
+    periodEnd = new Date(y, m + 1, 0, 23, 59, 59)
   } else if (year) {
     const y = parseInt(year)
-    dateConditions.push(gte(schema.workItems.createdAt, new Date(y, 0, 1)))
-    dateConditions.push(lte(schema.workItems.createdAt, new Date(y, 11, 31, 23, 59, 59)))
+    periodStart = new Date(y, 0, 1)
+    periodEnd = new Date(y, 11, 31, 23, 59, 59)
   }
 
-  if (departmentId) dateConditions.push(eq(schema.workItems.departmentId, departmentId))
-  if (vendorId) dateConditions.push(eq(schema.workItems.vendorId, vendorId))
+  // Get ALL work items - kita akan filter di memory untuk fleksibilitas
+  let queryConditions: any[] = []
+  if (departmentId) queryConditions.push(eq(schema.workItems.departmentId, departmentId))
+  if (vendorId) queryConditions.push(eq(schema.workItems.vendorId, vendorId))
 
-  const where = dateConditions.length > 0 ? and(...dateConditions) : undefined
+  const where = queryConditions.length > 0 ? and(...queryConditions) : undefined
 
   // Get all work items with relations
-  const items = await db.query.workItems.findMany({
+  const allItems = await db.query.workItems.findMany({
     where,
     with: {
       department: true,
@@ -475,6 +479,26 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
       assessment: true,
       activityLogs: { orderBy: [desc(schema.activityLogs.createdAt)], limit: 10 },
     },
+  })
+
+  // Filter items: include active projects OR projects in selected period
+  const items = allItems.filter(item => {
+    // Selalu tampilkan project yang masih aktif (belum selesai)
+    const isActive = !['go_live', 'drop'].includes(item.status)
+    if (isActive) return true
+
+    // Untuk project yang sudah selesai, cek apakah dalam periode
+    if (periodStart && periodEnd) {
+      const createdAt = new Date(item.createdAt)
+      const completedAt = item.goLiveDate ? new Date(item.goLiveDate) : null
+      
+      // Include jika dibuat atau selesai dalam periode
+      return (createdAt >= periodStart && createdAt <= periodEnd) ||
+             (completedAt && completedAt >= periodStart && completedAt <= periodEnd)
+    }
+
+    // Jika tidak ada filter periode, tampilkan semua
+    return true
   })
 
   const totalRequests = items.length
