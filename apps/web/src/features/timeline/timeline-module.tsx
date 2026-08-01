@@ -934,7 +934,7 @@ function ShareModal({ workItemId, ticketNumber, onClose }: { workItemId: string;
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"><X size={14} /></button>
         </div>
         <div className="p-5 space-y-3">
-          <p className="text-xs text-muted-foreground">Anyone with this link can view the timeline for <strong>{ticketNumber}</strong> without logging in. Link expires in 7 days.</p>
+          <p className="text-xs text-muted-foreground">Anyone with this link can view the timeline for <strong>{ticketNumber}</strong> without logging in. Link will be invalid when CR is completed or dropped.</p>
           {loading ? <div className="flex justify-center py-4"><Loader2 size={20} className="animate-spin text-primary" /></div>
           : shareUrl ? (
             <div className="space-y-2">

@@ -484,7 +484,7 @@ function ShareModal({ workItemId, workItem, onClose }: { workItemId: string; wor
                   <ExternalLink size={13} />
                 </a>
               </div>
-              <p className="text-[10px] text-muted-foreground text-center">Link expires in 7 days · Read-only access</p>
+              <p className="text-[10px] text-muted-foreground text-center">Link will be invalid when CR is completed or dropped · Read-only access</p>
             </div>
           ) : (
             <button onClick={generateLink} className="w-full btn-primary text-sm py-2">Generate Link</button>

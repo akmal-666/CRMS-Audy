@@ -18,7 +18,7 @@ app.get('/public/:token', async (c) => {
 
   // Look up token in KV
   const workItemId = await c.env.CACHE.get(`timeline_share:${token}`)
-  if (!workItemId) return c.json(err('Share link not found or expired'), 404)
+  if (!workItemId) return c.json(err('Share link not found'), 404)
 
   const workItem = await db.query.workItems.findFirst({
     where: eq(schema.workItems.id, workItemId),
@@ -29,6 +29,11 @@ app.get('/public/:token', async (c) => {
     },
   })
   if (!workItem) return c.json(err('Work item not found'), 404)
+
+  // Invalidate link if CR is completed or dropped
+  if (workItem.status === 'go_live' || workItem.status === 'drop') {
+    return c.json(err('This timeline is no longer accessible. The change request has been completed or dropped.'), 410)
+  }
 
   const tasks = await db.query.timelineTasks.findMany({
     where: eq(schema.timelineTasks.workItemId, workItemId),
@@ -110,9 +115,10 @@ app.post('/:workItemId/share', async (c) => {
   const workItem = await db.query.workItems.findFirst({ where: eq(schema.workItems.id, workItemId) })
   if (!workItem) return c.json(err('Work item not found'), 404)
 
-  // Generate a secure random token and store in KV with 7-day TTL
+  // Generate a secure random token and store in KV without expiration
+  // Link will be invalidated when CR status is 'go_live' or 'drop'
   const token = generateId() + generateId() + generateId()
-  await c.env.CACHE.put(`timeline_share:${token}`, workItemId, { expirationTtl: 7 * 24 * 3600 })
+  await c.env.CACHE.put(`timeline_share:${token}`, workItemId)
 
   return c.json(ok({ token }, 'Share link generated'))
 })
