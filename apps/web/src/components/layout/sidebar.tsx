@@ -31,8 +31,14 @@ const allNavItems: NavItem[] = [
   { label: 'All Requests', href: '/requests', icon: <ListChecks size={16} /> },
   // New Request is visible to business_user and administrator
   { label: 'New Request', href: '/requests/new', icon: <PlusCircle size={16} />, roles: ['business_user', 'administrator', 'business_analyst'] },
-  { label: 'Reports', href: '/reports', icon: <BarChart3 size={16} />, roles: ['administrator', 'manager', 'business_analyst'] },
   { label: 'Notifications', href: '/notifications', icon: <Bell size={16} /> },
+]
+
+const reportsItems: NavItem[] = [
+  { label: 'Executive Overview', href: '/reports/executive-overview', icon: <BarChart3 size={16} /> },
+  { label: 'Project Health', href: '/reports/project-health', icon: <BarChart3 size={16} /> },
+  { label: 'Cycle Time & SLA', href: '/reports/cycle-time-sla', icon: <BarChart3 size={16} /> },
+  { label: 'Workload Team', href: '/reports/workload-team', icon: <BarChart3 size={16} /> },
 ]
 
 const adminItems: NavItem[] = [
@@ -55,7 +61,9 @@ export function Sidebar({ collapsed, mobileOpen, onMobileClose }: SidebarProps) 
   const pathname = usePathname()
   const { user } = useAuth()
   const [adminExpanded, setAdminExpanded] = useState(false)
+  const [reportsExpanded, setReportsExpanded] = useState(false)
   const isAdmin = user?.role === 'administrator' || user?.role === 'manager'
+  const canViewReports = user?.role === 'administrator' || user?.role === 'manager' || user?.role === 'business_analyst'
   const isBusinessUser = user?.role === 'business_user'
 
   // Filter nav items based on role
@@ -85,7 +93,10 @@ export function Sidebar({ collapsed, mobileOpen, onMobileClose }: SidebarProps) 
           user={user}
           adminExpanded={adminExpanded}
           setAdminExpanded={setAdminExpanded}
+          reportsExpanded={reportsExpanded}
+          setReportsExpanded={setReportsExpanded}
           isAdmin={isAdmin}
+          canViewReports={canViewReports}
           isBusinessUser={isBusinessUser}
           navItems={filteredNavItems}
         />
@@ -113,7 +124,10 @@ export function Sidebar({ collapsed, mobileOpen, onMobileClose }: SidebarProps) 
               user={user}
               adminExpanded={adminExpanded}
               setAdminExpanded={setAdminExpanded}
+              reportsExpanded={reportsExpanded}
+              setReportsExpanded={setReportsExpanded}
               isAdmin={isAdmin}
+              canViewReports={canViewReports}
               isBusinessUser={isBusinessUser}
               navItems={filteredNavItems}
               onItemClick={onMobileClose}
@@ -149,14 +163,17 @@ function Logo({ collapsed }: { collapsed: boolean }) {
 }
 
 function SidebarContent({
-  collapsed, pathname, user, adminExpanded, setAdminExpanded, isAdmin, isBusinessUser, navItems, onItemClick
+  collapsed, pathname, user, adminExpanded, setAdminExpanded, reportsExpanded, setReportsExpanded, isAdmin, canViewReports, isBusinessUser, navItems, onItemClick
 }: {
   collapsed: boolean
   pathname: string
   user: { name: string; email: string; role: string; avatarUrl?: string } | null
   adminExpanded: boolean
   setAdminExpanded: (v: boolean) => void
+  reportsExpanded: boolean
+  setReportsExpanded: (v: boolean) => void
   isAdmin: boolean
+  canViewReports: boolean
   isBusinessUser: boolean
   navItems: NavItem[]
   onItemClick?: () => void
@@ -184,6 +201,34 @@ function SidebarContent({
             )
           })}
         </div>
+
+        {canViewReports && (
+          <div className="mt-4">
+            {!collapsed && (
+              <button
+                onClick={() => setReportsExpanded(!reportsExpanded)}
+                className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+              >
+                <span>Reports</span>
+                {reportsExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              </button>
+            )}
+            <AnimatePresence>
+              {(reportsExpanded || collapsed) && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-0.5 mt-1"
+                >
+                  {reportsItems.map((item) => (
+                    <NavLink key={item.href} item={item} collapsed={collapsed} isActive={pathname === item.href} onClick={onItemClick} />
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {isAdmin && (
           <div className="mt-4">
