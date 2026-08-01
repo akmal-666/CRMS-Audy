@@ -18,6 +18,7 @@ import { WorkloadChart } from './workload-chart'
 import { CycleTimeChart } from './cycle-time-chart'
 import { RecentActivity } from './recent-activity'
 import { ProjectHealthTable } from './project-health-table'
+import { MandaysVendorKPI } from './mandays-vendor-kpi'
 
 export function ExecutiveOverviewPage() {
   // Use static initial values to avoid SSR/client mismatch
@@ -192,6 +193,13 @@ export function ExecutiveOverviewPage() {
 
       {/* KPI Cards */}
       <OverviewKPICards data={reportData} isLoading={isLoading} />
+
+      {/* Mandays Used per Vendor */}
+      <MandaysVendorKPI
+        data={reportData?.mandaysPerVendor}
+        summary={reportData?.mandaysSummary}
+        isLoading={isLoading}
+      />
 
       {/* Main Charts Grid */}
       <div className="grid lg:grid-cols-3 gap-6">

@@ -731,9 +731,6 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
       const now = new Date()
       const created = new Date(item.createdAt)
       const due = item.dueDate ? new Date(item.dueDate) : null
-      const totalDuration = due ? due.getTime() - created.getTime() : 0
-      const elapsed = now.getTime() - created.getTime()
-      const progressPercentage = totalDuration > 0 ? Math.min((elapsed / totalDuration) * 100, 100) : 0
       
       let statusProgress = 0
       if (item.status === 'assessment') statusProgress = 25
@@ -741,10 +738,9 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
       else if (item.status === 'uat') statusProgress = 75
       else if (item.status === 'deployment') statusProgress = 90
       
-      const cycleTimeDays = Math.floor(elapsed / (1000 * 60 * 60 * 24))
+      const cycleTimeDays = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
       const slaTarget = item.priority === 'critical' ? 15 : item.priority === 'high' ? 30 : 60
       
-      // Calculate issues count (simplified)
       const issuesInProgress = item.status === 'development' || item.status === 'uat' ? 1 : 0
       const issuesDone = item.status === 'go_live' ? 1 : 0
       
@@ -755,13 +751,76 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
         status: item.status,
         health,
         priority: item.priority,
-        openIssues: Math.floor(Math.random() * 20), // Placeholder - should come from actual issues/tasks
+        openIssues: 0,
         inProgressIssues: issuesInProgress,
         doneIssues: issuesDone,
         avgCycleTime: cycleTimeDays,
         sla: cycleTimeDays <= slaTarget ? 'on-time' : 'overdue',
       }
     })
+
+  // Mandays per vendor - fetch all topups for the period too
+  let topupConditions: any[] = []
+  if (periodStart && periodEnd) {
+    topupConditions.push(gte(schema.mandaysTopups.createdAt, periodStart))
+    topupConditions.push(lte(schema.mandaysTopups.createdAt, periodEnd))
+  }
+  if (vendorId) topupConditions.push(eq(schema.mandaysTopups.vendorId, vendorId))
+  const topupWhere = topupConditions.length > 0 ? and(...topupConditions) : undefined
+
+  const allTopups = await db.query.mandaysTopups.findMany({
+    where: topupWhere,
+    with: { vendor: true },
+  })
+
+  // Build vendor mandays map from ALL items (not period-filtered) for balance accuracy
+  const vendorMandaysMap = new Map<string, {
+    vendorId: string
+    vendorName: string
+    planned: number
+    used: number
+    topup: number
+    total: number
+    remaining: number
+    utilizationPercent: number
+    projectCount: number
+  }>()
+
+  allItems.forEach(item => {
+    if (!item.vendor) return
+    const vId = item.vendor.id
+    const vName = item.vendor.name
+    if (!vendorMandaysMap.has(vId)) {
+      vendorMandaysMap.set(vId, { vendorId: vId, vendorName: vName, planned: 0, used: 0, topup: 0, total: 0, remaining: 0, utilizationPercent: 0, projectCount: 0 })
+    }
+    const entry = vendorMandaysMap.get(vId)!
+    entry.projectCount++
+    if (item.assessment?.estimatedManDays) entry.planned += item.assessment.estimatedManDays
+    if (item.mandays) entry.used += item.mandays
+  })
+
+  allTopups.forEach(t => {
+    const vId = t.vendorId
+    const vName = t.vendor.name
+    if (!vendorMandaysMap.has(vId)) {
+      vendorMandaysMap.set(vId, { vendorId: vId, vendorName: vName, planned: 0, used: 0, topup: 0, total: 0, remaining: 0, utilizationPercent: 0, projectCount: 0 })
+    }
+    vendorMandaysMap.get(vId)!.topup += t.mandays
+  })
+
+  const mandaysPerVendor = Array.from(vendorMandaysMap.values()).map(v => {
+    v.total = Math.round((v.planned + v.topup) * 10) / 10
+    v.remaining = Math.round((v.total - v.used) * 10) / 10
+    v.used = Math.round(v.used * 10) / 10
+    v.planned = Math.round(v.planned * 10) / 10
+    v.topup = Math.round(v.topup * 10) / 10
+    v.utilizationPercent = v.total > 0 ? Math.round((v.used / v.total) * 100) : 0
+    return v
+  }).sort((a, b) => b.used - a.used)
+
+  const totalMandaysPlanned = Math.round(mandaysPerVendor.reduce((s, v) => s + v.planned, 0) * 10) / 10
+  const totalMandaysUsed = Math.round(mandaysPerVendor.reduce((s, v) => s + v.used, 0) * 10) / 10
+  const totalMandaysRemaining = Math.round(mandaysPerVendor.reduce((s, v) => s + v.remaining, 0) * 10) / 10
 
   return c.json(ok({
     // KPI Summary
@@ -785,6 +844,14 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
     avgCycleTimeByStage,
     recentActivity,
     projectsHealth,
+
+    // Mandays per vendor
+    mandaysPerVendor,
+    mandaysSummary: {
+      totalPlanned: totalMandaysPlanned,
+      totalUsed: totalMandaysUsed,
+      totalRemaining: totalMandaysRemaining,
+    },
     
     // Raw data for export
     _exportData: {
