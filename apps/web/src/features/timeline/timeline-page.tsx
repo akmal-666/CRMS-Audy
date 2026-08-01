@@ -495,13 +495,6 @@ export function TimelinePage({ workItemId, readOnly = false }: { workItemId: str
   const gridRef = useRef<HTMLDivElement>(null)
   const colWidth = Math.round(BASE_COL_WIDTH * zoom / 100)
 
-  // Sync windowStart with request date when workItem loads or createdAt changes
-  const workItemCreatedAt = data?.data?.workItem?.createdAt
-  useEffect(() => {
-    if (!workItemCreatedAt) return
-    const requestDate = startOfDay(new Date(workItemCreatedAt))
-    setWindowStart(addDays(requestDate, -2))
-  }, [workItemCreatedAt])
 
   const { data, isLoading } = useQuery({
     queryKey: ['timeline', workItemId],
@@ -509,6 +502,14 @@ export function TimelinePage({ workItemId, readOnly = false }: { workItemId: str
   })
   const workItem = data?.data?.workItem
   const allTasks = useMemo(() => data?.data?.tasks ?? [], [data?.data?.tasks])
+
+  // Sync windowStart with request date when workItem loads or createdAt changes
+  const workItemCreatedAt = data?.data?.workItem?.createdAt
+  useEffect(() => {
+    if (!workItemCreatedAt) return
+    const requestDate = startOfDay(new Date(workItemCreatedAt))
+    setWindowStart(addDays(requestDate, -2))
+  }, [workItemCreatedAt])
 
   const tasks = useMemo(() => {
     let t = allTasks
