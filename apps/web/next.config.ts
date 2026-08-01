@@ -3,8 +3,6 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   typescript: {
-    // Cloudflare Pages build: type errors surfaced by Next.js 15 strict PageProps
-    // are handled at source-level; this prevents cascading CI failures.
     ignoreBuildErrors: true,
   },
   eslint: {
@@ -18,7 +16,7 @@ const nextConfig: NextConfig = {
     ],
   },
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://crms-api.it-support-8bd.workers.dev',
   },
 }
 
