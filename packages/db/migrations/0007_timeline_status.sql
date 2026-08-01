@@ -1,0 +1,2 @@
+-- Add status field to timeline_tasks for Gantt chart status tracking
+ALTER TABLE `timeline_tasks` ADD COLUMN `status` text NOT NULL DEFAULT 'not_started' CHECK(`status` IN ('not_started','in_progress','completed','on_hold','delayed','milestone'));
