@@ -1,4 +1,7 @@
+'use client'
+
 import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { AlertTriangle, Diamond, Circle } from 'lucide-react'
 
 interface TimelineRoadmapProps {
@@ -21,6 +24,8 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function TimelineRoadmap({ data, isLoading }: TimelineRoadmapProps) {
+  const router = useRouter()
+
   if (isLoading) {
     return (
       <div className="card h-[400px] animate-pulse">
@@ -42,7 +47,12 @@ export function TimelineRoadmap({ data, isLoading }: TimelineRoadmapProps) {
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-foreground">Timeline / Roadmap Overview</h3>
-        <button className="text-xs text-primary hover:underline">View full roadmap</button>
+        <button 
+          onClick={() => router.push('/timeline')}
+          className="text-xs text-primary hover:underline font-medium transition-colors"
+        >
+          View full roadmap
+        </button>
       </div>
 
       {!data || data.length === 0 ? (

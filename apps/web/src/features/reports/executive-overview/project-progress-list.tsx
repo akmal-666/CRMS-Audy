@@ -1,5 +1,8 @@
+'use client'
+
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 interface ProjectProgressListProps {
   data: any[]
@@ -14,6 +17,8 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function ProjectProgressList({ data, isLoading }: ProjectProgressListProps) {
+  const router = useRouter()
+
   if (isLoading) {
     return (
       <div className="card h-[400px] animate-pulse">
@@ -30,9 +35,12 @@ export function ProjectProgressList({ data, isLoading }: ProjectProgressListProp
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-foreground">Project Progress (Top 5)</h3>
-        <Link href="/reports" className="text-xs text-primary hover:underline">
+        <button 
+          onClick={() => router.push('/requests')}
+          className="text-xs text-primary hover:underline font-medium transition-colors"
+        >
           View all projects
-        </Link>
+        </button>
       </div>
       
       {!data || data.length === 0 ? (
