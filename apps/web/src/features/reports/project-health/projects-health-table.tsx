@@ -1,3 +1,5 @@
+'use client'
+
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, AlertCircle, CheckCircle2, AlertTriangle, Minus } from 'lucide-react'
 import { useState } from 'react'

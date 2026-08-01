@@ -1,3 +1,5 @@
+'use client'
+
 import { motion } from 'framer-motion'
 import { AlertCircle, Clock, CheckCircle2, XCircle } from 'lucide-react'
 
