@@ -12,6 +12,9 @@ export const timelineTasks = sqliteTable('timeline_tasks', {
   color: text('color', {
     enum: ['blue', 'green', 'yellow', 'orange', 'red', 'purple'],
   }).notNull().default('blue'),
+  status: text('status', {
+    enum: ['not_started', 'in_progress', 'completed', 'on_hold', 'delayed', 'milestone'],
+  }).notNull().default('not_started'),
   assigneeId: text('assignee_id').references(() => users.id),
   priority: text('priority', {
     enum: ['low', 'medium', 'high', 'critical'],
