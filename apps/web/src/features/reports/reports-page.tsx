@@ -5,7 +5,8 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { apiGet } from '@/lib/api'
 import { exportToCSV } from '@/lib/utils'
-import { Download, BarChart3, FilterIcon } from 'lucide-react'
+import { Download, BarChart3, FilterIcon, Star, TrendingUp, Clock, Users } from 'lucide-react'
+import Link from 'next/link'
 import { ReportFilters } from './report-filters'
 import { KPICards } from './kpi-cards'
 import { ChartsGrid } from './charts-grid'
@@ -78,6 +79,79 @@ export function ReportsPage() {
           <Download size={14} />
           Export Report
         </button>
+      </div>
+
+      {/* Report Modules Navigation */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Link href="/reports/executive-overview">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            className="card bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-amber-200 dark:border-amber-800 cursor-pointer h-full"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-lg bg-amber-500/20">
+                <Star size={24} className="text-amber-600 dark:text-amber-400" fill="currentColor" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-amber-700 dark:text-amber-300">Executive Overview</h3>
+                <p className="text-xs text-amber-600/70 dark:text-amber-400/70 mt-0.5">
+                  High-level portfolio summary
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </Link>
+
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          className="card bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800 cursor-pointer h-full opacity-60"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-lg bg-blue-500/20">
+              <TrendingUp size={24} className="text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-blue-700 dark:text-blue-300">Project Health</h3>
+              <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-0.5">
+                Coming soon
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          className="card bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800 cursor-pointer h-full opacity-60"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-lg bg-purple-500/20">
+              <Clock size={24} className="text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-purple-700 dark:text-purple-300">Cycle Time & SLA</h3>
+              <p className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-0.5">
+                Coming soon
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          className="card bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200 dark:border-green-800 cursor-pointer h-full opacity-60"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-lg bg-green-500/20">
+              <Users size={24} className="text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-green-700 dark:text-green-300">Workload Team</h3>
+              <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-0.5">
+                Coming soon
+              </p>
+            </div>
+          </div>
+        </motion.div>
       </div>
 
       {/* Filters */}

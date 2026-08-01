@@ -27,3 +27,13 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# Git helper scripts with credentials
+git-push.bat
+push.ps1
+push-with-token.*
+FIX_AND_PUSH.md
+*.credentials.bat
+*.credentials.ps1
+*token*.bat
+*token*.ps1
