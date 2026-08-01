@@ -57,6 +57,16 @@ const TASK_STATUSES = {
 } as const
 type TaskStatus = keyof typeof TASK_STATUSES
 
+// Auto-derive bar color from status — no manual color picker needed
+const STATUS_COLOR_MAP: Record<TaskStatus, TaskColor> = {
+  not_started: 'blue',
+  in_progress: 'blue',
+  completed:   'green',
+  on_hold:     'yellow',
+  delayed:     'red',
+  milestone:   'purple',
+}
+
 const FIELD_DEFS = {
   status:   { label: 'Status',   default: true  },
   date:     { label: 'Date',     default: true  },
@@ -1102,12 +1112,13 @@ function TaskFormModal({ workItemId, task, onClose, onSaved }: {
   const [label, setLabel] = useState(task?.label ?? '')
   const [startDate, setStartDate] = useState(task ? format(new Date(task.startDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'))
   const [endDate, setEndDate] = useState(task ? format(new Date(task.endDate), 'yyyy-MM-dd') : format(addDays(new Date(), 6), 'yyyy-MM-dd'))
-  const [color, setColor] = useState<TaskColor>(task?.color ?? 'blue')
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'not_started')
   const [priority, setPriority] = useState(task?.priority ?? 'medium')
   const [notes, setNotes] = useState(task?.notes ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const isMilestone = status === 'milestone'
+  // Color is derived from status automatically
+  const color = STATUS_COLOR_MAP[status]
 
   const saveMut = useMutation({
     mutationFn: (payload: any) => isEdit
@@ -1181,17 +1192,6 @@ function TaskFormModal({ workItemId, task, onClose, onSaved }: {
                 {errors.endDate && <p className="text-xs text-red-500 mt-1">{errors.endDate}</p>}
               </div>
             )}
-          </div>
-          <div>
-            <label className="label">Color</label>
-            <div className="flex gap-2 mt-1">
-              {(Object.keys(COLORS) as TaskColor[]).map(c => (
-                <button key={c} type="button" onClick={() => setColor(c)}
-                  className={cn('w-7 h-7 rounded-full transition-transform flex items-center justify-center', COLORS[c].bar, color === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105')}>
-                  {color === c && <Check size={12} className="text-white" />}
-                </button>
-              ))}
-            </div>
           </div>
           <div>
             <label className="label">Priority</label>
