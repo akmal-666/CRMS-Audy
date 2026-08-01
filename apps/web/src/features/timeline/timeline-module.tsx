@@ -120,24 +120,31 @@ function Avatar({ name, avatarUrl, size = 20 }: { name: string; avatarUrl?: stri
 function Tooltip({ children, content, disabled }: { children: React.ReactNode; content: React.ReactNode; disabled?: boolean }) {
   const [show, setShow] = useState(false)
   const [pos, setPos] = useState({ x: 0, y: 0, above: true })
-  const triggerRef = useRef<HTMLDivElement>(null)
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [mounted, setMounted] = useState(false)
+  const TOOLTIP_W = 240
+  const TOOLTIP_H = 160
 
   useEffect(() => { setMounted(true) }, [])
 
-  const updatePos = useCallback(() => {
-    if (!triggerRef.current) return
-    const rect = triggerRef.current.getBoundingClientRect()
-    const x = Math.min(Math.max(rect.left + rect.width / 2, 128), window.innerWidth - 128)
-    const above = rect.top > 180
-    setPos({ x, y: above ? rect.top - 10 : rect.bottom + 10, above })
+  const computePos = useCallback((clientX: number, clientY: number) => {
+    const vw = window.innerWidth
+    const x = Math.min(Math.max(clientX, TOOLTIP_W / 2 + 8), vw - TOOLTIP_W / 2 - 8)
+    const above = clientY > TOOLTIP_H + 24
+    setPos({ x, y: above ? clientY - 14 : clientY + 14, above })
   }, [])
 
-  const show_ = useCallback(() => {
-    if (hideTimer.current) clearTimeout(hideTimer.current)
-    updatePos(); setShow(true)
-  }, [updatePos])
+  const handleMouseEnter = useCallback((e: React.MouseEvent) => {
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null }
+    computePos(e.clientX, e.clientY)
+    setShow(true)
+  }, [computePos])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!show) return
+    computePos(e.clientX, e.clientY)
+  }, [show, computePos])
+
   const hide_ = useCallback(() => { hideTimer.current = setTimeout(() => setShow(false), 80) }, [])
   useEffect(() => () => { if (hideTimer.current) clearTimeout(hideTimer.current) }, [])
 
@@ -145,13 +152,19 @@ function Tooltip({ children, content, disabled }: { children: React.ReactNode; c
 
   return (
     <>
-      <div ref={triggerRef} onMouseEnter={show_} onMouseLeave={hide_} className="contents">{children}</div>
+      <div onMouseEnter={handleMouseEnter} onMouseMove={handleMouseMove} onMouseLeave={hide_}
+        onTouchStart={(e) => { e.stopPropagation(); computePos(e.touches[0].clientX, e.touches[0].clientY); setShow(v => !v) }}
+        className="contents">
+        {children}
+      </div>
       {mounted && show && createPortal(
-        <motion.div key="tt" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+        <motion.div key="tt" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.1 }}
-          style={{ position: 'fixed', left: pos.x, top: pos.y, transform: pos.above ? 'translate(-50%,-100%)' : 'translate(-50%,0)', zIndex: 9999, width: 240 }}
+          style={{ position: 'fixed', left: pos.x, top: pos.y, transform: pos.above ? 'translate(-50%,-100%)' : 'translate(-50%,0)', zIndex: 9999, width: TOOLTIP_W }}
           className="pointer-events-none bg-popover border border-border rounded-xl shadow-2xl p-3 text-xs">
           {content}
+          <div className={`absolute w-3 h-3 bg-popover border-border ${pos.above ? '-bottom-1.5 border-r border-b' : '-top-1.5 border-l border-t'}`}
+            style={{ left: '50%', transform: 'translateX(-50%) rotate(45deg)' }} />
         </motion.div>,
         document.body
       )}
