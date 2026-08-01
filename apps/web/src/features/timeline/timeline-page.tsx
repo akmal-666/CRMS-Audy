@@ -890,6 +890,7 @@ function SidebarContent({ tasks, canEdit, visibleFields, onEdit, onDelete, onSta
 
 // ─── Date Header ──────────────────────────────────────────────────────────────
 function DateHeader({ days, colWidth }: { days: Date[]; colWidth: number }) {
+  // Calculate months
   const months: { label: string; count: number }[] = []
   let curMonth = ''; let mCount = 0
   days.forEach(d => {
@@ -898,6 +899,7 @@ function DateHeader({ days, colWidth }: { days: Date[]; colWidth: number }) {
   })
   if (curMonth) months.push({ label: curMonth, count: mCount })
 
+  // Calculate weeks
   const weeks: { label: string; count: number }[] = []
   let curWeek = -1; let wCount = 0
   days.forEach(d => {
@@ -907,22 +909,27 @@ function DateHeader({ days, colWidth }: { days: Date[]; colWidth: number }) {
   if (curWeek !== -1) weeks.push({ label: `W${curWeek}`, count: wCount })
 
   return (
-    <div className="sticky top-0 z-20 bg-card border-b border-border" style={{ height: 56 }}>
-      <div className="flex border-b border-border/50" style={{ height: 20 }}>
+    <div className="sticky top-0 z-20 bg-card border-b border-border" style={{ height: 80 }}>
+      {/* Month row - prominent */}
+      <div className="flex border-b border-border/50" style={{ height: 28 }}>
         {months.map((m, i) => (
-          <div key={i} className="flex-shrink-0 px-2 flex items-center text-[10px] font-semibold text-muted-foreground border-r border-border/50 bg-muted/30" style={{ width: m.count * colWidth }}>
-            {m.label}
+          <div key={i} className="flex-shrink-0 flex items-center justify-center text-xs font-bold text-foreground border-r border-border/40 uppercase tracking-wide bg-muted/20"
+            style={{ width: m.count * colWidth }}>
+            {m.count * colWidth >= 80 ? m.label : m.count * colWidth >= 40 ? m.label.split(' ')[0] : ''}
           </div>
         ))}
       </div>
-      <div className="flex border-b border-border/40" style={{ height: 16 }}>
+      {/* Week row */}
+      <div className="flex border-b border-border/40" style={{ height: 20 }}>
         {weeks.map((w, i) => (
-          <div key={i} className="flex-shrink-0 px-1.5 flex items-center text-[9px] font-bold text-muted-foreground/70 border-r border-border/40 bg-muted/10 uppercase tracking-wider" style={{ width: w.count * colWidth }}>
-            {w.label}
+          <div key={i} className="flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-muted-foreground/70 border-r border-border/30 bg-muted/10 uppercase tracking-wider"
+            style={{ width: w.count * colWidth }}>
+            {w.count * colWidth >= 60 ? w.label : ''}
           </div>
         ))}
       </div>
-      <div className="flex" style={{ height: 20 }}>
+      {/* Day row */}
+      <div className="flex" style={{ height: 32 }}>
         {days.map((d, i) => {
           const today = isToday(d); const isWeekend = d.getDay() === 0 || d.getDay() === 6
           return (

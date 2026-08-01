@@ -344,6 +344,20 @@ function InlineSelect<T extends string>({ label, value, options, onChange, disab
 }
 
 function DateHeader({ days, colWidth }: { days: Date[]; colWidth: number }) {
+  // Calculate months
+  const months: { label: string; count: number }[] = []
+  let curMonth = -1; let mCount = 0
+  days.forEach(d => {
+    const monthKey = d.getFullYear() * 100 + d.getMonth()
+    if (monthKey !== curMonth) {
+      if (curMonth !== -1) months.push({ label: format(new Date(Math.floor(curMonth / 100), curMonth % 100, 1), 'MMMM yyyy'), count: mCount })
+      curMonth = monthKey
+      mCount = 1
+    } else mCount++
+  })
+  if (curMonth !== -1) months.push({ label: format(new Date(Math.floor(curMonth / 100), curMonth % 100, 1), 'MMMM yyyy'), count: mCount })
+
+  // Calculate weeks
   const weeks: { label: string; count: number }[] = []
   let curWeek = -1; let wCount = 0
   days.forEach(d => {
@@ -353,8 +367,18 @@ function DateHeader({ days, colWidth }: { days: Date[]; colWidth: number }) {
   if (curWeek !== -1) weeks.push({ label: `WEEK ${curWeek}`, count: wCount })
 
   return (
-    <div className="sticky top-0 z-20 bg-card border-b border-border" style={{ height: 56 }}>
-      <div className="flex border-b border-border/40" style={{ height: 24 }}>
+    <div className="sticky top-0 z-20 bg-card border-b border-border" style={{ height: 80 }}>
+      {/* Month row */}
+      <div className="flex border-b border-border/50" style={{ height: 28 }}>
+        {months.map((m, i) => (
+          <div key={i} className="flex-shrink-0 flex items-center justify-center text-xs font-bold text-foreground border-r border-border/40 uppercase tracking-wide bg-muted/20"
+            style={{ width: m.count * colWidth }}>
+            {m.count * colWidth >= 80 ? m.label : m.count * colWidth >= 40 ? format(new Date(m.label), 'MMM yyyy') : ''}
+          </div>
+        ))}
+      </div>
+      {/* Week row */}
+      <div className="flex border-b border-border/40" style={{ height: 20 }}>
         {weeks.map((w, i) => (
           <div key={i} className="flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-muted-foreground/70 border-r border-border/30 uppercase tracking-wider bg-muted/10"
             style={{ width: w.count * colWidth }}>
@@ -362,6 +386,7 @@ function DateHeader({ days, colWidth }: { days: Date[]; colWidth: number }) {
           </div>
         ))}
       </div>
+      {/* Day row */}
       <div className="flex" style={{ height: 32 }}>
         {days.map((d, i) => {
           const today = isToday(d)
