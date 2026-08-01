@@ -81,6 +81,7 @@ interface TimelineTask {
 }
 
 interface WorkItemInfo {
+  createdAt: string
   id: string
   ticketNumber: string
   title: string
@@ -478,7 +479,7 @@ export function TimelinePage({ workItemId, readOnly = false }: { workItemId: str
   const queryClient = useQueryClient()
   const canEdit = !readOnly && user?.role !== UserRole.BUSINESS_USER
 
-  const [windowStart, setWindowStart] = useState(() => addDays(startOfDay(new Date()), -14))
+  const [windowStart, setWindowStart] = useState<Date | null>(null)
   const [zoom, setZoom] = useState(100)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<TaskStatus | 'all'>('all')
@@ -493,6 +494,14 @@ export function TimelinePage({ workItemId, readOnly = false }: { workItemId: str
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const gridRef = useRef<HTMLDivElement>(null)
   const colWidth = Math.round(BASE_COL_WIDTH * zoom / 100)
+
+  // Sync windowStart with request date when workItem loads or createdAt changes
+  const workItemCreatedAt = data?.data?.workItem?.createdAt
+  useEffect(() => {
+    if (!workItemCreatedAt) return
+    const requestDate = startOfDay(new Date(workItemCreatedAt))
+    setWindowStart(addDays(requestDate, -2))
+  }, [workItemCreatedAt])
 
   const { data, isLoading } = useQuery({
     queryKey: ['timeline', workItemId],
@@ -510,13 +519,16 @@ export function TimelinePage({ workItemId, readOnly = false }: { workItemId: str
   }, [allTasks, search, filterStatus, filterColor])
 
   useEffect(() => {
-    const todayOffset = differenceInCalendarDays(new Date(), windowStart)
+    const todayOffset = differenceInCalendarDays(new Date(), effectiveStart)
     if (gridRef.current && todayOffset >= 0)
       gridRef.current.scrollLeft = Math.max(0, todayOffset * colWidth - 160)
   }, [windowStart, colWidth])
 
-  const shiftDays = (n: number) => setWindowStart(d => addDays(d, n))
-  const goToToday = () => setWindowStart(addDays(startOfDay(new Date()), -14))
+  const shiftDays = (n: number) => setWindowStart(d => addDays(d ?? startOfDay(new Date()), n))
+  const goToToday = () => {
+    const reqDate = workItem?.createdAt ? startOfDay(new Date(workItem.createdAt)) : addDays(startOfDay(new Date()), -14)
+    setWindowStart(addDays(reqDate, -2))
+  }
 
   const deleteMut = useMutation({
     mutationFn: (taskId: string) => apiDelete(`/api/timeline/${workItemId}/${taskId}`),
@@ -540,7 +552,8 @@ export function TimelinePage({ workItemId, readOnly = false }: { workItemId: str
     reorderMut.mutate(reordered.map((t, i) => ({ id: t.id, sortOrder: i })))
   }, [tasks, workItemId, queryClient, reorderMut])
 
-  const days = useMemo(() => Array.from({ length: DAYS_TOTAL }, (_, i) => addDays(windowStart, i)), [windowStart])
+  const effectiveStart = windowStart ?? addDays(startOfDay(new Date()), -14)
+  const days = useMemo(() => Array.from({ length: DAYS_TOTAL }, (_, i) => addDays(effectiveStart, i)), [effectiveStart])
 
   if (isLoading) return <TimelineSkeleton />
 
