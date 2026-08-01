@@ -134,6 +134,95 @@ app.get('/public/track', zValidator('query', z.object({ query: z.string().min(3)
   return c.json(ok(items))
 })
 
+// Authenticated: Submit request (for logged-in users)
+app.post('/', authMiddleware, zValidator('json', submitSchema), async (c) => {
+  const data = c.req.valid('json')
+  const user = c.get('user')!
+  const db = c.get('db')
+
+  // Generate ticket number with robust counter handling
+  const year = new Date().getFullYear()
+  let counter = 1
+  try {
+    const counterResult = await c.env.DB.prepare(
+      'UPDATE ticket_counters SET counter = counter + 1 WHERE year = ? RETURNING counter'
+    ).bind(year).first<{ counter: number }>()
+
+    if (counterResult) {
+      counter = counterResult.counter
+    } else {
+      // Row doesn't exist yet — insert it
+      await c.env.DB.prepare(
+        'INSERT OR IGNORE INTO ticket_counters (year, counter) VALUES (?, 1)'
+      ).bind(year).run()
+      counter = 1
+    }
+  } catch {
+    // Fallback: use timestamp-based counter if D1 raw query fails
+    counter = Date.now() % 10000
+  }
+
+  const ticketNumber = generateTicketNumber(year, counter)
+  const id = generateId()
+
+  await db.insert(schema.workItems).values({
+    id,
+    ticketNumber,
+    title: data.title,
+    description: data.problemDescription,
+    problemDescription: data.problemDescription,
+    expectedSolution: data.expectedSolution,
+    departmentId: data.departmentId,
+    vendorId: data.vendorId,
+    managerEmail: data.managerEmail,
+    priority: data.priority as any,
+    status: 'in_pipeline',
+    requesterName: data.requesterName,
+    requesterEmail: data.requesterEmail,
+    dueDate: new Date(data.dueDate),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    createdBy: user.sub, // Track who created it
+  })
+
+  // Activity log
+  await db.insert(schema.activityLogs).values({
+    id: generateId(),
+    workItemId: id,
+    userId: user.sub,
+    action: 'created',
+    description: `Request submitted by ${data.requesterName}`,
+    createdAt: new Date(),
+  })
+
+  // Queue confirmation email
+  try {
+    await c.env.EMAIL_QUEUE.send({
+      type: 'confirmation',
+      to: data.requesterEmail,
+      name: data.requesterName,
+      ticketNumber,
+      title: data.title,
+      workItemId: id,
+      role: 'requester'
+    })
+
+    if (data.managerEmail) {
+      await c.env.EMAIL_QUEUE.send({
+        type: 'confirmation',
+        to: data.managerEmail,
+        name: 'Manager',
+        ticketNumber,
+        title: `(Manager FYI) ${data.title}`,
+        workItemId: id,
+        role: 'manager'
+      })
+    }
+  } catch { /* email queue optional */ }
+
+  return c.json(ok({ ticketNumber, id }, 'Request submitted successfully'), 201)
+})
+
 // Get work items (authenticated)
 app.get('/', authMiddleware, async (c) => {
   const db = c.get('db')
