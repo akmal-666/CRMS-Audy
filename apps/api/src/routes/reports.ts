@@ -628,6 +628,7 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
       const assessment = item.assessment
       
       return {
+        id: item.id,
         name: item.title,
         ticketNumber: item.ticketNumber,
         startDate: created,

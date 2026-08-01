@@ -66,61 +66,67 @@ export function TimelineRoadmap({ data, isLoading }: TimelineRoadmapProps) {
             <div className="col-span-7 text-right">Timeline</div>
           </div>
 
-          {data.map((project, index) => (
-            <motion.div
-              key={project.ticketNumber}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="grid grid-cols-12 gap-2 items-center p-2 rounded-lg hover:bg-muted/50 transition-colors"
-            >
-              <div className="col-span-5">
-                <div className="flex items-center gap-2">
-                  <div className="flex-shrink-0">
-                    {project.isAtRisk ? (
-                      <AlertTriangle size={16} className="text-red-500" />
-                    ) : project.milestone ? (
-                      <Diamond size={16} className="text-green-500" fill="currentColor" />
-                    ) : (
-                      <Circle size={12} className={`${STATUS_COLORS[project.status]?.split(' ')[0] || 'text-gray-500'}`} fill="currentColor" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-foreground truncate">
-                      {project.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{project.ticketNumber}</p>
+          {data.map((project, index) => {
+            // Navigate using ID if available, otherwise ticketNumber
+            const navigateUrl = project.id ? `/timeline/${project.id}` : `/timeline/${project.ticketNumber}`
+            
+            return (
+              <motion.div
+                key={project.ticketNumber}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                onClick={() => router.push(navigateUrl)}
+                className="grid grid-cols-12 gap-2 items-center p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group"
+              >
+                <div className="col-span-5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-shrink-0">
+                      {project.isAtRisk ? (
+                        <AlertTriangle size={16} className="text-red-500" />
+                      ) : project.milestone ? (
+                        <Diamond size={16} className="text-green-500" fill="currentColor" />
+                      ) : (
+                        <Circle size={12} className={`${STATUS_COLORS[project.status]?.split(' ')[0] || 'text-gray-500'}`} fill="currentColor" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                        {project.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{project.ticketNumber}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="col-span-7">
-                {/* Timeline bar */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{formatDate(project.startDate)}</span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[project.status] || 'text-gray-600 bg-gray-100'}`}>
-                      {STATUS_LABELS[project.status] || project.status}
-                    </span>
-                    <span className="text-muted-foreground">{formatDate(project.endDate)}</span>
-                  </div>
-                  
-                  <div className="relative h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className={`absolute top-0 left-0 h-full rounded-full ${
-                        project.isDelayed
-                          ? 'bg-red-500'
-                          : project.isAtRisk
-                          ? 'bg-orange-500'
-                          : 'bg-green-500'
-                      }`}
-                      style={{ width: '70%' }}
-                    />
+                <div className="col-span-7">
+                  {/* Timeline bar */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{formatDate(project.startDate)}</span>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[project.status] || 'text-gray-600 bg-gray-100'}`}>
+                        {STATUS_LABELS[project.status] || project.status}
+                      </span>
+                      <span className="text-muted-foreground">{formatDate(project.endDate)}</span>
+                    </div>
+                    
+                    <div className="relative h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className={`absolute top-0 left-0 h-full rounded-full ${
+                          project.isDelayed
+                            ? 'bg-red-500'
+                            : project.isAtRisk
+                            ? 'bg-orange-500'
+                            : 'bg-green-500'
+                        }`}
+                        style={{ width: '70%' }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            )
+          })}
 
           {/* Legend */}
           <div className="flex items-center gap-4 pt-3 mt-3 border-t text-xs">

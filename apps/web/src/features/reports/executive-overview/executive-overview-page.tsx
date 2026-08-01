@@ -194,7 +194,7 @@ export function ExecutiveOverviewPage() {
 
         {/* Created vs Completed Trend - Line Chart */}
         <div className="lg:col-span-2">
-          <TrendChart data={reportData?.monthlyTrend} isLoading={isLoading} />
+          <TrendChart data={reportData?.monthlyTrend} isLoading={isLoading} filterType={filterType} />
         </div>
       </div>
 

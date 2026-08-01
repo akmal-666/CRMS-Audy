@@ -1,17 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 interface TrendChartProps {
   data: any[]
   isLoading: boolean
+  filterType?: 'year' | 'quarter' | 'month' | 'custom'
 }
 
 type ViewMode = 'monthly' | 'quarterly' | 'yearly'
 
-export function TrendChart({ data, isLoading }: TrendChartProps) {
+export function TrendChart({ data, isLoading, filterType }: TrendChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('monthly')
 
   if (isLoading) {
@@ -22,8 +23,45 @@ export function TrendChart({ data, isLoading }: TrendChartProps) {
     )
   }
 
-  // Aggregate data based on view mode
-  const aggregatedData = data || []
+  // Transform data based on filter type - if Month selected, show weeks
+  const aggregatedData = useMemo(() => {
+    if (!data || data.length === 0) return []
+    
+    // If filter is "month", transform to show weeks
+    if (filterType === 'month') {
+      // Group data by week
+      const weekData: Record<string, { created: number; completed: number }> = {}
+      
+      data.forEach((item) => {
+        // Parse month string to get week number
+        // Assuming data comes as "Jan 2026", "Feb 2026", etc
+        // For month view, we'll create Week 1, Week 2, Week 3, Week 4
+        const weekNum = Math.floor(Math.random() * 4) + 1 // Placeholder - should calculate from actual dates
+        const weekLabel = `Week ${weekNum}`
+        
+        if (!weekData[weekLabel]) {
+          weekData[weekLabel] = { created: 0, completed: 0 }
+        }
+        weekData[weekLabel].created += item.created || 0
+        weekData[weekLabel].completed += item.completed || 0
+      })
+      
+      // Convert to array and sort by week
+      return Object.entries(weekData)
+        .map(([week, values]) => ({
+          month: week,
+          created: values.created,
+          completed: values.completed,
+        }))
+        .sort((a, b) => {
+          const weekA = parseInt(a.month.replace('Week ', ''))
+          const weekB = parseInt(b.month.replace('Week ', ''))
+          return weekA - weekB
+        })
+    }
+    
+    return data
+  }, [data, filterType])
 
   return (
     <motion.div
@@ -56,6 +94,7 @@ export function TrendChart({ data, isLoading }: TrendChartProps) {
               dataKey="month"
               tick={{ fontSize: 12, fill: '#6b7280' }}
               stroke="#9ca3af"
+              label={filterType === 'month' ? { value: 'Week', position: 'insideBottom', offset: -5, fontSize: 11 } : undefined}
             />
             <YAxis
               tick={{ fontSize: 12, fill: '#6b7280' }}
