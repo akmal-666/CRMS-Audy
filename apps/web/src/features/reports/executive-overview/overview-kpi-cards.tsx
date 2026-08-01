@@ -10,14 +10,6 @@ interface OverviewKPICardsProps {
 
 export function OverviewKPICards({ data, isLoading }: OverviewKPICardsProps) {
   const summary = data?.summary || {}
-  
-  // Calculate trend (mock for now - would compare with previous period)
-  const totalTrend = '+15%'
-  const activeTrend = '+8%'
-  const completedTrend = '+23%'
-  const delayedTrend = '-12%'
-  const cycleTrend = '-2 days'
-  const slaTrend = '+5%'
 
   if (isLoading) {
     return (
@@ -35,10 +27,7 @@ export function OverviewKPICards({ data, isLoading }: OverviewKPICardsProps) {
     {
       label: 'Total Requests',
       value: summary.totalRequests || 0,
-      trend: totalTrend,
-      trendUp: true,
       icon: FileText,
-      color: 'blue',
       textColor: 'text-blue-600',
       iconBg: 'bg-blue-500/10',
       iconColor: 'text-blue-500',
@@ -46,10 +35,7 @@ export function OverviewKPICards({ data, isLoading }: OverviewKPICardsProps) {
     {
       label: 'Active Projects',
       value: summary.activeProjects || 0,
-      trend: activeTrend,
-      trendUp: true,
       icon: FolderKanban,
-      color: 'purple',
       textColor: 'text-purple-600',
       iconBg: 'bg-purple-500/10',
       iconColor: 'text-purple-500',
@@ -57,10 +43,7 @@ export function OverviewKPICards({ data, isLoading }: OverviewKPICardsProps) {
     {
       label: 'Completed',
       value: summary.completed || 0,
-      trend: completedTrend,
-      trendUp: true,
       icon: CheckCircle2,
-      color: 'green',
       textColor: 'text-green-600',
       iconBg: 'bg-green-500/10',
       iconColor: 'text-green-500',
@@ -68,10 +51,7 @@ export function OverviewKPICards({ data, isLoading }: OverviewKPICardsProps) {
     {
       label: 'Delayed',
       value: summary.delayed || 0,
-      trend: delayedTrend,
-      trendUp: false,
       icon: AlertCircle,
-      color: 'red',
       textColor: 'text-red-600',
       iconBg: 'bg-red-500/10',
       iconColor: 'text-red-500',
@@ -79,10 +59,7 @@ export function OverviewKPICards({ data, isLoading }: OverviewKPICardsProps) {
     {
       label: 'Avg Cycle Time',
       value: `${summary.avgCycleTimeDays || 0} days`,
-      trend: cycleTrend,
-      trendUp: false,
       icon: Clock,
-      color: 'orange',
       textColor: 'text-orange-600',
       iconBg: 'bg-orange-500/10',
       iconColor: 'text-orange-500',
@@ -90,10 +67,7 @@ export function OverviewKPICards({ data, isLoading }: OverviewKPICardsProps) {
     {
       label: 'SLA Achievement',
       value: `${summary.slaAchievement || 0}%`,
-      trend: slaTrend,
-      trendUp: true,
       icon: TrendingUp,
-      color: 'indigo',
       textColor: 'text-indigo-600',
       iconBg: 'bg-indigo-500/10',
       iconColor: 'text-indigo-500',
@@ -120,18 +94,9 @@ export function OverviewKPICards({ data, isLoading }: OverviewKPICardsProps) {
               </div>
             </div>
             
-            <p className={`text-2xl font-bold ${card.textColor} mb-2`}>
+            <p className={`text-2xl font-bold ${card.textColor}`}>
               {card.value}
             </p>
-            
-            <div className="flex items-center gap-1 mt-auto">
-              <span className={`text-xs font-medium ${card.trendUp ? 'text-green-600' : 'text-red-600'}`}>
-                {card.trend}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                vs 1 Jun - 30 Jun 2026
-              </span>
-            </div>
           </div>
         </motion.div>
       ))}

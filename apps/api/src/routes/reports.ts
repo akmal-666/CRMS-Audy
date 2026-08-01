@@ -501,7 +501,7 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
       qa: true,
       businessAnalyst: true,
       assessment: true,
-      activityLogs: { orderBy: [desc(schema.activityLogs.createdAt)], limit: 10 },
+      activityLogs: { with: { user: { columns: { id: true, name: true } } }, orderBy: [desc(schema.activityLogs.createdAt)], limit: 10 },
     },
   })
 

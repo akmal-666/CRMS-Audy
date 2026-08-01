@@ -18,10 +18,14 @@ export function MandaysVendorKPI({ data, summary, isLoading }: MandaysVendorKPIP
     )
   }
 
-  const vendors = data || []
+  if (!data) {
+    return null
+  }
+
+  const vendors = Array.isArray(data) ? data : []
   const totalUsed = summary?.totalUsed || 0
   const totalRemaining = summary?.totalRemaining || 0
-  const totalAllocated = vendors.reduce((sum, v) => sum + (v.total || 0), 0)
+  const totalAllocated = vendors.reduce((sum, v) => sum + (v?.total || 0), 0)
   const usedPct = totalAllocated > 0 ? Math.round((totalUsed / totalAllocated) * 100) : 0
 
   const fmt = (v: number) => v % 1 === 0 ? v.toString() : v.toFixed(1)
@@ -86,12 +90,14 @@ export function MandaysVendorKPI({ data, summary, isLoading }: MandaysVendorKPIP
       ) : (
         <div className="space-y-3">
           {vendors.map((vendor, index) => {
-            const usedPct = vendor.total > 0 ? Math.min((vendor.used / vendor.total) * 100, 100) : 0
-            const remainingColor = getRemainingColor(vendor.remaining, vendor.total)
+            if (!vendor) return null
+            
+            const usedPct = (vendor.total || 0) > 0 ? Math.min(((vendor.used || 0) / (vendor.total || 0)) * 100, 100) : 0
+            const remainingColor = getRemainingColor(vendor.remaining || 0, vendor.total || 0)
 
             return (
               <motion.div
-                key={vendor.vendorId}
+                key={vendor.vendorId || index}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.04 }}
@@ -102,35 +108,35 @@ export function MandaysVendorKPI({ data, summary, isLoading }: MandaysVendorKPIP
                   <div className="flex items-center gap-2 min-w-0">
                     {/* Status dot */}
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                      vendor.remaining <= 0 ? 'bg-red-500' :
-                      vendor.utilizationPercent >= 90 ? 'bg-red-500' :
-                      vendor.utilizationPercent >= 70 ? 'bg-amber-500' :
+                      (vendor.remaining || 0) <= 0 ? 'bg-red-500' :
+                      (vendor.utilizationPercent || 0) >= 90 ? 'bg-red-500' :
+                      (vendor.utilizationPercent || 0) >= 70 ? 'bg-amber-500' :
                       'bg-green-500'
                     }`} />
-                    <span className="text-xs font-medium text-foreground truncate">{vendor.vendorName}</span>
+                    <span className="text-xs font-medium text-foreground truncate">{vendor.vendorName || 'Unknown'}</span>
                     <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                      {vendor.projectCount} CR{vendor.projectCount !== 1 ? 's' : ''}
+                      {vendor.projectCount || 0} CR{(vendor.projectCount || 0) !== 1 ? 's' : ''}
                     </span>
                   </div>
 
                   {/* Numbers */}
                   <div className="flex items-center gap-4 flex-shrink-0 ml-2">
                     <div className="text-right hidden sm:block">
-                      <span className="text-xs text-muted-foreground">{fmt(vendor.used)}</span>
-                      <span className="text-[10px] text-muted-foreground"> / {fmt(vendor.total)} MD</span>
+                      <span className="text-xs text-muted-foreground">{fmt(vendor.used || 0)}</span>
+                      <span className="text-[10px] text-muted-foreground"> / {fmt(vendor.total || 0)} MD</span>
                     </div>
                     <div className="text-right w-16">
                       <span className={`text-xs font-semibold ${remainingColor}`}>
-                        {vendor.remaining <= 0 ? '0' : fmt(vendor.remaining)} MD left
+                        {(vendor.remaining || 0) <= 0 ? '0' : fmt(vendor.remaining || 0)} MD left
                       </span>
                     </div>
                     <div className="text-right w-10">
                       <span className={`text-xs font-bold ${
-                        vendor.utilizationPercent >= 90 ? 'text-red-600' :
-                        vendor.utilizationPercent >= 70 ? 'text-amber-600' :
+                        (vendor.utilizationPercent || 0) >= 90 ? 'text-red-600' :
+                        (vendor.utilizationPercent || 0) >= 70 ? 'text-amber-600' :
                         'text-blue-600'
                       }`}>
-                        {vendor.utilizationPercent}%
+                        {vendor.utilizationPercent || 0}%
                       </span>
                     </div>
                   </div>
@@ -142,20 +148,20 @@ export function MandaysVendorKPI({ data, summary, isLoading }: MandaysVendorKPIP
                     initial={{ width: 0 }}
                     animate={{ width: `${usedPct}%` }}
                     transition={{ duration: 0.7, delay: index * 0.04 }}
-                    className={`h-full rounded-full ${getBarColor(vendor.utilizationPercent)}`}
+                    className={`h-full rounded-full ${getBarColor(vendor.utilizationPercent || 0)}`}
                   />
                 </div>
 
                 {/* Breakdown: Used / Topup */}
                 <div className="flex items-center gap-3 mt-0.5 text-[10px] text-muted-foreground">
-                  <span>Used: <span className="text-foreground font-medium">{fmt(vendor.used)}</span></span>
-                  {vendor.topup > 0 && (
-                    <span className="text-amber-600">+{fmt(vendor.topup)} top-up</span>
+                  <span>Used: <span className="text-foreground font-medium">{fmt(vendor.used || 0)}</span></span>
+                  {(vendor.topup || 0) > 0 && (
+                    <span className="text-amber-600">+{fmt(vendor.topup || 0)} top-up</span>
                   )}
                 </div>
               </motion.div>
             )
-          })}
+          }).filter(Boolean)}
         </div>
       )}
 
