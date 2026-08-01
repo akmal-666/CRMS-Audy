@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Plus, Loader2, GripVertical, Trash2, Edit2,
   ChevronLeft, ChevronRight, Calendar, X, Check, Search,
-  Filter, ZoomIn, ZoomOut,
+  Filter, ZoomIn, ZoomOut, Share2, MoreHorizontal, SlidersHorizontal,
+  ChevronDown, Eye, EyeOff, Info,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/context/auth-context'
@@ -27,18 +28,19 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+// ─── Constants ────────────────────────────────────────────────────────────────
 const BASE_COL_WIDTH = 36
 const ROW_HEIGHT = 48
 const SIDEBAR_WIDTH = 280
 const DAYS_TOTAL = 120
 
 const COLORS = {
-  blue:   { bar: 'bg-blue-500',    border: 'border-blue-600',    text: 'text-white', label: 'Blue'   },
-  green:  { bar: 'bg-emerald-500', border: 'border-emerald-600', text: 'text-white', label: 'Green'  },
-  yellow: { bar: 'bg-amber-400',   border: 'border-amber-500',   text: 'text-white', label: 'Yellow' },
-  orange: { bar: 'bg-orange-500',  border: 'border-orange-600',  text: 'text-white', label: 'Orange' },
-  red:    { bar: 'bg-red-500',     border: 'border-red-600',     text: 'text-white', label: 'Red'    },
-  purple: { bar: 'bg-violet-500',  border: 'border-violet-600',  text: 'text-white', label: 'Purple' },
+  blue:   { bar: 'bg-blue-500',    border: 'border-blue-600',    hex: '#3b82f6', text: 'text-white', label: 'Blue'   },
+  green:  { bar: 'bg-emerald-500', border: 'border-emerald-600', hex: '#10b981', text: 'text-white', label: 'Green'  },
+  yellow: { bar: 'bg-amber-400',   border: 'border-amber-500',   hex: '#fbbf24', text: 'text-white', label: 'Yellow' },
+  orange: { bar: 'bg-orange-500',  border: 'border-orange-600',  hex: '#f97316', text: 'text-white', label: 'Orange' },
+  red:    { bar: 'bg-red-500',     border: 'border-red-600',     hex: '#ef4444', text: 'text-white', label: 'Red'    },
+  purple: { bar: 'bg-violet-500',  border: 'border-violet-600',  hex: '#8b5cf6', text: 'text-white', label: 'Purple' },
 } as const
 type TaskColor = keyof typeof COLORS
 
@@ -51,6 +53,16 @@ const TASK_STATUSES = {
   milestone:   { label: 'Milestone',   dot: 'bg-violet-500', chip: 'bg-violet-100 text-violet-700' },
 } as const
 type TaskStatus = keyof typeof TASK_STATUSES
+
+// Fields config — which sidebar columns to show
+const FIELD_DEFS = {
+  status:   { label: 'Status',   default: true  },
+  date:     { label: 'Date',     default: true  },
+  assignee: { label: 'Assignee', default: true  },
+  priority: { label: 'Priority', default: false },
+  notes:    { label: 'Notes',    default: false },
+} as const
+type FieldKey = keyof typeof FIELD_DEFS
 
 interface TimelineTask {
   id: string
@@ -79,17 +91,240 @@ interface WorkItemInfo {
 function Avatar({ name, avatarUrl, size = 20 }: { name: string; avatarUrl?: string | null; size?: number }) {
   if (avatarUrl) return <img src={avatarUrl} alt={name} style={{ width: size, height: size }} className="rounded-full object-cover flex-shrink-0" />
   return (
-    <div style={{ width: size, height: size, fontSize: size * 0.38 }}
-      className="rounded-full bg-primary/20 text-primary flex items-center justify-center font-semibold flex-shrink-0 uppercase">
+    <div style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }}
+      className="rounded-full bg-primary/20 text-primary flex items-center justify-center font-semibold flex-shrink-0 uppercase select-none">
       {getInitials(name)}
     </div>
   )
 }
 
-// ─── Milestone Diamond ────────────────────────────────────────────────────────
-function MilestoneDiamond({ color }: { color: string }) {
+// ─── Tooltip ──────────────────────────────────────────────────────────────────
+function Tooltip({ children, content }: { children: React.ReactNode; content: React.ReactNode }) {
+  const [show, setShow] = useState(false)
   return (
-    <div className={cn('w-4 h-4 rotate-45 flex-shrink-0', color)} style={{ borderRadius: 2 }} />
+    <div className="relative inline-flex" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+      {children}
+      <AnimatePresence>
+        {show && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.12 }}
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
+            <div className="bg-popover border border-border rounded-xl shadow-xl p-3 text-xs min-w-[180px] max-w-[240px]">
+              {content}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ─── Bar Tooltip Content ──────────────────────────────────────────────────────
+function BarTooltipContent({ task }: { task: TimelineTask }) {
+  const dur = differenceInCalendarDays(new Date(task.endDate), new Date(task.startDate)) + 1
+  const statusInfo = TASK_STATUSES[task.status] ?? TASK_STATUSES.not_started
+  return (
+    <div className="space-y-2">
+      <p className="font-semibold text-foreground leading-snug">{task.label}</p>
+      <div className="flex items-center gap-1.5">
+        <span className={cn('inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full', statusInfo.chip)}>
+          <span className={cn('w-1.5 h-1.5 rounded-full', statusInfo.dot)} />
+          {statusInfo.label}
+        </span>
+      </div>
+      <div className="space-y-1 text-[11px] text-muted-foreground">
+        <div className="flex justify-between gap-4">
+          <span>Start</span>
+          <span className="font-medium text-foreground">{format(new Date(task.startDate), 'dd MMM yyyy')}</span>
+        </div>
+        {task.status !== 'milestone' && (
+          <div className="flex justify-between gap-4">
+            <span>End</span>
+            <span className="font-medium text-foreground">{format(new Date(task.endDate), 'dd MMM yyyy')}</span>
+          </div>
+        )}
+        {task.status !== 'milestone' && (
+          <div className="flex justify-between gap-4">
+            <span>Duration</span>
+            <span className="font-medium text-foreground">{dur}d</span>
+          </div>
+        )}
+        <div className="flex justify-between gap-4">
+          <span>Priority</span>
+          <span className="font-medium text-foreground capitalize">{task.priority}</span>
+        </div>
+        {task.assignee && (
+          <div className="flex justify-between gap-4">
+            <span>Assignee</span>
+            <span className="font-medium text-foreground">{task.assignee.name}</span>
+          </div>
+        )}
+        {task.notes && (
+          <div className="pt-1 border-t border-border">
+            <p className="text-foreground/70 italic leading-relaxed">{task.notes}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Fields Dropdown ──────────────────────────────────────────────────────────
+function FieldsDropdown({ fields, onChange }: { fields: Set<FieldKey>; onChange: (f: Set<FieldKey>) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const toggle = (key: FieldKey) => {
+    const next = new Set(fields)
+    if (next.has(key)) next.delete(key); else next.add(key)
+    onChange(next)
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 text-xs font-medium border border-border rounded-lg px-2 py-1.5 bg-background hover:bg-muted transition-colors">
+        <SlidersHorizontal size={12} /> Fields
+        <span className="text-[10px] text-muted-foreground ml-0.5">Default</span>
+        <ChevronDown size={11} className={cn('text-muted-foreground transition-transform', open && 'rotate-180')} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+            className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl p-2 min-w-[150px]">
+            {(Object.entries(FIELD_DEFS) as [FieldKey, typeof FIELD_DEFS[FieldKey]][]).map(([key, def]) => (
+              <button key={key} onClick={() => toggle(key)}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors text-xs text-foreground">
+                <div className={cn('w-4 h-4 rounded flex items-center justify-center border transition-colors flex-shrink-0',
+                  fields.has(key) ? 'bg-primary border-primary' : 'border-border')}>
+                  {fields.has(key) && <Check size={10} className="text-white" />}
+                </div>
+                {def.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ─── More Menu ────────────────────────────────────────────────────────────────
+function MoreMenu({ workItem }: { workItem?: WorkItemInfo }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1 text-xs font-medium border border-border rounded-lg px-2.5 py-1.5 bg-background hover:bg-muted transition-colors">
+        <MoreHorizontal size={14} />
+        <span>More</span>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+            className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl p-2 min-w-[160px]">
+            {[
+              { label: 'Export as PNG',  icon: <Eye size={13} /> },
+              { label: 'Export as PDF',  icon: <Eye size={13} /> },
+              { label: 'Print Timeline', icon: <Eye size={13} /> },
+            ].map(item => (
+              <button key={item.label} onClick={() => { toast.info(`${item.label} coming soon`); setOpen(false) }}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors text-xs text-foreground">
+                <span className="text-muted-foreground">{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ─── Filters Panel ────────────────────────────────────────────────────────────
+function FiltersPanel({ filterStatus, setFilterStatus, filterColor, setFilterColor, onClear }: {
+  filterStatus: TaskStatus | 'all'; setFilterStatus: (s: TaskStatus | 'all') => void
+  filterColor: TaskColor | 'all';   setFilterColor: (c: TaskColor | 'all') => void
+  onClear: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const hasFilter = filterStatus !== 'all' || filterColor !== 'all'
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen(o => !o)}
+        className={cn('flex items-center gap-1.5 text-xs font-medium border rounded-lg px-2.5 py-1.5 transition-colors',
+          hasFilter ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background hover:bg-muted text-foreground')}>
+        <Filter size={12} /> Filters
+        {hasFilter && <span className="ml-0.5 bg-primary text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px]">!</span>}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+            className="absolute left-0 top-full mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl p-3 min-w-[200px] space-y-3">
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Status</p>
+              <div className="flex flex-wrap gap-1">
+                <button onClick={() => setFilterStatus('all')}
+                  className={cn('text-[10px] px-2 py-0.5 rounded-full border transition-colors',
+                    filterStatus === 'all' ? 'bg-foreground text-background border-foreground' : 'border-border hover:bg-muted')}>
+                  All
+                </button>
+                {(Object.keys(TASK_STATUSES) as TaskStatus[]).map(s => (
+                  <button key={s} onClick={() => setFilterStatus(s)}
+                    className={cn('text-[10px] px-2 py-0.5 rounded-full border transition-colors',
+                      filterStatus === s ? cn(TASK_STATUSES[s].chip, 'border-transparent') : 'border-border hover:bg-muted')}>
+                    {TASK_STATUSES[s].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Color</p>
+              <div className="flex gap-1.5 flex-wrap">
+                <button onClick={() => setFilterColor('all')}
+                  className={cn('text-[10px] px-2 py-0.5 rounded-full border transition-colors',
+                    filterColor === 'all' ? 'bg-foreground text-background border-foreground' : 'border-border hover:bg-muted')}>
+                  All
+                </button>
+                {(Object.keys(COLORS) as TaskColor[]).map(c => (
+                  <button key={c} onClick={() => setFilterColor(c)}
+                    className={cn('w-5 h-5 rounded-full transition-transform', COLORS[c].bar, filterColor === c ? 'ring-2 ring-offset-1 ring-primary scale-110' : 'hover:scale-105')} />
+                ))}
+              </div>
+            </div>
+            {hasFilter && (
+              <button onClick={() => { onClear(); setOpen(false) }}
+                className="w-full text-[10px] text-red-500 hover:text-red-600 border border-red-200 rounded-lg py-1 hover:bg-red-50 transition-colors">
+                Clear Filters
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
@@ -103,6 +338,10 @@ export function TimelinePage({ workItemId }: { workItemId: string }) {
   const [zoom, setZoom] = useState(100)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<TaskStatus | 'all'>('all')
+  const [filterColor, setFilterColor] = useState<TaskColor | 'all'>('all')
+  const [visibleFields, setVisibleFields] = useState<Set<FieldKey>>(
+    new Set(Object.entries(FIELD_DEFS).filter(([, v]) => v.default).map(([k]) => k as FieldKey))
+  )
   const [collapsed, setCollapsed] = useState(false)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [editTask, setEditTask] = useState<TimelineTask | null>(null)
@@ -122,10 +361,10 @@ export function TimelinePage({ workItemId }: { workItemId: string }) {
     let t = allTasks
     if (search) t = t.filter(x => x.label.toLowerCase().includes(search.toLowerCase()))
     if (filterStatus !== 'all') t = t.filter(x => x.status === filterStatus)
+    if (filterColor !== 'all') t = t.filter(x => x.color === filterColor)
     return t
-  }, [allTasks, search, filterStatus])
+  }, [allTasks, search, filterStatus, filterColor])
 
-  // Scroll to today on mount
   useEffect(() => {
     const todayOffset = differenceInCalendarDays(new Date(), windowStart)
     if (gridRef.current && todayOffset >= 0) {
@@ -134,7 +373,11 @@ export function TimelinePage({ workItemId }: { workItemId: string }) {
   }, [windowStart, colWidth])
 
   const shiftDays = (n: number) => setWindowStart(d => addDays(d, n))
-  const goToToday = () => setWindowStart(addDays(startOfDay(new Date()), -14))
+  const goToToday  = () => setWindowStart(addDays(startOfDay(new Date()), -14))
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => toast.success('Link copied to clipboard'))
+  }
 
   const deleteMut = useMutation({
     mutationFn: (taskId: string) => apiDelete(`/api/timeline/${workItemId}/${taskId}`),
@@ -160,15 +403,13 @@ export function TimelinePage({ workItemId }: { workItemId: string }) {
     reorderMut.mutate(reordered.map((t, i) => ({ id: t.id, sortOrder: i })))
   }, [tasks, workItemId, queryClient, reorderMut])
 
-  const days = useMemo(() =>
-    Array.from({ length: DAYS_TOTAL }, (_, i) => addDays(windowStart, i)),
-    [windowStart]
-  )
+  const days = useMemo(() => Array.from({ length: DAYS_TOTAL }, (_, i) => addDays(windowStart, i)), [windowStart])
 
   if (isLoading) return <TimelineSkeleton />
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
+
       {/* ── Top bar ── */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-border bg-card gap-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -189,14 +430,34 @@ export function TimelinePage({ workItemId }: { workItemId: string }) {
           </div>
         </div>
 
-        {/* Right controls */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* Share */}
+          <button onClick={handleShare}
+            className="flex items-center gap-1.5 text-xs font-medium border border-border rounded-lg px-2.5 py-1.5 bg-background hover:bg-muted transition-colors">
+            <Share2 size={13} /> Share
+          </button>
+
+          {/* Filters */}
+          <FiltersPanel
+            filterStatus={filterStatus} setFilterStatus={setFilterStatus}
+            filterColor={filterColor} setFilterColor={setFilterColor}
+            onClear={() => { setFilterStatus('all'); setFilterColor('all') }}
+          />
+
+          {/* More */}
+          <MoreMenu workItem={workItem} />
+
+          <div className="w-px h-5 bg-border mx-0.5" />
+
+          {/* Today nav */}
           <button onClick={() => shiftDays(-7)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"><ChevronLeft size={15} /></button>
           <button onClick={goToToday} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors flex items-center gap-1.5">
             <Calendar size={11} /> Today
           </button>
           <button onClick={() => shiftDays(7)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"><ChevronRight size={15} /></button>
-          <div className="w-px h-5 bg-border mx-1" />
+
+          <div className="w-px h-5 bg-border mx-0.5" />
+
           {canEdit && (
             <button onClick={() => setAddModalOpen(true)} className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5">
               <Plus size={13} /> Add Row
@@ -206,76 +467,66 @@ export function TimelinePage({ workItemId }: { workItemId: string }) {
       </div>
 
       {/* ── Toolbar ── */}
-      <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2 border-b border-border bg-card/50">
+      <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border bg-card/50">
         {/* Search */}
         <div className="relative">
           <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search task or milestone"
-            className="pl-7 pr-3 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 w-52"
-          />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search task or milestone"
+            className="pl-7 pr-3 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 w-52" />
         </div>
 
         <div className="flex items-center gap-1.5 ml-auto">
-          {/* Status filter */}
-          <div className="flex items-center gap-1.5">
-            <Filter size={12} className="text-muted-foreground" />
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}
-              className="text-xs border border-border rounded-lg px-2 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30">
-              <option value="all">All Status</option>
-              {(Object.keys(TASK_STATUSES) as TaskStatus[]).map(s => (
-                <option key={s} value={s}>{TASK_STATUSES[s].label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="w-px h-4 bg-border" />
-
-          {/* View label */}
+          {/* View */}
           <span className="text-xs text-muted-foreground">View</span>
           <span className="text-xs font-medium border border-border rounded-lg px-2 py-1.5 bg-background">Timeline</span>
-
           <div className="w-px h-4 bg-border" />
 
           {/* Scale */}
           <span className="text-xs text-muted-foreground">Scale</span>
           <span className="text-xs font-medium border border-border rounded-lg px-2 py-1.5 bg-background">Weeks</span>
+          <div className="w-px h-4 bg-border" />
 
+          {/* Fields */}
+          <FieldsDropdown fields={visibleFields} onChange={setVisibleFields} />
           <div className="w-px h-4 bg-border" />
 
           {/* Zoom */}
           <button onClick={() => setZoom(z => Math.max(50, z - 10))} className="p-1.5 rounded hover:bg-muted text-muted-foreground transition-colors"><ZoomOut size={13} /></button>
           <span className="text-xs font-medium w-10 text-center">{zoom}%</span>
           <button onClick={() => setZoom(z => Math.min(200, z + 10))} className="p-1.5 rounded hover:bg-muted text-muted-foreground transition-colors"><ZoomIn size={13} /></button>
-
-          <button onClick={() => setZoom(100)} className="text-xs px-2 py-1.5 border border-border rounded-lg hover:bg-muted transition-colors">Fit</button>
+          <button onClick={() => setZoom(100)} className="text-xs px-2 py-1.5 border border-border rounded-lg hover:bg-muted transition-colors">Fit to View</button>
         </div>
       </div>
 
       {/* ── Grid ── */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <div className="flex-shrink-0 border-r border-border bg-card flex flex-col" style={{ width: SIDEBAR_WIDTH }}>
-          <div className="flex-shrink-0 border-b border-border px-4 py-2 flex items-center justify-between" style={{ height: 56 }}>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Task / Milestone</span>
-            <button onClick={() => setCollapsed(c => !c)} className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors">
-              {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
-            </button>
-          </div>
-          {!collapsed && (
-            <div className="flex-1 overflow-y-auto overflow-x-hidden">
-              <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-                <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                  {tasks.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-                      <Calendar size={28} className="text-muted-foreground/30 mb-2" />
-                      <p className="text-sm text-muted-foreground">No tasks yet</p>
-                      {canEdit && <p className="text-xs text-muted-foreground/60 mt-1">Click &quot;Add Row&quot; to get started</p>}
-                    </div>
-                  ) : (
-                    tasks.map(task => (
-                      <SidebarRow key={task.id} task={task} canEdit={canEdit}
+        <div className="flex-shrink-0 border-r border-border bg-card flex flex-col" style={{ width: collapsed ? 40 : SIDEBAR_WIDTH }}>
+          {collapsed ? (
+            <div className="flex flex-col items-center pt-3 gap-2">
+              <button onClick={() => setCollapsed(false)} className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors">
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex-shrink-0 border-b border-border px-3 py-2 flex items-center justify-between" style={{ height: 56 }}>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Task / Milestone</span>
+                <button onClick={() => setCollapsed(true)} className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors">
+                  <ChevronLeft size={13} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+                  <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                    {tasks.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                        <Calendar size={28} className="text-muted-foreground/30 mb-2" />
+                        <p className="text-sm text-muted-foreground">No tasks yet</p>
+                        {canEdit && <p className="text-xs text-muted-foreground/60 mt-1">Click &quot;Add Row&quot; to get started</p>}
+                      </div>
+                    ) : tasks.map(task => (
+                      <SidebarRow key={task.id} task={task} canEdit={canEdit} visibleFields={visibleFields}
                         onEdit={() => setEditTask(task)}
                         onDelete={() => deleteMut.mutate(task.id)}
                         onStatusChange={(status) => {
@@ -283,20 +534,19 @@ export function TimelinePage({ workItemId }: { workItemId: string }) {
                             .then(() => queryClient.invalidateQueries({ queryKey: ['timeline', workItemId] }))
                         }}
                       />
-                    ))
-                  )}
-                </SortableContext>
-              </DndContext>
-            </div>
-          )}
-          {/* Add task button */}
-          {canEdit && !collapsed && (
-            <div className="flex-shrink-0 border-t border-border p-3">
-              <button onClick={() => setAddModalOpen(true)}
-                className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-muted">
-                <Plus size={13} /> Add Task / Milestone
-              </button>
-            </div>
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              </div>
+              {canEdit && (
+                <div className="flex-shrink-0 border-t border-border p-3">
+                  <button onClick={() => setAddModalOpen(true)}
+                    className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-muted">
+                    <Plus size={13} /> Add Task / Milestone
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -322,17 +572,22 @@ export function TimelinePage({ workItemId }: { workItemId: string }) {
       {/* ── Legend ── */}
       <div className="flex-shrink-0 border-t border-border bg-card px-4 py-2 flex items-center gap-5 flex-wrap">
         {(Object.entries(TASK_STATUSES) as [TaskStatus, typeof TASK_STATUSES[TaskStatus]][]).map(([key, val]) => (
-          <div key={key} className="flex items-center gap-1.5">
+          <div key={key} className="flex items-center gap-1.5 cursor-pointer" onClick={() => setFilterStatus(filterStatus === key ? 'all' : key)}>
             {key === 'milestone'
               ? <div className="w-2.5 h-2.5 rotate-45 bg-violet-500 flex-shrink-0" style={{ borderRadius: 1 }} />
               : <div className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0', val.dot)} />
             }
-            <span className="text-xs text-muted-foreground">{val.label}</span>
+            <span className={cn('text-xs transition-colors', filterStatus === key ? 'text-foreground font-medium' : 'text-muted-foreground')}>
+              {val.label}
+            </span>
           </div>
         ))}
+        <span className="text-xs text-muted-foreground ml-auto">
+          {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+          {tasks.length !== allTasks.length && ` (filtered from ${allTasks.length})`}
+        </span>
       </div>
 
-      {/* ── Modals ── */}
       <AnimatePresence>
         {(addModalOpen || editTask) && (
           <TaskFormModal workItemId={workItemId} task={editTask}
@@ -348,62 +603,49 @@ export function TimelinePage({ workItemId }: { workItemId: string }) {
   )
 }
 
-// ─── Date Header (Month row + Week row + Day row) ─────────────────────────────
+// ─── Date Header ──────────────────────────────────────────────────────────────
 function DateHeader({ days, colWidth }: { days: Date[]; colWidth: number }) {
-  // Group by month
   const months: { label: string; count: number }[] = []
   let curMonth = ''; let mCount = 0
   days.forEach(d => {
     const m = format(d, 'MMM yyyy')
-    if (m !== curMonth) { if (curMonth) months.push({ label: curMonth, count: mCount }); curMonth = m; mCount = 1 } else { mCount++ }
+    if (m !== curMonth) { if (curMonth) months.push({ label: curMonth, count: mCount }); curMonth = m; mCount = 1 } else mCount++
   })
   if (curMonth) months.push({ label: curMonth, count: mCount })
 
-  // Group by week
-  const weeks: { label: string; count: number; startDay: Date }[] = []
-  let curWeek = -1; let wCount = 0; let wStart = days[0]
+  const weeks: { label: string; count: number }[] = []
+  let curWeek = -1; let wCount = 0
   days.forEach(d => {
     const w = getWeek(d)
-    if (w !== curWeek) {
-      if (curWeek !== -1) weeks.push({ label: `W${curWeek}`, count: wCount, startDay: wStart })
-      curWeek = w; wCount = 1; wStart = d
-    } else { wCount++ }
+    if (w !== curWeek) { if (curWeek !== -1) weeks.push({ label: `W${curWeek}`, count: wCount }); curWeek = w; wCount = 1 } else wCount++
   })
-  if (curWeek !== -1) weeks.push({ label: `W${curWeek}`, count: wCount, startDay: wStart })
+  if (curWeek !== -1) weeks.push({ label: `W${curWeek}`, count: wCount })
 
   return (
     <div className="sticky top-0 z-10 bg-card border-b border-border" style={{ height: 56 }}>
-      {/* Month row */}
       <div className="flex border-b border-border/50" style={{ height: 20 }}>
         {months.map((m, i) => (
-          <div key={i} className="flex-shrink-0 px-2 flex items-center text-[10px] font-semibold text-muted-foreground border-r border-border/50 bg-muted/30"
-            style={{ width: m.count * colWidth }}>
+          <div key={i} className="flex-shrink-0 px-2 flex items-center text-[10px] font-semibold text-muted-foreground border-r border-border/50 bg-muted/30" style={{ width: m.count * colWidth }}>
             {m.label}
           </div>
         ))}
       </div>
-      {/* Week row */}
       <div className="flex border-b border-border/40" style={{ height: 16 }}>
         {weeks.map((w, i) => (
-          <div key={i} className="flex-shrink-0 px-1.5 flex items-center text-[9px] font-bold text-muted-foreground/70 border-r border-border/40 bg-muted/10 uppercase tracking-wider"
-            style={{ width: w.count * colWidth }}>
+          <div key={i} className="flex-shrink-0 px-1.5 flex items-center text-[9px] font-bold text-muted-foreground/70 border-r border-border/40 bg-muted/10 uppercase tracking-wider" style={{ width: w.count * colWidth }}>
             {w.label}
           </div>
         ))}
       </div>
-      {/* Day row */}
       <div className="flex" style={{ height: 20 }}>
         {days.map((d, i) => {
           const today = isToday(d)
           const isWeekend = d.getDay() === 0 || d.getDay() === 6
           return (
-            <div key={i}
-              className={cn(
-                'flex-shrink-0 flex flex-col items-center justify-center border-r border-border/20 text-[9px]',
+            <div key={i} style={{ width: colWidth }}
+              className={cn('flex-shrink-0 flex flex-col items-center justify-center border-r border-border/20 text-[9px]',
                 today ? 'bg-primary/15 text-primary font-bold' : '',
-                isWeekend ? 'bg-muted/20 text-muted-foreground/40' : 'text-muted-foreground',
-              )}
-              style={{ width: colWidth }}>
+                isWeekend ? 'bg-muted/20 text-muted-foreground/40' : 'text-muted-foreground')}>
               {colWidth >= 28 && <span className="leading-none">{format(d, 'EEE')[0]}</span>}
               <span className={cn('font-medium leading-none', today && 'text-primary')}>{format(d, 'd')}</span>
             </div>
@@ -415,10 +657,9 @@ function DateHeader({ days, colWidth }: { days: Date[]; colWidth: number }) {
 }
 
 // ─── Sidebar Row ──────────────────────────────────────────────────────────────
-function SidebarRow({ task, canEdit, onEdit, onDelete, onStatusChange }: {
-  task: TimelineTask; canEdit: boolean
-  onEdit: () => void; onDelete: () => void
-  onStatusChange: (status: TaskStatus) => void
+function SidebarRow({ task, canEdit, visibleFields, onEdit, onDelete, onStatusChange }: {
+  task: TimelineTask; canEdit: boolean; visibleFields: Set<FieldKey>
+  onEdit: () => void; onDelete: () => void; onStatusChange: (s: TaskStatus) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   const style = { transform: CSS.Transform.toString(transform), transition }
@@ -437,27 +678,38 @@ function SidebarRow({ task, canEdit, onEdit, onDelete, onStatusChange }: {
           <GripVertical size={13} />
         </button>
       )}
+
+      {/* Color + milestone indicator */}
       {isMilestone
-        ? <MilestoneDiamond color={color.bar} />
-        : <div className={cn('w-2.5 h-2.5 rounded-sm flex-shrink-0', color.bar)} />
+        ? <div className={cn('w-3 h-3 rotate-45 flex-shrink-0', color.bar)} style={{ borderRadius: 2 }} />
+        : <div className={cn('w-3 h-3 rounded-full flex-shrink-0', color.bar)} />
       }
+
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-foreground truncate">{task.label}</p>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <span className={cn('inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full', statusInfo.chip)}>
-            <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', statusInfo.dot)} />
-            {statusInfo.label}
-          </span>
-          {!isMilestone && (
-            <span className="text-[10px] text-muted-foreground">
-              {format(new Date(task.startDate), 'dd MMM')} · {dur}d
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+          {visibleFields.has('status') && (
+            <span className={cn('inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full', statusInfo.chip)}>
+              <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', statusInfo.dot)} />
+              {statusInfo.label}
             </span>
+          )}
+          {visibleFields.has('date') && !isMilestone && (
+            <span className="text-[10px] text-muted-foreground">{format(new Date(task.startDate), 'dd MMM')} – {format(new Date(task.endDate), 'dd MMM')} · {dur}d</span>
+          )}
+          {visibleFields.has('date') && isMilestone && (
+            <span className="text-[10px] text-muted-foreground">{format(new Date(task.startDate), 'dd MMM yyyy')}</span>
+          )}
+          {visibleFields.has('priority') && (
+            <span className="text-[9px] text-muted-foreground capitalize border border-border rounded px-1">{task.priority}</span>
           )}
         </div>
       </div>
-      {task.assignee && (
-        <Avatar name={task.assignee.name} avatarUrl={task.assignee.avatarUrl} size={18} />
+
+      {visibleFields.has('assignee') && task.assignee && (
+        <Avatar name={task.assignee.name} avatarUrl={task.assignee.avatarUrl} size={20} />
       )}
+
       {canEdit && (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
           <button onClick={onEdit} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"><Edit2 size={11} /></button>
@@ -485,7 +737,7 @@ function GanttRow({ task, days, colWidth, canEdit, workItemId, onUpdated }: {
   const dragRef = useRef<{ type: 'move' | 'resize-left' | 'resize-right'; startX: number; origStart: Date; origEnd: Date } | null>(null)
 
   const updateMut = useMutation({
-    mutationFn: (data: { startDate?: string; endDate?: string }) => apiPatch(`/api/timeline/${workItemId}/${task.id}`, data),
+    mutationFn: (d: { startDate?: string; endDate?: string }) => apiPatch(`/api/timeline/${workItemId}/${task.id}`, d),
     onSuccess: () => onUpdated(),
     onError: () => toast.error('Failed to update task dates'),
   })
@@ -526,56 +778,61 @@ function GanttRow({ task, days, colWidth, canEdit, workItemId, onUpdated }: {
     document.addEventListener('mouseup', onUp)
   }, [canEdit, isMilestone, task.id, taskStart, taskEnd, workItemId, queryClient, updateMut, colWidth])
 
+  const inView = startOffset + dur > 0 && startOffset < days.length
+
   return (
     <div className="relative border-b border-border/50 hover:bg-muted/10 transition-colors"
       style={{ height: ROW_HEIGHT, minWidth: days.length * colWidth }}>
-      {/* Weekend shading */}
       {days.map((d, i) => (d.getDay() === 0 || d.getDay() === 6)
         ? <div key={i} className="absolute inset-y-0 bg-muted/20" style={{ left: i * colWidth, width: colWidth }} />
         : null
       )}
-      {/* Today line */}
       {days.map((d, i) => isToday(d)
         ? <div key={`t${i}`} className="absolute inset-y-0 w-px bg-primary/60 z-10" style={{ left: i * colWidth + colWidth / 2 }} />
         : null
       )}
-      {/* Grid lines */}
       {days.map((_, i) => <div key={`g${i}`} className="absolute inset-y-0 w-px bg-border/20" style={{ left: (i + 1) * colWidth - 1 }} />)}
 
-      {/* Render bar or milestone diamond */}
-      {startOffset + dur > 0 && startOffset < days.length && (
+      {inView && (
         isMilestone ? (
-          // Diamond milestone
-          <div className="absolute z-20 flex items-center justify-center"
-            style={{ left: Math.max(startOffset, 0) * colWidth + colWidth / 2 - 8, top: ROW_HEIGHT / 2 - 8, width: 16, height: 16 }}>
-            <div className={cn('w-4 h-4 rotate-45', color.bar)} style={{ borderRadius: 2 }} />
+          // Diamond + label below
+          <div className="absolute z-20 flex flex-col items-center"
+            style={{ left: Math.max(startOffset, 0) * colWidth + colWidth / 2 - 10, top: ROW_HEIGHT / 2 - 10 }}>
+            <Tooltip content={<BarTooltipContent task={task} />}>
+              <div className={cn('w-5 h-5 rotate-45 cursor-pointer hover:scale-110 transition-transform', color.bar)} style={{ borderRadius: 2 }} />
+            </Tooltip>
+            {/* Vertical stem below diamond */}
+            <div className="w-px h-2 bg-muted-foreground/30 mt-0.5" />
           </div>
         ) : (
-          <div
-            className={cn('absolute top-3 rounded-md flex items-center select-none shadow-sm border', color.bar, color.border, color.text, canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-default')}
-            style={{ left: Math.max(startOffset, 0) * colWidth + 2, width: Math.max(barWidth, colWidth - 4), height: ROW_HEIGHT - 24 }}
-            onMouseDown={e => handleMouseDown(e, 'move')}>
-            {canEdit && (
-              <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-l-md hover:bg-black/20 flex items-center justify-center"
-                onMouseDown={e => handleMouseDown(e, 'resize-left')}>
-                <div className="w-0.5 h-3 bg-white/50 rounded-full" />
-              </div>
-            )}
-            <span className="flex-1 px-3 text-xs font-medium truncate pointer-events-none select-none">
-              {task.label} · {dur}d
-            </span>
-            {task.assignee && (
-              <div className="mr-2 flex-shrink-0 pointer-events-none">
-                <Avatar name={task.assignee.name} avatarUrl={task.assignee.avatarUrl} size={16} />
-              </div>
-            )}
-            {canEdit && (
-              <div className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-r-md hover:bg-black/20 flex items-center justify-center"
-                onMouseDown={e => handleMouseDown(e, 'resize-right')}>
-                <div className="w-0.5 h-3 bg-white/50 rounded-full" />
-              </div>
-            )}
-          </div>
+          <Tooltip content={<BarTooltipContent task={task} />}>
+            <div
+              className={cn('absolute top-3 rounded-md flex items-center select-none shadow-sm border', color.bar, color.border, color.text,
+                canEdit ? 'cursor-grab active:cursor-grabbing' : 'cursor-default')}
+              style={{ left: Math.max(startOffset, 0) * colWidth + 2, width: Math.max(barWidth, colWidth - 4), height: ROW_HEIGHT - 24 }}
+              onMouseDown={e => handleMouseDown(e, 'move')}>
+              {canEdit && (
+                <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-l-md hover:bg-black/20 flex items-center justify-center"
+                  onMouseDown={e => handleMouseDown(e, 'resize-left')}>
+                  <div className="w-0.5 h-3 bg-white/50 rounded-full" />
+                </div>
+              )}
+              <span className="flex-1 px-3 text-xs font-medium truncate pointer-events-none select-none">
+                {task.label} · {dur}d
+              </span>
+              {task.assignee && (
+                <div className="mr-2 flex-shrink-0 pointer-events-none">
+                  <Avatar name={task.assignee.name} avatarUrl={task.assignee.avatarUrl} size={16} />
+                </div>
+              )}
+              {canEdit && (
+                <div className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-r-md hover:bg-black/20 flex items-center justify-center"
+                  onMouseDown={e => handleMouseDown(e, 'resize-right')}>
+                  <div className="w-0.5 h-3 bg-white/50 rounded-full" />
+                </div>
+              )}
+            </div>
+          </Tooltip>
         )
       )}
     </div>
@@ -595,7 +852,6 @@ function TaskFormModal({ workItemId, task, onClose, onSaved }: {
   const [priority, setPriority] = useState(task?.priority ?? 'medium')
   const [notes, setNotes] = useState(task?.notes ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
-
   const isMilestone = status === 'milestone'
 
   const saveMut = useMutation({
@@ -611,7 +867,7 @@ function TaskFormModal({ workItemId, task, onClose, onSaved }: {
     if (!label.trim()) e.label = 'Label is required'
     if (!startDate) e.startDate = 'Required'
     if (!isMilestone && !endDate) e.endDate = 'Required'
-    if (!isMilestone && startDate && endDate && startDate > endDate) e.endDate = 'Must be after start'
+    if (!isMilestone && startDate && endDate && startDate > endDate) e.endDate = 'Must be after start date'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -619,13 +875,7 @@ function TaskFormModal({ workItemId, task, onClose, onSaved }: {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
-    saveMut.mutate({
-      label: label.trim(),
-      startDate,
-      endDate: isMilestone ? startDate : endDate,
-      color, status, priority,
-      notes: notes || null,
-    })
+    saveMut.mutate({ label: label.trim(), startDate, endDate: isMilestone ? startDate : endDate, color, status, priority, notes: notes || null })
   }
 
   return (
@@ -633,9 +883,9 @@ function TaskFormModal({ workItemId, task, onClose, onSaved }: {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
       onClick={onClose}>
       <motion.div initial={{ opacity: 0, scale: 0.95, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 8 }}
-        className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md"
+        className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="text-sm font-semibold">{isEdit ? 'Edit Task' : 'Add Task / Milestone'}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"><X size={15} /></button>
         </div>
