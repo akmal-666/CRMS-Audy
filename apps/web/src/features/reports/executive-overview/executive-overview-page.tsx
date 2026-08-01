@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { apiGet } from '@/lib/api'
 import { exportToExcel, exportToCSV, exportToPDF } from '@/lib/export-utils'
-import { Download, TrendingUp, Share2, RefreshCw, Star } from 'lucide-react'
+import { Download, TrendingUp, Share2, RefreshCw } from 'lucide-react'
 import { ReportFilters } from '../report-filters'
 import { OverviewKPICards } from './overview-kpi-cards'
 import { StatusChart } from './status-chart'
@@ -94,12 +94,9 @@ export function ExecutiveOverviewPage() {
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <Star size={24} className="text-amber-500" fill="currentColor" />
-            <h1 className="text-2xl font-bold text-foreground">
-              Executive Overview
-            </h1>
-          </div>
+          <h1 className="text-2xl font-bold text-foreground">
+            Executive Overview
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
             High-level summary of project portfolio performance and delivery status.
           </p>
