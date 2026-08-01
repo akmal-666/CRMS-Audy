@@ -443,7 +443,7 @@ function ShareModal({ workItemId, workItem, onClose }: { workItemId: string; wor
     })
   }
 
-  useEffect(() => { generateLink() }, [])
+  useEffect(() => { generateLink() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -624,6 +624,7 @@ export function TimelinePage({ workItemId, readOnly = false, publicToken }: { wo
     const todayOffset = differenceInCalendarDays(new Date(), effectiveStart)
     if (gridRef.current && todayOffset >= 0)
       gridRef.current.scrollLeft = Math.max(0, todayOffset * colWidth - 160)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [windowStart, colWidth])
 
   const shiftDays = (n: number) => setWindowStart(d => addDays(d ?? startOfDay(new Date()), n))
@@ -1288,15 +1289,27 @@ export function PublicTimelinePage({ token }: { token: string }) {
     retryOnMount: false,
   })
 
-  if (isLoading) return <TimelineSkeleton />
-  if (isError) return (
-    <div className="flex flex-col items-center justify-center h-screen bg-background gap-4">
-      <div className="text-4xl">🔒</div>
-      <h1 className="text-lg font-semibold text-foreground">Link not found or expired</h1>
-      <p className="text-sm text-muted-foreground">This share link may have expired or been revoked.</p>
-      <Link href="/" className="text-sm text-primary hover:underline">Go to CRMS</Link>
-    </div>
-  )
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading timeline...</span>
+        </div>
+      </div>
+    )
+  }
+  
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-background gap-4">
+        <div className="text-4xl">🔒</div>
+        <h1 className="text-lg font-semibold text-foreground">Link not found or expired</h1>
+        <p className="text-sm text-muted-foreground">This share link may have expired or been revoked.</p>
+        <Link href="/" className="text-sm text-primary hover:underline">Go to CRMS</Link>
+      </div>
+    )
+  }
 
   const workItemId = data?.data?.workItem?.id ?? ''
   return <TimelinePage workItemId={workItemId} readOnly publicToken={token} />

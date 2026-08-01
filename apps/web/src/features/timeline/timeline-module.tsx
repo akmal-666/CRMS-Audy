@@ -1147,6 +1147,7 @@ export function TimelineModule() {
     if (workItems.length > 0 && expandedGroups.size === 0) {
       setExpandedGroups(new Set(workItems.map(wi => wi.id)))
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workItems.length])
 
   // Scroll to today on mount
@@ -1154,13 +1155,14 @@ export function TimelineModule() {
     const todayOffset = differenceInCalendarDays(new Date(), windowStart)
     if (gridRef.current && todayOffset >= 0)
       gridRef.current.scrollLeft = Math.max(0, todayOffset * colWidth - 200)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colWidth])
 
   const selectedWorkItem = workItems.find(wi => wi.id === selectedWorkItemId) ?? null
   const selectedTask = selectedWorkItem?.tasks.find(t => t.id === selectedTaskId) ?? null
 
   const filteredWorkItems = useMemo(() => {
-    let wis = workItems
+    const wis = workItems
     if (filterStatus === 'all') return wis
     return wis.filter(wi => wi.tasks.some(t => t.status === filterStatus))
   }, [workItems, filterStatus])

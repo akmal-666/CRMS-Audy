@@ -10,7 +10,7 @@ export const timelineTasks = sqliteTable('timeline_tasks', {
   startDate: integer('start_date', { mode: 'timestamp' }).notNull(),
   endDate: integer('end_date', { mode: 'timestamp' }).notNull(),
   color: text('color', {
-    enum: ['blue', 'green', 'yellow', 'orange', 'red', 'purple'],
+    enum: ['blue', 'green', 'yellow', 'orange', 'red', 'purple', 'gray'],
   }).notNull().default('blue'),
   status: text('status', {
     enum: ['not_started', 'in_progress', 'completed', 'on_hold', 'delayed', 'milestone'],
