@@ -50,11 +50,42 @@ export function ProjectHealthPage() {
     return params
   }, [filterType, year, quarter, month, startDate, endDate, departmentId, vendorId])
 
-  const { data: reportData, isLoading, refetch } = useQuery({
+  const { data: reportData, isLoading, refetch, error } = useQuery({
     queryKey: ['project-health', queryParams],
     queryFn: () => apiGet<any>('/api/reports/project-health', queryParams),
     select: (res) => res.data,
   })
+
+  // Log error for debugging
+  if (error) {
+    console.error('Project Health API Error:', error)
+  }
+
+  // Provide safe defaults for all data
+  const safeReportData = {
+    summary: reportData?.summary || {
+      totalProjects: 0,
+      excellentCount: 0,
+      goodCount: 0,
+      atRiskCount: 0,
+      criticalCount: 0,
+      overdueCount: 0,
+      avgHealthScore: 0,
+      avgProgress: 0,
+    },
+    projects: reportData?.projects || [],
+    projectsByHealth: reportData?.projectsByHealth || {
+      excellent: [],
+      good: [],
+      atRisk: [],
+      critical: [],
+    },
+    issuesSummary: reportData?.issuesSummary || null,
+    healthTrend: reportData?.healthTrend || [],
+    healthByCategory: reportData?.healthByCategory || [],
+    topRisks: reportData?.topRisks || [],
+    recommendations: reportData?.recommendations || [],
+  }
 
   const handleExportExcel = () => {
     if (!reportData) return
@@ -63,8 +94,8 @@ export function ProjectHealthPage() {
   }
 
   const handleExportCSV = () => {
-    if (!reportData?.projects) return
-    exportToCSV(reportData.projects, `project-health-${new Date().toISOString().split('T')[0]}`)
+    if (!safeReportData.projects.length) return
+    exportToCSV(safeReportData.projects, `project-health-${new Date().toISOString().split('T')[0]}`)
     setShowExportMenu(false)
   }
 
@@ -165,34 +196,34 @@ export function ProjectHealthPage() {
       />
 
       {/* KPI Cards */}
-      <HealthKPICards data={reportData} isLoading={isLoading} />
+      <HealthKPICards data={safeReportData} isLoading={isLoading} />
 
       {/* Main Content */}
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Projects Health Table - 2 columns */}
         <div className="lg:col-span-2">
-          <ProjectsHealthTable data={reportData?.projects} isLoading={isLoading} />
+          <ProjectsHealthTable data={safeReportData.projects} isLoading={isLoading} />
         </div>
 
         {/* Health Score Distribution - 1 column */}
         <div className="lg:col-span-1">
-          <HealthScoreDistribution data={reportData?.projectsByHealth} isLoading={isLoading} total={reportData?.summary?.totalProjects} />
+          <HealthScoreDistribution data={safeReportData.projectsByHealth} isLoading={isLoading} total={safeReportData.summary.totalProjects} />
         </div>
       </div>
 
       {/* Issues Summary */}
-      <IssuesSummary data={reportData?.issuesSummary} isLoading={isLoading} />
+      <IssuesSummary data={safeReportData.issuesSummary} isLoading={isLoading} />
 
       {/* Health Score Over Time & By Category */}
       <div className="grid lg:grid-cols-2 gap-6">
-        <HealthScoreOverTime data={reportData?.healthTrend} isLoading={isLoading} />
-        <HealthByCategory data={reportData?.healthByCategory} isLoading={isLoading} />
+        <HealthScoreOverTime data={safeReportData.healthTrend} isLoading={isLoading} />
+        <HealthByCategory data={safeReportData.healthByCategory} isLoading={isLoading} />
       </div>
 
       {/* Top Risks & Recommendations */}
       <div className="grid lg:grid-cols-2 gap-6">
-        <TopRisks data={reportData?.topRisks} isLoading={isLoading} />
-        <Recommendations data={reportData?.recommendations} isLoading={isLoading} />
+        <TopRisks data={safeReportData.topRisks} isLoading={isLoading} />
+        <Recommendations data={safeReportData.recommendations} isLoading={isLoading} />
       </div>
     </div>
   )
