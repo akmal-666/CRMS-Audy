@@ -1,8 +1,8 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Activity, CheckCircle2, MessageSquare, FileText, UserPlus } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
 
 interface RecentActivityProps {
   data: any[]
@@ -18,20 +18,34 @@ const ACTION_ICONS: Record<string, any> = {
 }
 
 export function RecentActivity({ data, isLoading }: RecentActivityProps) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const formatTimeAgo = (date: any) => {
+    if (!mounted) return '...' // avoid SSR mismatch
+    try {
+      const now = Date.now()
+      const then = new Date(date).getTime()
+      const diff = Math.floor((now - then) / 1000)
+      if (diff < 60) return 'just now'
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+      if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`
+      return new Date(date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+    } catch {
+      return 'recently'
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="card h-[500px] animate-pulse">
         <div className="h-full bg-muted rounded" />
       </div>
     )
-  }
-
-  const formatTimeAgo = (date: any) => {
-    try {
-      return formatDistanceToNow(new Date(date), { addSuffix: true })
-    } catch {
-      return 'recently'
-    }
   }
 
   return (

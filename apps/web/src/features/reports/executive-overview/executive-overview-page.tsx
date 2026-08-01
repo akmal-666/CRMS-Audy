@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { apiGet } from '@/lib/api'
 import { exportToExcel, exportToCSV, exportToPDF } from '@/lib/export-utils'
-import { Download, TrendingUp, Share2, RefreshCw } from 'lucide-react'
+import { Download, Share2, RefreshCw } from 'lucide-react'
 import { ReportFilters } from '../report-filters'
 import { OverviewKPICards } from './overview-kpi-cards'
 import { StatusChart } from './status-chart'
@@ -20,18 +20,25 @@ import { RecentActivity } from './recent-activity'
 import { ProjectHealthTable } from './project-health-table'
 
 export function ExecutiveOverviewPage() {
-  const currentYear = new Date().getFullYear()
-  const currentMonth = new Date().getMonth() + 1
-
+  // Use static initial values to avoid SSR/client mismatch
   const [filterType, setFilterType] = useState<'year' | 'quarter' | 'month' | 'custom'>('month')
-  const [year, setYear] = useState(currentYear.toString())
+  const [year, setYear] = useState('2026')
   const [quarter, setQuarter] = useState('1')
-  const [month, setMonth] = useState(currentMonth.toString())
+  const [month, setMonth] = useState('8')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [vendorId, setVendorId] = useState('')
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // After mount, update to real current date (client only)
+  useEffect(() => {
+    const now = new Date()
+    setYear(now.getFullYear().toString())
+    setMonth((now.getMonth() + 1).toString())
+    setMounted(true)
+  }, [])
 
   const queryParams = useMemo(() => {
     const params: any = {}
@@ -57,6 +64,7 @@ export function ExecutiveOverviewPage() {
     queryKey: ['executive-overview', queryParams],
     queryFn: () => apiGet<any>('/api/reports/executive-overview', queryParams),
     select: (res) => res.data,
+    enabled: mounted, // only fetch after client mount to avoid SSR mismatch
   })
 
   const handleExportExcel = () => {
@@ -79,12 +87,12 @@ export function ExecutiveOverviewPage() {
 
   const getDateRangeLabel = () => {
     if (filterType === 'custom' && startDate && endDate) {
-      return `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`
+      return `${startDate} - ${endDate}`
     } else if (filterType === 'quarter') {
       return `Q${quarter} ${year}`
     } else if (filterType === 'month') {
-      const date = new Date(parseInt(year), parseInt(month) - 1)
-      return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
+      return `${monthNames[parseInt(month) - 1]} ${year}`
     }
     return year
   }
