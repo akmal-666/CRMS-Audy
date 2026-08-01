@@ -10,17 +10,17 @@ import {
   Plus, Loader2, ChevronLeft, ChevronRight, Calendar, X, Check,
   ZoomIn, ZoomOut, Share2, Filter, Link2, Copy, ExternalLink,
   ChevronDown, ChevronRight as ChevronRightIcon, Folder, Settings2,
-  Trash2, Edit2, GripVertical, MoreHorizontal,
+  Trash2, Edit2, GripVertical, MoreHorizontal, Clock, User,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/context/auth-context'
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api'
-import { cn, STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, getInitials } from '@/lib/utils'
+import { cn, STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, getInitials, timeAgo } from '@/lib/utils'
 import { WorkflowStatus, UserRole, Priority } from '@crms/types'
 import { toast } from 'sonner'
 import {
-  addDays, format, differenceInCalendarDays,
-  isToday, startOfDay, getWeek,
+  addDays, addMonths, format, differenceInCalendarDays,
+  isToday, startOfDay, getWeek, startOfMonth, getDaysInMonth,
 } from 'date-fns'
 import {
   DndContext, DragEndEvent, PointerSensor, useSensor, useSensors,
@@ -172,7 +172,61 @@ function Tooltip({ children, content, disabled }: { children: React.ReactNode; c
   )
 }
 
-// ─── Date Header ──────────────────────────────────────────────────────────────
+// ─── Month/Year Picker Dropdown ───────────────────────────────────────────────
+function MonthPicker({ value, onChange }: { value: Date; onChange: (d: Date) => void }) {
+  const [open, setOpen] = useState(false)
+  const [pickerYear, setPickerYear] = useState(value.getFullYear())
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const curMonth = value.getMonth()
+  const curYear = value.getFullYear()
+
+  return (
+    <div ref={ref} className="relative flex-shrink-0">
+      <button onClick={() => { setPickerYear(curYear); setOpen(o => !o) }}
+        className="flex items-center gap-1 text-sm font-semibold text-foreground hover:text-primary transition-colors px-1.5 py-1 rounded-lg hover:bg-muted">
+        {format(value, 'MMMM yyyy')}
+        <ChevronDown size={13} className={cn('text-muted-foreground transition-transform', open && 'rotate-180')} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.97 }} transition={{ duration: 0.12 }}
+            className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-2xl p-3 w-[220px]">
+            {/* Year row */}
+            <div className="flex items-center justify-between mb-3">
+              <button onClick={() => setPickerYear(y => y - 1)} className="p-1 rounded hover:bg-muted text-muted-foreground"><ChevronLeft size={14} /></button>
+              <span className="text-sm font-semibold text-foreground">{pickerYear}</span>
+              <button onClick={() => setPickerYear(y => y + 1)} className="p-1 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={14} /></button>
+            </div>
+            {/* Month grid */}
+            <div className="grid grid-cols-4 gap-1">
+              {MONTHS.map((m, i) => {
+                const isActive = i === curMonth && pickerYear === curYear
+                return (
+                  <button key={m} onClick={() => {
+                    onChange(startOfMonth(new Date(pickerYear, i, 1)))
+                    setOpen(false)
+                  }} className={cn('text-xs px-1 py-1.5 rounded-lg transition-colors font-medium',
+                    isActive ? 'bg-primary text-white' : 'hover:bg-muted text-muted-foreground hover:text-foreground')}>
+                    {m}
+                  </button>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
 function DateHeader({ days, colWidth }: { days: Date[]; colWidth: number }) {
   const weeks: { label: string; count: number }[] = []
   let curWeek = -1; let wCount = 0
@@ -443,6 +497,7 @@ function DetailPanel({ workItem, selectedTask, onClose, canEdit, onEditTask }: {
   canEdit: boolean
   onEditTask: (t: TimelineTask) => void
 }) {
+  const [activeTab, setActiveTab] = useState<'details' | 'subitems' | 'activity'>('details')
   const tasks = workItem.tasks
   const completedCount = tasks.filter(t => t.status === 'completed').length
   const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0
@@ -455,7 +510,20 @@ function DetailPanel({ workItem, selectedTask, onClose, canEdit, onEditTask }: {
     : null
   const duration = minStart && maxEnd ? differenceInCalendarDays(maxEnd, minStart) + 1 : null
 
-  const displayItem = selectedTask ?? workItem
+  // Fetch activity logs for this work item
+  const { data: activityData } = useQuery({
+    queryKey: ['work-item-activity', workItem.id],
+    queryFn: () => apiGet<any>(`/api/work-items/${workItem.id}`),
+    enabled: activeTab === 'activity',
+    staleTime: 30_000,
+  })
+  const activityLogs: any[] = activityData?.data?.activityLogs ?? []
+
+  const TABS = [
+    { key: 'details', label: 'Details' },
+    { key: 'subitems', label: `Sub Items (${tasks.length})` },
+    { key: 'activity', label: 'Activity' },
+  ] as const
 
   return (
     <motion.div initial={{ x: DETAIL_W }} animate={{ x: 0 }} exit={{ x: DETAIL_W }}
@@ -474,101 +542,201 @@ function DetailPanel({ workItem, selectedTask, onClose, canEdit, onEditTask }: {
         </div>
         <button onClick={onClose} className="p-1 rounded hover:bg-muted text-muted-foreground flex-shrink-0 ml-2"><X size={14} /></button>
       </div>
+
       {/* Tabs */}
-      <div className="flex border-b border-border px-4 flex-shrink-0">
-        {['Details', 'Sub Items', 'Activity'].map((t, i) => (
-          <button key={t} className={cn('text-xs font-medium py-2 mr-4 border-b-2 transition-colors',
-            i === 0 ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground')}>
-            {t}{i === 1 ? ` (${tasks.length})` : ''}
+      <div className="flex border-b border-border px-4 flex-shrink-0 overflow-x-auto scrollbar-none">
+        {TABS.map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className={cn('text-xs font-medium py-2.5 mr-4 border-b-2 transition-colors whitespace-nowrap flex-shrink-0',
+              activeTab === tab.key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+            {tab.label}
           </button>
         ))}
       </div>
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm">
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Summary</p>
-          <p className="font-semibold text-foreground">{selectedTask ? selectedTask.label : workItem.title}</p>
-        </div>
-        {!selectedTask && workItem.problemDescription && (
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Description</p>
-            <p className="text-sm text-foreground/80 leading-relaxed line-clamp-3">{workItem.problemDescription}</p>
-          </div>
-        )}
-        <div>
-          <p className="text-xs text-muted-foreground mb-1.5">Status</p>
-          <div className={cn('flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium w-full',
-            STATUS_COLORS[workItem.status as WorkflowStatus])}>
-            <span className="w-2 h-2 rounded-full bg-current opacity-60 flex-shrink-0" />
-            {STATUS_LABELS[workItem.status as WorkflowStatus]}
-            <ChevronDown size={12} className="ml-auto text-muted-foreground" />
-          </div>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground mb-1.5">Priority</p>
-          <div className={cn('flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium w-full',
-            PRIORITY_COLORS[workItem.priority as Priority])}>
-            {PRIORITY_LABELS[workItem.priority as Priority]}
-            <ChevronDown size={12} className="ml-auto text-muted-foreground" />
-          </div>
-        </div>
-        {workItem.manager && (
-          <div>
-            <p className="text-xs text-muted-foreground mb-1.5">Assignee</p>
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border">
-              <Avatar name={workItem.manager.name} avatarUrl={workItem.manager.avatarUrl} size={22} />
-              <span className="text-xs font-medium text-foreground">{workItem.manager.name}</span>
-              <X size={12} className="ml-auto text-muted-foreground" />
+
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto">
+
+        {/* ── Details tab ── */}
+        {activeTab === 'details' && (
+          <div className="p-4 space-y-4 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Summary</p>
+              <p className="font-semibold text-foreground">{selectedTask ? selectedTask.label : workItem.title}</p>
+            </div>
+            {!selectedTask && workItem.problemDescription && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Description</p>
+                <p className="text-sm text-foreground/80 leading-relaxed line-clamp-4">{workItem.problemDescription}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1.5">Status</p>
+              <div className={cn('flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium',
+                STATUS_COLORS[workItem.status as WorkflowStatus])}>
+                <span className="w-2 h-2 rounded-full bg-current opacity-60 flex-shrink-0" />
+                {STATUS_LABELS[workItem.status as WorkflowStatus]}
+                <ChevronDown size={12} className="ml-auto text-muted-foreground" />
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1.5">Priority</p>
+              <div className={cn('flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium',
+                PRIORITY_COLORS[workItem.priority as Priority])}>
+                {PRIORITY_LABELS[workItem.priority as Priority]}
+                <ChevronDown size={12} className="ml-auto text-muted-foreground" />
+              </div>
+            </div>
+            {workItem.manager && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5">Assignee</p>
+                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border">
+                  <Avatar name={workItem.manager.name} avatarUrl={workItem.manager.avatarUrl} size={22} />
+                  <span className="text-xs font-medium text-foreground">{workItem.manager.name}</span>
+                  <X size={12} className="ml-auto text-muted-foreground" />
+                </div>
+              </div>
+            )}
+            {minStart && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Start Date</p>
+                <div className="flex items-center gap-2 text-xs text-foreground">
+                  <Calendar size={13} className="text-muted-foreground" />
+                  {format(minStart, 'dd MMM yyyy')}
+                </div>
+              </div>
+            )}
+            {maxEnd && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Due Date</p>
+                <div className="flex items-center gap-2 text-xs text-foreground">
+                  <Calendar size={13} className="text-muted-foreground" />
+                  {format(maxEnd, 'dd MMM yyyy')}
+                </div>
+              </div>
+            )}
+            {duration !== null && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Duration</p>
+                <p className="text-xs text-foreground font-medium">{duration} days</p>
+              </div>
+            )}
+            {tasks.length > 0 && (
+              <div>
+                <div className="flex justify-between mb-1">
+                  <p className="text-xs text-muted-foreground">Progress</p>
+                  <p className="text-xs font-semibold text-foreground">{progress}%</p>
+                </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
+                </div>
+              </div>
+            )}
+            <div className="pt-2 border-t border-border space-y-2">
+              <Link href={`/timeline/${workItem.id}`}
+                className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-medium border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-colors">
+                <ExternalLink size={12} /> Open Full Timeline
+              </Link>
+              {canEdit && (
+                <button className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-medium border border-red-200 text-red-500 hover:bg-red-50 dark:hover:bg-red-950 transition-colors">
+                  <Trash2 size={12} /> Delete Item
+                </button>
+              )}
             </div>
           </div>
         )}
-        {minStart && (
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Start Date</p>
-            <div className="flex items-center gap-2 text-xs text-foreground">
-              <Calendar size={13} className="text-muted-foreground" />
-              {format(minStart, 'dd MMM yyyy')}
-            </div>
+
+        {/* ── Sub Items tab ── */}
+        {activeTab === 'subitems' && (
+          <div className="divide-y divide-border/50">
+            {tasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <Calendar size={24} className="text-muted-foreground/30 mb-2" />
+                <p className="text-sm text-muted-foreground">No sub items yet</p>
+                {canEdit && <p className="text-xs text-muted-foreground/60 mt-1">Add tasks from the Gantt chart</p>}
+              </div>
+            ) : tasks.map(task => {
+              const statusInfo = TASK_STATUSES[task.status] ?? TASK_STATUSES.not_started
+              const color = COLORS[task.color] ?? COLORS.blue
+              const isMilestone = task.status === 'milestone'
+              const dur = isMilestone ? null : differenceInCalendarDays(new Date(task.endDate), new Date(task.startDate)) + 1
+              return (
+                <div key={task.id} className="px-4 py-3 hover:bg-muted/30 transition-colors group">
+                  <div className="flex items-start gap-2">
+                    {isMilestone
+                      ? <div className={cn('w-2.5 h-2.5 rotate-45 flex-shrink-0 mt-0.5', color.bar)} style={{ borderRadius: 1 }} />
+                      : <div className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5', color.bar)} />
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{task.label}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className={cn('inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full', statusInfo.chip)}>
+                          <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', statusInfo.dot)} />
+                          {statusInfo.label}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {format(new Date(task.startDate), 'dd MMM')}
+                          {!isMilestone && ` – ${format(new Date(task.endDate), 'dd MMM')}`}
+                          {dur && ` · ${dur}d`}
+                        </span>
+                      </div>
+                    </div>
+                    {canEdit && (
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0">
+                        <button onClick={() => onEditTask(task)} className="p-1 rounded hover:bg-muted text-muted-foreground"><Edit2 size={11} /></button>
+                      </div>
+                    )}
+                  </div>
+                  {task.assignee && (
+                    <div className="flex items-center gap-1.5 mt-1.5 pl-4">
+                      <Avatar name={task.assignee.name} avatarUrl={task.assignee.avatarUrl} size={14} />
+                      <span className="text-[10px] text-muted-foreground">{task.assignee.name}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
-        {maxEnd && (
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Due Date</p>
-            <div className="flex items-center gap-2 text-xs text-foreground">
-              <Calendar size={13} className="text-muted-foreground" />
-              {format(maxEnd, 'dd MMM yyyy')}
-            </div>
+
+        {/* ── Activity tab ── */}
+        {activeTab === 'activity' && (
+          <div className="p-4">
+            {activityLogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Clock size={24} className="text-muted-foreground/30 mb-2" />
+                <p className="text-sm text-muted-foreground">No activity yet</p>
+              </div>
+            ) : (
+              <div className="space-y-0">
+                {activityLogs.slice().reverse().map((log: any, i: number) => (
+                  <div key={log.id ?? i} className="relative pl-6 pb-4">
+                    {/* timeline line */}
+                    {i < activityLogs.length - 1 && (
+                      <div className="absolute left-[7px] top-4 bottom-0 w-px bg-border" />
+                    )}
+                    {/* dot */}
+                    <div className="absolute left-0 top-1 w-3.5 h-3.5 rounded-full border-2 border-border bg-card flex items-center justify-center">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-foreground leading-snug">{log.description ?? log.action}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {log.user?.name && (
+                          <span className="text-[10px] text-muted-foreground font-medium">{log.user.name}</span>
+                        )}
+                        <span className="text-[10px] text-muted-foreground/60">
+                          {log.createdAt ? timeAgo(log.createdAt) : ''}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
-        {duration !== null && (
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Duration</p>
-            <p className="text-xs text-foreground font-medium">{duration} days</p>
-          </div>
-        )}
-        {tasks.length > 0 && (
-          <div>
-            <div className="flex justify-between mb-1">
-              <p className="text-xs text-muted-foreground">Progress</p>
-              <p className="text-xs font-semibold text-foreground">{progress}%</p>
-            </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        )}
-        <div className="pt-2 border-t border-border">
-          <Link href={`/timeline/${workItem.id}`}
-            className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-medium border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-colors">
-            <ExternalLink size={12} /> Open Full Timeline
-          </Link>
-        </div>
-        {canEdit && (
-          <button onClick={onClose}
-            className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg text-xs font-medium border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
-            <Trash2 size={12} /> Delete Item
-          </button>
-        )}
+
       </div>
     </motion.div>
   )
@@ -646,12 +814,20 @@ function TaskFormModal({ workItemId, task, allTasks, onClose, onSaved }: {
   const [startDate, setStartDate] = useState(task ? format(new Date(task.startDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'))
   const [endDate, setEndDate] = useState(task ? format(new Date(task.endDate), 'yyyy-MM-dd') : format(addDays(new Date(), 6), 'yyyy-MM-dd'))
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'not_started')
+  const [color, setColor] = useState<TaskColor>(task?.color ?? 'blue')
   const [priority, setPriority] = useState(task?.priority ?? 'medium')
   const [notes, setNotes] = useState(task?.notes ?? '')
   const [dependsOn, setDependsOn] = useState(task?.dependsOn ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const isMilestone = status === 'milestone'
-  const color = STATUS_COLOR_MAP[status]
+
+  // When status changes, auto-suggest color but don't override if user manually picked
+  const [colorManuallySet, setColorManuallySet] = useState(!!task?.color)
+  const handleStatusChange = (s: TaskStatus) => {
+    setStatus(s)
+    if (!colorManuallySet) setColor(STATUS_COLOR_MAP[s])
+  }
+  const handleColorChange = (c: TaskColor) => { setColor(c); setColorManuallySet(true) }
 
   const saveMut = useMutation({
     mutationFn: (payload: any) => isEdit
@@ -696,7 +872,7 @@ function TaskFormModal({ workItemId, task, allTasks, onClose, onSaved }: {
             <label className="label">Status</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {(Object.keys(TASK_STATUSES) as TaskStatus[]).map(s => (
-                <button key={s} type="button" onClick={() => setStatus(s)}
+                <button key={s} type="button" onClick={() => handleStatusChange(s)}
                   className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
                     status === s ? cn(TASK_STATUSES[s].chip, 'border-transparent ring-2 ring-offset-1 ring-primary/40') : 'border-border hover:bg-muted')}>
                   {s === 'milestone' ? <div className={cn('w-2 h-2 rotate-45', TASK_STATUSES[s].dot)} style={{ borderRadius: 1 }} /> : <div className={cn('w-2 h-2 rounded-full', TASK_STATUSES[s].dot)} />}
@@ -718,6 +894,18 @@ function TaskFormModal({ workItemId, task, allTasks, onClose, onSaved }: {
                 {errors.endDate && <p className="text-xs text-red-500 mt-1">{errors.endDate}</p>}
               </div>
             )}
+          </div>
+          <div>
+            <label className="label">Color</label>
+            <div className="flex gap-2 mt-1">
+              {(Object.keys(COLORS) as TaskColor[]).filter(c => c !== 'gray').map(c => (
+                <button key={c} type="button" onClick={() => handleColorChange(c)}
+                  className={cn('w-7 h-7 rounded-full transition-transform flex items-center justify-center flex-shrink-0',
+                    COLORS[c].bar, color === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105')}>
+                  {color === c && <Check size={12} className="text-white" />}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="label">Priority</label>
@@ -864,12 +1052,10 @@ export function TimelineModule() {
         <button onClick={goToToday} className="text-xs font-medium px-2.5 py-1.5 border border-border rounded-lg hover:bg-muted transition-colors flex-shrink-0">Today</button>
         <button onClick={() => shiftDays(-7)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors flex-shrink-0"><ChevronLeft size={14} /></button>
         <button onClick={() => shiftDays(7)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors flex-shrink-0"><ChevronRight size={14} /></button>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold text-foreground">
-            {format(windowStart, 'MMMM yyyy')}
-          </span>
-          <ChevronDown size={12} className="text-muted-foreground" />
-        </div>
+        <MonthPicker
+          value={windowStart}
+          onChange={(d) => setWindowStart(addDays(d, -3))}
+        />
         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
           <span className="text-xs text-muted-foreground hidden md:inline">View:</span>
           <span className="text-xs font-medium border border-border rounded-lg px-2 py-1.5 bg-background hidden md:inline">Timeline</span>

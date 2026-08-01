@@ -1102,12 +1102,18 @@ function TaskFormModal({ workItemId, task, onClose, onSaved }: {
   const [startDate, setStartDate] = useState(task ? format(new Date(task.startDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'))
   const [endDate, setEndDate] = useState(task ? format(new Date(task.endDate), 'yyyy-MM-dd') : format(addDays(new Date(), 6), 'yyyy-MM-dd'))
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'not_started')
+  const [color, setColor] = useState<TaskColor>(task?.color ?? 'blue')
   const [priority, setPriority] = useState(task?.priority ?? 'medium')
   const [notes, setNotes] = useState(task?.notes ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const isMilestone = status === 'milestone'
-  // Color is derived from status automatically
-  const color = STATUS_COLOR_MAP[status]
+  // Track if user manually picked a color; if not, follow status
+  const [colorManuallySet, setColorManuallySet] = useState(!!task?.color)
+  const handleStatusChange = (s: TaskStatus) => {
+    setStatus(s)
+    if (!colorManuallySet) setColor(STATUS_COLOR_MAP[s])
+  }
+  const handleColorChange = (c: TaskColor) => { setColor(c); setColorManuallySet(true) }
 
   const saveMut = useMutation({
     mutationFn: (payload: any) => isEdit
@@ -1156,7 +1162,7 @@ function TaskFormModal({ workItemId, task, onClose, onSaved }: {
             <label className="label">Status</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {(Object.keys(TASK_STATUSES) as TaskStatus[]).map(s => (
-                <button key={s} type="button" onClick={() => setStatus(s)}
+                <button key={s} type="button" onClick={() => handleStatusChange(s)}
                   className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
                     status === s ? cn(TASK_STATUSES[s].chip, 'border-transparent ring-2 ring-offset-1 ring-primary/40') : 'border-border hover:bg-muted')}>
                   {s === 'milestone'
@@ -1181,6 +1187,18 @@ function TaskFormModal({ workItemId, task, onClose, onSaved }: {
                 {errors.endDate && <p className="text-xs text-red-500 mt-1">{errors.endDate}</p>}
               </div>
             )}
+          </div>
+          <div>
+            <label className="label">Color</label>
+            <div className="flex gap-2 mt-1">
+              {(Object.keys(COLORS) as TaskColor[]).map(c => (
+                <button key={c} type="button" onClick={() => handleColorChange(c)}
+                  className={cn('w-7 h-7 rounded-full transition-transform flex items-center justify-center flex-shrink-0',
+                    COLORS[c].bar, color === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105')}>
+                  {color === c && <Check size={12} className="text-white" />}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="label">Priority</label>
