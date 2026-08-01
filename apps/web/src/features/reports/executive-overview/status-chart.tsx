@@ -59,40 +59,43 @@ export function StatusChart({ data, isLoading, total }: StatusChartProps) {
         </div>
       ) : (
         <>
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={2}
-                dataKey="value"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                }}
-                formatter={(value: any, name: any, props: any) => [
-                  `${value} (${props.payload.percentage}%)`,
-                  name,
-                ]}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          
-          {/* Center text */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-6 text-center">
-            <div className="text-3xl font-bold text-foreground">{total || 0}</div>
-            <div className="text-xs text-muted-foreground">Total</div>
+          <div className="relative">
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={90}
+                  paddingAngle={2}
+                  dataKey="value"
+                  label={false}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                  }}
+                  formatter={(value: any, name: any, props: any) => [
+                    `${value} (${props.payload.percentage}%)`,
+                    name,
+                  ]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            
+            {/* Center text */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+              <div className="text-3xl font-bold text-foreground">{total || 0}</div>
+              <div className="text-xs text-muted-foreground">Total</div>
+            </div>
           </div>
 
           {/* Legend */}
