@@ -512,6 +512,57 @@ function TaskBar({ task, days, colWidth, canEdit, workItemId, onUpdated, onSelec
   )
 }
 
+// ─── Dependency Arrows SVG overlay (per work-item group) ─────────────────────
+function DependencyArrows({ tasks, days, colWidth, rowOffset }: {
+  tasks: TimelineTask[]; days: Date[]; colWidth: number; rowOffset: number
+}) {
+  const firstDay = days[0]
+  const rowMap = useMemo(() => {
+    const m: Record<string, number> = {}
+    tasks.forEach((t, i) => { m[t.id] = i })
+    return m
+  }, [tasks])
+
+  const arrows = useMemo(() => tasks
+    .filter(t => t.dependsOn && rowMap[t.dependsOn] !== undefined)
+    .map(t => {
+      const from = tasks.find(x => x.id === t.dependsOn)!
+      const fromEnd = differenceInCalendarDays(startOfDay(new Date(from.endDate)), firstDay) + 1
+      const toStart = differenceInCalendarDays(startOfDay(new Date(t.startDate)), firstDay)
+      const x1 = fromEnd * colWidth
+      const y1 = (rowMap[from.id] + 0.5) * ROW_HEIGHT + ROW_HEIGHT // +header row
+      const x2 = toStart * colWidth + 4
+      const y2 = (rowMap[t.id] + 0.5) * ROW_HEIGHT + ROW_HEIGHT
+      return { id: `${from.id}-${t.id}`, x1, y1, x2, y2, color: COLORS[from.color]?.hex ?? '#94a3b8' }
+    }), [tasks, rowMap, colWidth, firstDay])
+
+  if (arrows.length === 0) return null
+  const totalW = days.length * colWidth
+  const totalH = (tasks.length + 2) * ROW_HEIGHT
+
+  return (
+    <svg className="absolute top-0 left-0 pointer-events-none" style={{ width: totalW, height: totalH, zIndex: 5 }} aria-hidden>
+      <defs>
+        {Object.keys(COLORS).map(c => (
+          <marker key={c} id={`arr-mod-${c}`} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill={COLORS[c as TaskColor].hex} opacity="0.8" />
+          </marker>
+        ))}
+      </defs>
+      {arrows.map(a => {
+        const midX = (a.x1 + a.x2) / 2
+        const d = `M ${a.x1} ${a.y1} C ${midX} ${a.y1}, ${midX} ${a.y2}, ${a.x2} ${a.y2}`
+        const colorKey = (Object.keys(COLORS) as TaskColor[]).find(k => COLORS[k].hex === a.color) ?? 'gray'
+        return (
+          <path key={a.id} d={d} fill="none" stroke={a.color} strokeWidth="1.5"
+            strokeDasharray="4 2" opacity="0.6" strokeLinecap="round"
+            markerEnd={`url(#arr-mod-${colorKey})`} />
+        )
+      })}
+    </svg>
+  )
+}
+
 // ─── Project Group Header Row (summary bar spanning all tasks) ────────────────
 function ProjectHeaderBar({ workItem, days, colWidth, isSelected, onSelect }: {
   workItem: WorkItem & { tasks: TimelineTask[] }
@@ -1109,6 +1160,8 @@ export function TimelineModule() {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [showFilters, setShowFilters] = useState(false)
   const gridRef = useRef<HTMLDivElement>(null)
+  const sidebarRef = useRef<HTMLDivElement>(null)
+  const syncingRef = useRef(false)
   const colWidth = Math.round(BASE_COL_WIDTH * zoom / 100)
   const days = useMemo(() => Array.from({ length: DAYS_TOTAL }, (_, i) => addDays(windowStart, i)), [windowStart])
 
@@ -1152,9 +1205,41 @@ export function TimelineModule() {
   const selectedTask = selectedWorkItem?.tasks.find(t => t.id === selectedTaskId) ?? null
 
   const filteredWorkItems = useMemo(() => {
-    if (filterStatus === 'all') return workItems
-    return workItems.filter(wi => wi.tasks.some(t => t.status === filterStatus))
+    let wis = workItems
+    if (filterStatus === 'all') return wis
+    return wis.filter(wi => wi.tasks.some(t => t.status === filterStatus))
   }, [workItems, filterStatus])
+
+  // Sync vertical scroll between sidebar and gantt
+  useEffect(() => {
+    const grid = gridRef.current
+    const sidebar = sidebarRef.current
+    if (!grid || !sidebar) return
+    const onGridScroll = () => {
+      if (syncingRef.current) return
+      syncingRef.current = true
+      sidebar.scrollTop = grid.scrollTop
+      syncingRef.current = false
+    }
+    const onSidebarScroll = () => {
+      if (syncingRef.current) return
+      syncingRef.current = true
+      grid.scrollTop = sidebar.scrollTop
+      syncingRef.current = false
+    }
+    grid.addEventListener('scroll', onGridScroll)
+    sidebar.addEventListener('scroll', onSidebarScroll)
+    return () => { grid.removeEventListener('scroll', onGridScroll); sidebar.removeEventListener('scroll', onSidebarScroll) }
+  }, [])
+
+  // Esc to close detail panel
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setSelectedWorkItemId(null); setSelectedTaskId(null) }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [])
 
   const deleteMut = useMutation({
     mutationFn: ({ wiId, taskId }: { wiId: string; taskId: string }) => apiDelete(`/api/timeline/${wiId}/${taskId}`),
@@ -1260,7 +1345,7 @@ export function TimelineModule() {
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pt-2">Project / Milestone</p>
           </div>
           {/* Sidebar rows */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div ref={sidebarRef} className="flex-1 overflow-y-auto overflow-x-hidden">
             {filteredWorkItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
                 <Calendar size={28} className="text-muted-foreground/30 mb-2" />
@@ -1334,7 +1419,11 @@ export function TimelineModule() {
                   <AnimatePresence>
                     {expanded && (
                       <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
-                        style={{ overflow: 'hidden' }}>
+                        style={{ overflow: 'hidden', position: 'relative' }}>
+                        {/* Dependency arrows SVG overlay */}
+                        {wi.tasks.some(t => t.dependsOn) && (
+                          <DependencyArrows tasks={wi.tasks} days={days} colWidth={colWidth} rowOffset={0} />
+                        )}
                         {wi.tasks.map(task => (
                           <TaskBar
                             key={task.id}

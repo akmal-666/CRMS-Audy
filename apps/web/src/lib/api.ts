@@ -27,7 +27,7 @@ api.interceptors.response.use(
       localStorage.removeItem('crms_token')
       
       // Only redirect if it's not an auth check, or if they are in a protected app route
-      if (!isAuthRequest && window.location.pathname !== '/login' && !window.location.pathname.startsWith('/submit') && !window.location.pathname.startsWith('/track')) {
+      if (!isAuthRequest && window.location.pathname !== '/login' && !window.location.pathname.startsWith('/submit') && !window.location.pathname.startsWith('/track') && !window.location.pathname.startsWith('/timeline/share')) {
         window.location.href = '/login'
       }
     }

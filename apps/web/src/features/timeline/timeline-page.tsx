@@ -562,7 +562,7 @@ function DependencyArrows({ tasks, days, colWidth, containerRef }: {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export function TimelinePage({ workItemId, readOnly = false }: { workItemId: string; readOnly?: boolean }) {
+export function TimelinePage({ workItemId, readOnly = false, publicToken }: { workItemId: string; readOnly?: boolean; publicToken?: string }) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const canEdit = !readOnly && user?.role !== UserRole.BUSINESS_USER
@@ -585,8 +585,19 @@ export function TimelinePage({ workItemId, readOnly = false }: { workItemId: str
 
 
   const { data, isLoading } = useQuery({
-    queryKey: ['timeline', workItemId],
-    queryFn: () => apiGet<{ workItem: WorkItemInfo; tasks: TimelineTask[] }>(`/api/timeline/${workItemId}`),
+    queryKey: ['timeline', workItemId, publicToken],
+    queryFn: async () => {
+      if (publicToken) {
+        // Public endpoint — no auth required
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787'
+        const res = await fetch(`${API_URL}/api/timeline/public/${publicToken}`, {
+          headers: { 'Content-Type': 'application/json' },
+        })
+        if (!res.ok) throw new Error('Not found')
+        return res.json() as Promise<{ data: { workItem: WorkItemInfo; tasks: TimelineTask[] } }>
+      }
+      return apiGet<{ workItem: WorkItemInfo; tasks: TimelineTask[] }>(`/api/timeline/${workItemId}`)
+    },
   })
   const workItem = data?.data?.workItem
   const allTasks = useMemo(() => data?.data?.tasks ?? [], [data?.data?.tasks])
@@ -1247,9 +1258,18 @@ function TimelineSkeleton() {
 
 // ─── Public Read-Only Timeline Page ──────────────────────────────────────────
 export function PublicTimelinePage({ token }: { token: string }) {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787'
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['timeline-public', token],
-    queryFn: () => apiGet<{ workItem: WorkItemInfo; tasks: TimelineTask[] }>(`/api/timeline/public/${token}`),
+    queryFn: async () => {
+      // Use plain fetch — no auth header — for the public endpoint
+      const res = await fetch(`${API_URL}/api/timeline/public/${token}`, {
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!res.ok) throw new Error('Not found or expired')
+      return res.json() as Promise<{ data: { workItem: WorkItemInfo; tasks: TimelineTask[] } }>
+    },
     retry: false,
   })
 
@@ -1264,6 +1284,6 @@ export function PublicTimelinePage({ token }: { token: string }) {
   )
 
   const workItemId = data?.data?.workItem?.id ?? ''
-  return <TimelinePage workItemId={workItemId} readOnly />
+  return <TimelinePage workItemId={workItemId} readOnly publicToken={token} />
 }
 
