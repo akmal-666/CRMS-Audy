@@ -1,3 +1,5 @@
+'use client'
+
 import { motion } from 'framer-motion'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { TrendingUp } from 'lucide-react'

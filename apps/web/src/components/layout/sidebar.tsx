@@ -37,6 +37,7 @@ const allNavItems: NavItem[] = [
 const reportsItems: NavItem[] = [
   { label: 'Executive Overview', href: '/reports/executive-overview', icon: <BarChart3 size={16} /> },
   { label: 'Project Health', href: '/reports/project-health', icon: <BarChart3 size={16} /> },
+  { label: 'Mandays Report', href: '/reports/mandays', icon: <BarChart3 size={16} /> },
   // Coming soon modules
   // { label: 'Cycle Time & SLA', href: '/reports/cycle-time-sla', icon: <BarChart3 size={16} /> },
   // { label: 'Workload Team', href: '/reports/workload-team', icon: <BarChart3 size={16} /> },

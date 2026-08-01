@@ -4,10 +4,11 @@ import { z } from 'zod'
 import { eq, and, gte, lte, sql, desc } from 'drizzle-orm'
 import type { Bindings, Variables } from '../types'
 import { schema } from '@crms/db'
-import { ok } from '../lib/response'
+import { ok, err } from '../lib/response'
 import { authMiddleware } from '../middleware/auth'
 import { requireRole } from '../middleware/rbac'
 import { UserRole } from '@crms/types'
+import { generateId } from '../lib/id'
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
@@ -800,6 +801,345 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
       })),
     },
   }))
+})
+
+// Mandays Report - Comprehensive mandays usage and allocation tracking
+app.get('/mandays', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST), zValidator('query', reportQuerySchema), async (c) => {
+  const { startDate, endDate, departmentId, vendorId, year, quarter, month } = c.req.valid('query')
+  const db = c.get('db')
+
+  // Build date filter
+  let periodStart: Date | null = null
+  let periodEnd: Date | null = null
+  
+  if (startDate && endDate) {
+    periodStart = new Date(startDate)
+    periodEnd = new Date(endDate)
+  } else if (year && quarter) {
+    const y = parseInt(year)
+    const q = parseInt(quarter)
+    const startMonth = (q - 1) * 3
+    const endMonth = startMonth + 2
+    periodStart = new Date(y, startMonth, 1)
+    periodEnd = new Date(y, endMonth + 1, 0, 23, 59, 59)
+  } else if (year && month) {
+    const y = parseInt(year)
+    const m = parseInt(month) - 1
+    periodStart = new Date(y, m, 1)
+    periodEnd = new Date(y, m + 1, 0, 23, 59, 59)
+  } else if (year) {
+    const y = parseInt(year)
+    periodStart = new Date(y, 0, 1)
+    periodEnd = new Date(y, 11, 31, 23, 59, 59)
+  } else {
+    // Default to current year if no filter
+    const currentYear = new Date().getFullYear()
+    periodStart = new Date(currentYear, 0, 1)
+    periodEnd = new Date(currentYear, 11, 31, 23, 59, 59)
+  }
+
+  // Build query conditions
+  let workItemConditions: any[] = []
+  if (periodStart && periodEnd) {
+    workItemConditions.push(gte(schema.workItems.createdAt, periodStart))
+    workItemConditions.push(lte(schema.workItems.createdAt, periodEnd))
+  }
+  if (departmentId) workItemConditions.push(eq(schema.workItems.departmentId, departmentId))
+  if (vendorId) workItemConditions.push(eq(schema.workItems.vendorId, vendorId))
+
+  const workItemWhere = workItemConditions.length > 0 ? and(...workItemConditions) : undefined
+
+  // Get all work items with mandays
+  const workItems = await db.query.workItems.findMany({
+    where: workItemWhere,
+    with: {
+      department: true,
+      vendor: true,
+      assessment: true,
+      developer: true,
+    },
+  })
+
+  // Get all mandays topups
+  let topupConditions: any[] = []
+  if (periodStart && periodEnd) {
+    topupConditions.push(gte(schema.mandaysTopups.createdAt, periodStart))
+    topupConditions.push(lte(schema.mandaysTopups.createdAt, periodEnd))
+  }
+  if (vendorId) topupConditions.push(eq(schema.mandaysTopups.vendorId, vendorId))
+
+  const topupWhere = topupConditions.length > 0 ? and(...topupConditions) : undefined
+
+  const topups = await db.query.mandaysTopups.findMany({
+    where: topupWhere,
+    with: {
+      vendor: true,
+      createdByUser: true,
+    },
+    orderBy: [desc(schema.mandaysTopups.createdAt)],
+  })
+
+  // Calculate mandays by vendor
+  const vendorMandaysMap = new Map<string, {
+    vendorId: string
+    vendorName: string
+    planned: number
+    actual: number
+    topup: number
+    total: number
+    used: number
+    remaining: number
+    utilizationPercent: number
+  }>()
+
+  // Sum up planned mandays (from assessments)
+  workItems.forEach(item => {
+    if (item.vendor && item.assessment?.estimatedManDays) {
+      const vendorId = item.vendor.id
+      const vendorName = item.vendor.name
+      
+      if (!vendorMandaysMap.has(vendorId)) {
+        vendorMandaysMap.set(vendorId, {
+          vendorId,
+          vendorName,
+          planned: 0,
+          actual: 0,
+          topup: 0,
+          total: 0,
+          used: 0,
+          remaining: 0,
+          utilizationPercent: 0,
+        })
+      }
+      
+      const entry = vendorMandaysMap.get(vendorId)!
+      entry.planned += item.assessment.estimatedManDays
+    }
+  })
+
+  // Sum up actual mandays used (from work items)
+  workItems.forEach(item => {
+    if (item.vendor && item.mandays) {
+      const vendorId = item.vendor.id
+      const vendorName = item.vendor.name
+      
+      if (!vendorMandaysMap.has(vendorId)) {
+        vendorMandaysMap.set(vendorId, {
+          vendorId,
+          vendorName,
+          planned: 0,
+          actual: 0,
+          topup: 0,
+          total: 0,
+          used: 0,
+          remaining: 0,
+          utilizationPercent: 0,
+        })
+      }
+      
+      const entry = vendorMandaysMap.get(vendorId)!
+      entry.actual += item.mandays
+      entry.used += item.mandays
+    }
+  })
+
+  // Sum up topups
+  topups.forEach(topup => {
+    const vendorId = topup.vendorId
+    const vendorName = topup.vendor.name
+    
+    if (!vendorMandaysMap.has(vendorId)) {
+      vendorMandaysMap.set(vendorId, {
+        vendorId,
+        vendorName,
+        planned: 0,
+        actual: 0,
+        topup: 0,
+        total: 0,
+        used: 0,
+        remaining: 0,
+        utilizationPercent: 0,
+      })
+    }
+    
+    const entry = vendorMandaysMap.get(vendorId)!
+    entry.topup += topup.mandays
+  })
+
+  // Calculate totals and remaining
+  const vendorMandays = Array.from(vendorMandaysMap.values()).map(vendor => {
+    vendor.total = vendor.planned + vendor.topup
+    vendor.remaining = vendor.total - vendor.used
+    vendor.utilizationPercent = vendor.total > 0 ? Math.round((vendor.used / vendor.total) * 100) : 0
+    return vendor
+  })
+
+  // Calculate overall summary
+  const totalPlanned = vendorMandays.reduce((sum, v) => sum + v.planned, 0)
+  const totalTopup = vendorMandays.reduce((sum, v) => sum + v.topup, 0)
+  const totalAllocated = totalPlanned + totalTopup
+  const totalUsed = vendorMandays.reduce((sum, v) => sum + v.used, 0)
+  const totalRemaining = totalAllocated - totalUsed
+  const avgUtilization = totalAllocated > 0 ? (totalUsed / totalAllocated) * 100 : 0
+
+  // Mandays by project
+  const projectMandays = workItems
+    .filter(item => item.mandays || item.assessment?.estimatedManDays)
+    .map(item => ({
+      ticketNumber: item.ticketNumber,
+      title: item.title,
+      vendor: item.vendor?.name,
+      department: item.department?.name,
+      developer: item.developer?.name,
+      planned: item.assessment?.estimatedManDays || 0,
+      actual: item.mandays || 0,
+      variance: (item.mandays || 0) - (item.assessment?.estimatedManDays || 0),
+      utilizationPercent: item.assessment?.estimatedManDays 
+        ? Math.round(((item.mandays || 0) / item.assessment.estimatedManDays) * 100)
+        : 0,
+      status: item.status,
+      createdAt: item.createdAt,
+    }))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  // Mandays trend (by month for last 6 months)
+  const mandaysTrend: any[] = []
+  const endDateObj = periodEnd || new Date()
+  
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(endDateObj)
+    d.setMonth(d.getMonth() - i)
+    const monthStart = new Date(d.getFullYear(), d.getMonth(), 1)
+    const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59)
+    
+    const monthItems = workItems.filter(item => {
+      const created = new Date(item.createdAt)
+      return created >= monthStart && created <= monthEnd
+    })
+    
+    const monthTopups = topups.filter(topup => {
+      const created = new Date(topup.createdAt)
+      return created >= monthStart && created <= monthEnd
+    })
+    
+    const planned = monthItems.reduce((sum, item) => sum + (item.assessment?.estimatedManDays || 0), 0)
+    const actual = monthItems.reduce((sum, item) => sum + (item.mandays || 0), 0)
+    const topup = monthTopups.reduce((sum, t) => sum + t.mandays, 0)
+    
+    mandaysTrend.push({
+      month: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      planned,
+      actual,
+      topup,
+    })
+  }
+
+  // Top over-allocated projects (actual > planned)
+  const overAllocated = projectMandays
+    .filter(p => p.variance > 0)
+    .sort((a, b) => b.variance - a.variance)
+    .slice(0, 10)
+
+  // Mandays deviation analysis
+  const deviationAnalysis = workItems
+    .filter(item => item.assessment?.estimatedManDays && item.mandays)
+    .map(item => {
+      const planned = item.assessment!.estimatedManDays!
+      const actual = item.mandays!
+      const deviation = ((actual - planned) / planned) * 100
+      
+      return {
+        ticketNumber: item.ticketNumber,
+        title: item.title,
+        vendor: item.vendor?.name,
+        planned,
+        actual,
+        deviation: Math.round(deviation),
+      }
+    })
+
+  const within10Percent = deviationAnalysis.filter(d => Math.abs(d.deviation) <= 10).length
+  const within20Percent = deviationAnalysis.filter(d => Math.abs(d.deviation) > 10 && Math.abs(d.deviation) <= 20).length
+  const over20Percent = deviationAnalysis.filter(d => Math.abs(d.deviation) > 20).length
+
+  return c.json(ok({
+    summary: {
+      totalPlanned: Math.round(totalPlanned * 10) / 10,
+      totalTopup: Math.round(totalTopup * 10) / 10,
+      totalAllocated: Math.round(totalAllocated * 10) / 10,
+      totalUsed: Math.round(totalUsed * 10) / 10,
+      totalRemaining: Math.round(totalRemaining * 10) / 10,
+      avgUtilization: Math.round(avgUtilization * 10) / 10,
+    },
+    vendorMandays: vendorMandays.map(v => ({
+      ...v,
+      planned: Math.round(v.planned * 10) / 10,
+      actual: Math.round(v.actual * 10) / 10,
+      topup: Math.round(v.topup * 10) / 10,
+      total: Math.round(v.total * 10) / 10,
+      used: Math.round(v.used * 10) / 10,
+      remaining: Math.round(v.remaining * 10) / 10,
+    })),
+    projectMandays,
+    mandaysTrend,
+    topups: topups.map(t => ({
+      id: t.id,
+      vendor: t.vendor.name,
+      vendorId: t.vendorId,
+      mandays: t.mandays,
+      notes: t.notes,
+      createdBy: t.createdByUser.name,
+      createdAt: t.createdAt,
+    })),
+    overAllocated,
+    deviationAnalysis: {
+      within10Percent,
+      within20Percent,
+      over20Percent,
+      total: deviationAnalysis.length,
+    },
+  }))
+})
+
+// Add Mandays Top-up
+const mandaysTopupSchema = z.object({
+  vendorId: z.string().min(1, 'Vendor is required'),
+  mandays: z.number().positive('Mandays must be positive'),
+  notes: z.string().optional(),
+})
+
+app.post('/mandays/topup', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER), zValidator('json', mandaysTopupSchema), async (c) => {
+  const { vendorId, mandays, notes } = c.req.valid('json')
+  const db = c.get('db')
+  const user = c.get('user')!
+
+  // Verify vendor exists
+  const vendor = await db.query.vendors.findFirst({ where: eq(schema.vendors.id, vendorId) })
+  if (!vendor) return c.json(err('Vendor not found'), 404)
+
+  const id = generateId()
+
+  await db.insert(schema.mandaysTopups).values({
+    id,
+    vendorId,
+    mandays,
+    notes: notes || null,
+    createdBy: user.sub,
+    createdAt: new Date(),
+  })
+
+  // Create audit log
+  await db.insert(schema.auditLogs).values({
+    id: generateId(),
+    userId: user.sub,
+    action: 'create',
+    entityType: 'mandays_topup',
+    entityId: id,
+    newValues: { vendorId, mandays, notes },
+    createdAt: new Date(),
+  })
+
+  return c.json(ok({ id, vendorId, mandays, notes }, 'Mandays top-up added successfully'))
 })
 
 export default app

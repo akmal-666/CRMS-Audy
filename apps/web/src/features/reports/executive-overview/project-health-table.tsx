@@ -1,3 +1,5 @@
+'use client'
+
 import { motion } from 'framer-motion'
 import { AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react'
 
