@@ -1009,39 +1009,127 @@ app.get('/mandays', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole
     }))
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-  // Mandays trend (by month for last 6 months) - gunakan allWorkItems agar trend akurat
+  // Mandays trend - sesuaikan range dengan filter yang dipilih
   const mandaysTrend: any[] = []
-  const endDateObj = periodEnd || new Date()
-  
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(endDateObj)
-    d.setMonth(d.getMonth() - i)
-    const monthStart = new Date(d.getFullYear(), d.getMonth(), 1)
-    const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59)
-    
-    // Gunakan allWorkItems untuk trend yang akurat (tidak difilter period)
-    const monthItems = allWorkItems.filter(item => {
+
+  const getItemsInRange = (start: Date, end: Date) => {
+    return allWorkItems.filter(item => {
       if (!item.vendor) return false
       if (vendorId && item.vendor.id !== vendorId) return false
       const created = new Date(item.createdAt)
-      return created >= monthStart && created <= monthEnd
+      return created >= start && created <= end
     })
-    
-    const monthTopups = topups.filter(topup => {
-      const created = new Date(topup.createdAt)
-      return created >= monthStart && created <= monthEnd
+  }
+
+  const getTopupsInRange = (start: Date, end: Date) => {
+    return topups.filter(t => {
+      const created = new Date(t.createdAt)
+      return created >= start && created <= end
     })
-    
-    const planned = monthItems.reduce((sum, item) => sum + (item.assessment?.estimatedManDays || 0), 0)
-    const actual = monthItems.reduce((sum, item) => sum + (item.mandays || 0), 0)
-    const topup = monthTopups.reduce((sum, t) => sum + t.mandays, 0)
-    
-    mandaysTrend.push({
-      month: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-      planned: Math.round(planned * 10) / 10,
-      actual: Math.round(actual * 10) / 10,
-      topup: Math.round(topup * 10) / 10,
-    })
+  }
+
+  const sumMandays = (items: typeof allWorkItems) => ({
+    planned: Math.round(items.reduce((s, i) => s + (i.assessment?.estimatedManDays || 0), 0) * 10) / 10,
+    actual: Math.round(items.reduce((s, i) => s + (i.mandays || 0), 0) * 10) / 10,
+  })
+
+  if (year && month) {
+    // Monthly filter → tampilkan 4-5 minggu dalam bulan tsb
+    const y = parseInt(year)
+    const m = parseInt(month) - 1
+    const firstDay = new Date(y, m, 1)
+    const lastDay = new Date(y, m + 1, 0)
+    let weekStart = new Date(firstDay)
+    let weekNum = 1
+    while (weekStart <= lastDay) {
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekEnd.getDate() + 6)
+      if (weekEnd > lastDay) weekEnd.setTime(lastDay.getTime())
+      weekEnd.setHours(23, 59, 59)
+      const items = getItemsInRange(weekStart, weekEnd)
+      const topupItems = getTopupsInRange(weekStart, weekEnd)
+      const sums = sumMandays(items)
+      mandaysTrend.push({
+        month: `Week ${weekNum}`,
+        planned: sums.planned,
+        actual: sums.actual,
+        topup: Math.round(topupItems.reduce((s, t) => s + t.mandays, 0) * 10) / 10,
+      })
+      weekStart = new Date(weekEnd)
+      weekStart.setDate(weekStart.getDate() + 1)
+      weekStart.setHours(0, 0, 0, 0)
+      weekNum++
+    }
+  } else if (year && quarter) {
+    // Quarterly filter → tampilkan 3 bulan dalam quarter tsb
+    const y = parseInt(year)
+    const q = parseInt(quarter)
+    const startMonth = (q - 1) * 3
+    for (let i = 0; i < 3; i++) {
+      const mStart = new Date(y, startMonth + i, 1)
+      const mEnd = new Date(y, startMonth + i + 1, 0, 23, 59, 59)
+      const items = getItemsInRange(mStart, mEnd)
+      const topupItems = getTopupsInRange(mStart, mEnd)
+      const sums = sumMandays(items)
+      mandaysTrend.push({
+        month: mStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        planned: sums.planned,
+        actual: sums.actual,
+        topup: Math.round(topupItems.reduce((s, t) => s + t.mandays, 0) * 10) / 10,
+      })
+    }
+  } else if (year) {
+    // Yearly filter → tampilkan 12 bulan Jan–Dec tahun tsb
+    const y = parseInt(year)
+    for (let m = 0; m < 12; m++) {
+      const mStart = new Date(y, m, 1)
+      const mEnd = new Date(y, m + 1, 0, 23, 59, 59)
+      const items = getItemsInRange(mStart, mEnd)
+      const topupItems = getTopupsInRange(mStart, mEnd)
+      const sums = sumMandays(items)
+      mandaysTrend.push({
+        month: mStart.toLocaleDateString('en-US', { month: 'short' }),
+        planned: sums.planned,
+        actual: sums.actual,
+        topup: Math.round(topupItems.reduce((s, t) => s + t.mandays, 0) * 10) / 10,
+      })
+    }
+  } else if (startDate && endDate && periodStart && periodEnd) {
+    // Custom range → tampilkan per bulan dalam range
+    const cursor = new Date(periodStart.getFullYear(), periodStart.getMonth(), 1)
+    const rangeEnd = new Date(periodEnd.getFullYear(), periodEnd.getMonth() + 1, 0, 23, 59, 59)
+    while (cursor <= rangeEnd) {
+      const mStart = new Date(cursor)
+      const mEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59)
+      const items = getItemsInRange(mStart, mEnd)
+      const topupItems = getTopupsInRange(mStart, mEnd)
+      const sums = sumMandays(items)
+      mandaysTrend.push({
+        month: cursor.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        planned: sums.planned,
+        actual: sums.actual,
+        topup: Math.round(topupItems.reduce((s, t) => s + t.mandays, 0) * 10) / 10,
+      })
+      cursor.setMonth(cursor.getMonth() + 1)
+    }
+  } else {
+    // No filter → last 6 months
+    const endDateObj = new Date()
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(endDateObj)
+      d.setMonth(d.getMonth() - i)
+      const mStart = new Date(d.getFullYear(), d.getMonth(), 1)
+      const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59)
+      const items = getItemsInRange(mStart, mEnd)
+      const topupItems = getTopupsInRange(mStart, mEnd)
+      const sums = sumMandays(items)
+      mandaysTrend.push({
+        month: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        planned: sums.planned,
+        actual: sums.actual,
+        topup: Math.round(topupItems.reduce((s, t) => s + t.mandays, 0) * 10) / 10,
+      })
+    }
   }
 
   // Top over-allocated projects (actual > planned)

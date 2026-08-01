@@ -183,7 +183,7 @@ export function MandaysReportPage() {
       {/* Charts */}
       <div className="grid lg:grid-cols-2 gap-6">
         <MandaysByVendorChart data={reportData?.vendorMandays} isLoading={isLoading} />
-        <MandaysTrendChart data={reportData?.mandaysTrend} isLoading={isLoading} />
+        <MandaysTrendChart data={reportData?.mandaysTrend} isLoading={isLoading} filterType={filterType} />
       </div>
 
       {/* Deviation Analysis */}
