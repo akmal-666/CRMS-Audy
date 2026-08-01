@@ -6,15 +6,45 @@ import type { Bindings, Variables } from '../types'
 import { schema } from '@crms/db'
 import { ok, err } from '../lib/response'
 import { generateId } from '../lib/id'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth'
 import { UserRole } from '@crms/types'
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
+// ─── Public: View shared timeline (no auth) ───────────────────────────────────
+app.get('/public/:token', async (c) => {
+  const { token } = c.req.param()
+  const db = c.get('db')
+
+  // Look up token in KV
+  const workItemId = await c.env.CACHE.get(`timeline_share:${token}`)
+  if (!workItemId) return c.json(err('Share link not found or expired'), 404)
+
+  const workItem = await db.query.workItems.findFirst({
+    where: eq(schema.workItems.id, workItemId),
+    with: {
+      department: true,
+      vendor: true,
+      manager: { columns: { id: true, name: true, avatarUrl: true } },
+    },
+  })
+  if (!workItem) return c.json(err('Work item not found'), 404)
+
+  const tasks = await db.query.timelineTasks.findMany({
+    where: eq(schema.timelineTasks.workItemId, workItemId),
+    orderBy: [asc(schema.timelineTasks.sortOrder), asc(schema.timelineTasks.createdAt)],
+    with: {
+      assignee: { columns: { id: true, name: true, avatarUrl: true } },
+    },
+  })
+
+  return c.json(ok({ workItem, tasks }))
+})
+
+// All routes below require auth
 app.use('*', authMiddleware)
 
 // ─── GET /api/timeline/all ────────────────────────────────────────────────────
-// Fetch all timeline tasks across all work items (used by Calendar view)
 app.get('/all', async (c) => {
   const db = c.get('db')
   const user = c.get('user')!
@@ -30,7 +60,6 @@ app.get('/all', async (c) => {
     },
   })
 
-  // business_user: filter to only their work items
   const filtered = user.role === UserRole.BUSINESS_USER
     ? tasks.filter((t) => (t.workItem as any)?.requesterEmail === user.email)
     : tasks
@@ -70,7 +99,25 @@ app.get('/:workItemId', async (c) => {
   return c.json(ok({ workItem, tasks }))
 })
 
-// ─── POST /api/timeline/:workItemId ───────────────────────────────────────────
+// ─── POST /api/timeline/:workItemId/share — generate share link ───────────────
+app.post('/:workItemId/share', async (c) => {
+  const { workItemId } = c.req.param()
+  const db = c.get('db')
+  const user = c.get('user')!
+
+  if (user.role === UserRole.BUSINESS_USER) return c.json(err('Permission denied'), 403)
+
+  const workItem = await db.query.workItems.findFirst({ where: eq(schema.workItems.id, workItemId) })
+  if (!workItem) return c.json(err('Work item not found'), 404)
+
+  // Generate a secure random token and store in KV with 7-day TTL
+  const token = generateId() + generateId() + generateId()
+  await c.env.CACHE.put(`timeline_share:${token}`, workItemId, { expirationTtl: 7 * 24 * 3600 })
+
+  return c.json(ok({ token }, 'Share link generated'))
+})
+
+// ─── POST /api/timeline/:workItemId ──────────────────────────────────────────
 const createSchema = z.object({
   label: z.string().min(1).max(200),
   startDate: z.string(),
@@ -89,13 +136,9 @@ app.post('/:workItemId', zValidator('json', createSchema), async (c) => {
   const db = c.get('db')
   const user = c.get('user')!
 
-  if (user.role === UserRole.BUSINESS_USER) {
-    return c.json(err('Permission denied'), 403)
-  }
+  if (user.role === UserRole.BUSINESS_USER) return c.json(err('Permission denied'), 403)
 
-  const workItem = await db.query.workItems.findFirst({
-    where: eq(schema.workItems.id, workItemId),
-  })
+  const workItem = await db.query.workItems.findFirst({ where: eq(schema.workItems.id, workItemId) })
   if (!workItem) return c.json(err('Work item not found'), 404)
 
   const existing = await db.query.timelineTasks.findMany({
@@ -105,9 +148,8 @@ app.post('/:workItemId', zValidator('json', createSchema), async (c) => {
   const maxOrder = existing.length > 0 ? Math.max(...existing.map(t => t.sortOrder)) : -1
 
   const id = generateId()
-  const task = {
-    id,
-    workItemId,
+  await db.insert(schema.timelineTasks).values({
+    id, workItemId,
     label: data.label,
     startDate: new Date(data.startDate),
     endDate: new Date(data.endDate),
@@ -120,17 +162,13 @@ app.post('/:workItemId', zValidator('json', createSchema), async (c) => {
     createdBy: user.sub,
     createdAt: new Date(),
     updatedAt: new Date(),
-  }
-
-  await db.insert(schema.timelineTasks).values(task)
+  })
 
   await db.insert(schema.activityLogs).values({
-    id: generateId(),
-    workItemId,
-    userId: user.sub,
+    id: generateId(), workItemId, userId: user.sub,
     action: 'timeline_task_created',
     description: `Timeline task "${data.label}" added`,
-    metadata: { taskId: id, label: data.label, startDate: data.startDate, endDate: data.endDate },
+    metadata: { taskId: id, label: data.label },
     createdAt: new Date(),
   })
 
@@ -161,13 +199,9 @@ app.patch('/:workItemId/:taskId', zValidator('json', updateSchema), async (c) =>
   const db = c.get('db')
   const user = c.get('user')!
 
-  if (user.role === UserRole.BUSINESS_USER) {
-    return c.json(err('Permission denied'), 403)
-  }
+  if (user.role === UserRole.BUSINESS_USER) return c.json(err('Permission denied'), 403)
 
-  const task = await db.query.timelineTasks.findFirst({
-    where: eq(schema.timelineTasks.id, taskId),
-  })
+  const task = await db.query.timelineTasks.findFirst({ where: eq(schema.timelineTasks.id, taskId) })
   if (!task || task.workItemId !== workItemId) return c.json(err('Task not found'), 404)
 
   const updates: Record<string, any> = { updatedAt: new Date() }
@@ -184,18 +218,15 @@ app.patch('/:workItemId/:taskId', zValidator('json', updateSchema), async (c) =>
   await db.update(schema.timelineTasks).set(updates).where(eq(schema.timelineTasks.id, taskId))
 
   const changes: string[] = []
-  if (data.label && data.label !== task.label) changes.push(`label renamed to "${data.label}"`)
-  if (data.status && data.status !== task.status) changes.push(`status changed to ${data.status}`)
+  if (data.label && data.label !== task.label) changes.push(`renamed to "${data.label}"`)
+  if (data.status && data.status !== task.status) changes.push(`status → ${data.status}`)
   if (data.startDate && new Date(data.startDate).getTime() !== task.startDate.getTime()) changes.push('start date changed')
   if (data.endDate && new Date(data.endDate).getTime() !== task.endDate.getTime()) changes.push('end date changed')
-  if (data.color) changes.push(`color changed to ${data.color}`)
 
   await db.insert(schema.activityLogs).values({
-    id: generateId(),
-    workItemId,
-    userId: user.sub,
+    id: generateId(), workItemId, userId: user.sub,
     action: 'timeline_task_updated',
-    description: changes.length > 0 ? `Timeline task "${task.label}": ${changes.join(', ')}` : `Timeline task "${task.label}" updated`,
+    description: changes.length > 0 ? `Task "${task.label}": ${changes.join(', ')}` : `Task "${task.label}" updated`,
     metadata: { taskId, changes: data },
     createdAt: new Date(),
   })
@@ -214,21 +245,15 @@ app.delete('/:workItemId/:taskId', async (c) => {
   const db = c.get('db')
   const user = c.get('user')!
 
-  if (user.role === UserRole.BUSINESS_USER) {
-    return c.json(err('Permission denied'), 403)
-  }
+  if (user.role === UserRole.BUSINESS_USER) return c.json(err('Permission denied'), 403)
 
-  const task = await db.query.timelineTasks.findFirst({
-    where: eq(schema.timelineTasks.id, taskId),
-  })
+  const task = await db.query.timelineTasks.findFirst({ where: eq(schema.timelineTasks.id, taskId) })
   if (!task || task.workItemId !== workItemId) return c.json(err('Task not found'), 404)
 
   await db.delete(schema.timelineTasks).where(eq(schema.timelineTasks.id, taskId))
 
   await db.insert(schema.activityLogs).values({
-    id: generateId(),
-    workItemId,
-    userId: user.sub,
+    id: generateId(), workItemId, userId: user.sub,
     action: 'timeline_task_deleted',
     description: `Timeline task "${task.label}" deleted`,
     metadata: { taskId, label: task.label },
@@ -249,9 +274,7 @@ app.patch('/:workItemId/reorder', zValidator('json', reorderSchema), async (c) =
   const db = c.get('db')
   const user = c.get('user')!
 
-  if (user.role === UserRole.BUSINESS_USER) {
-    return c.json(err('Permission denied'), 403)
-  }
+  if (user.role === UserRole.BUSINESS_USER) return c.json(err('Permission denied'), 403)
 
   await Promise.all(
     order.map(({ id, sortOrder }) =>
@@ -260,9 +283,7 @@ app.patch('/:workItemId/reorder', zValidator('json', reorderSchema), async (c) =
   )
 
   await db.insert(schema.activityLogs).values({
-    id: generateId(),
-    workItemId,
-    userId: user.sub,
+    id: generateId(), workItemId, userId: user.sub,
     action: 'timeline_task_reordered',
     description: 'Timeline tasks reordered',
     metadata: { order },
