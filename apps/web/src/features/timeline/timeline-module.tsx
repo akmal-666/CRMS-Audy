@@ -176,57 +176,171 @@ function Tooltip({ children, content, disabled }: { children: React.ReactNode; c
 function MonthPicker({ value, onChange }: { value: Date; onChange: (d: Date) => void }) {
   const [open, setOpen] = useState(false)
   const [pickerYear, setPickerYear] = useState(value.getFullYear())
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const [mounted, setMounted] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (btnRef.current && !btnRef.current.contains(e.target as Node)) {
+        const target = e.target as Element
+        if (!target.closest('[data-month-picker]')) setOpen(false)
+      }
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [])
+  }, [open])
+
+  const handleOpen = () => {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setPos({ top: rect.bottom + 6, left: rect.left })
+      setPickerYear(value.getFullYear())
+    }
+    setOpen(o => !o)
+  }
 
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   const curMonth = value.getMonth()
   const curYear = value.getFullYear()
 
   return (
-    <div ref={ref} className="relative flex-shrink-0">
-      <button onClick={() => { setPickerYear(curYear); setOpen(o => !o) }}
-        className="flex items-center gap-1 text-sm font-semibold text-foreground hover:text-primary transition-colors px-1.5 py-1 rounded-lg hover:bg-muted">
+    <>
+      <button ref={btnRef} onClick={handleOpen}
+        className="flex items-center gap-1 text-sm font-semibold text-foreground hover:text-primary transition-colors px-1.5 py-1 rounded-lg hover:bg-muted flex-shrink-0">
         {format(value, 'MMMM yyyy')}
         <ChevronDown size={13} className={cn('text-muted-foreground transition-transform', open && 'rotate-180')} />
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.97 }} transition={{ duration: 0.12 }}
-            className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-2xl p-3 w-[220px]">
-            {/* Year row */}
-            <div className="flex items-center justify-between mb-3">
-              <button onClick={() => setPickerYear(y => y - 1)} className="p-1 rounded hover:bg-muted text-muted-foreground"><ChevronLeft size={14} /></button>
-              <span className="text-sm font-semibold text-foreground">{pickerYear}</span>
-              <button onClick={() => setPickerYear(y => y + 1)} className="p-1 rounded hover:bg-muted text-muted-foreground"><ChevronRight size={14} /></button>
-            </div>
-            {/* Month grid */}
-            <div className="grid grid-cols-4 gap-1">
-              {MONTHS.map((m, i) => {
-                const isActive = i === curMonth && pickerYear === curYear
-                return (
-                  <button key={m} onClick={() => {
-                    onChange(startOfMonth(new Date(pickerYear, i, 1)))
-                    setOpen(false)
-                  }} className={cn('text-xs px-1 py-1.5 rounded-lg transition-colors font-medium',
+      {mounted && open && createPortal(
+        <motion.div
+          data-month-picker
+          initial={{ opacity: 0, y: -4, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -4, scale: 0.97 }}
+          transition={{ duration: 0.12 }}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, width: 228 }}
+          className="bg-popover border border-border rounded-xl shadow-2xl p-3">
+          {/* Year nav */}
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={() => setPickerYear(y => y - 1)}
+              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+              <ChevronLeft size={14} />
+            </button>
+            <span className="text-sm font-semibold text-foreground select-none">{pickerYear}</span>
+            <button onClick={() => setPickerYear(y => y + 1)}
+              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+              <ChevronRight size={14} />
+            </button>
+          </div>
+          {/* Month grid */}
+          <div className="grid grid-cols-4 gap-1">
+            {MONTHS.map((m, i) => {
+              const isActive = i === curMonth && pickerYear === curYear
+              return (
+                <button key={m}
+                  onClick={() => { onChange(startOfMonth(new Date(pickerYear, i, 1))); setOpen(false) }}
+                  className={cn('text-xs px-1 py-2 rounded-lg transition-colors font-medium',
                     isActive ? 'bg-primary text-white' : 'hover:bg-muted text-muted-foreground hover:text-foreground')}>
-                    {m}
-                  </button>
-                )
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+                  {m}
+                </button>
+              )
+            })}
+          </div>
+        </motion.div>,
+        document.body
+      )}
+    </>
   )
 }
+// ─── InlineSelect — portal dropdown untuk edit field langsung di panel ────────
+function InlineSelect<T extends string>({ label, value, options, onChange, disabled }: {
+  label: string
+  value: T
+  options: { value: T; label: string; className?: string }[]
+  onChange: (v: T) => void
+  disabled?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, flipUp: false })
+  const [mounted, setMounted] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => { setMounted(true) }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (btnRef.current && !btnRef.current.contains(e.target as Node)) {
+        const t = e.target as Element
+        if (!t.closest('[data-inline-select]')) setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const handleOpen = () => {
+    if (disabled) return
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      const vh = window.innerHeight
+      const dropH = options.length * 36 + 16
+      const flipUp = rect.bottom + dropH > vh && rect.top > dropH
+      setPos({
+        top: flipUp ? rect.top - dropH - 4 : rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        flipUp,
+      })
+    }
+    setOpen(o => !o)
+  }
+
+  const current = options.find(o => o.value === value)
+
+  return (
+    <>
+      <button ref={btnRef} onClick={handleOpen} disabled={disabled}
+        className={cn(
+          'w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors text-left',
+          current?.className ?? '',
+          disabled ? 'cursor-default opacity-70' : 'cursor-pointer hover:brightness-95 active:scale-[0.99]'
+        )}>
+        <span className="flex-1 truncate">{current?.label ?? value}</span>
+        {!disabled && <ChevronDown size={11} className="flex-shrink-0 text-current opacity-60" />}
+      </button>
+      {mounted && open && createPortal(
+        <motion.div
+          data-inline-select
+          initial={{ opacity: 0, y: -4, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.1 }}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
+          className="bg-popover border border-border rounded-xl shadow-2xl py-1.5 overflow-hidden">
+          {options.map(opt => (
+            <button key={opt.value}
+              onClick={() => { onChange(opt.value); setOpen(false) }}
+              className={cn(
+                'w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium transition-colors text-left',
+                opt.value === value ? 'bg-primary/10 text-primary' : 'hover:bg-muted text-foreground'
+              )}>
+              <span className={cn('w-2 h-2 rounded-full flex-shrink-0',
+                opt.className?.includes('text-') ? opt.className.replace(/bg-\S+/g, '').trim() : 'bg-muted-foreground/40'
+              )} />
+              {opt.label}
+              {opt.value === value && <Check size={11} className="ml-auto text-primary" />}
+            </button>
+          ))}
+        </motion.div>,
+        document.body
+      )}
+    </>
+  )
+}
+
 function DateHeader({ days, colWidth }: { days: Date[]; colWidth: number }) {
   const weeks: { label: string; count: number }[] = []
   let curWeek = -1; let wCount = 0
@@ -497,6 +611,7 @@ function DetailPanel({ workItem, selectedTask, onClose, canEdit, onEditTask }: {
   canEdit: boolean
   onEditTask: (t: TimelineTask) => void
 }) {
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'details' | 'subitems' | 'activity'>('details')
   const tasks = workItem.tasks
   const completedCount = tasks.filter(t => t.status === 'completed').length
@@ -510,7 +625,7 @@ function DetailPanel({ workItem, selectedTask, onClose, canEdit, onEditTask }: {
     : null
   const duration = minStart && maxEnd ? differenceInCalendarDays(maxEnd, minStart) + 1 : null
 
-  // Fetch activity logs for this work item
+  // Fetch full detail for activity log
   const { data: activityData } = useQuery({
     queryKey: ['work-item-activity', workItem.id],
     queryFn: () => apiGet<any>(`/api/work-items/${workItem.id}`),
@@ -518,6 +633,30 @@ function DetailPanel({ workItem, selectedTask, onClose, canEdit, onEditTask }: {
     staleTime: 30_000,
   })
   const activityLogs: any[] = activityData?.data?.activityLogs ?? []
+
+  // Mutations for inline edits
+  const statusMut = useMutation({
+    mutationFn: (status: string) => apiPatch(`/api/work-items/${workItem.id}/status`, { status }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['timeline-all'] }); toast.success('Status updated') },
+    onError: () => toast.error('Failed to update status'),
+  })
+  const priorityMut = useMutation({
+    mutationFn: (priority: string) => apiPatch(`/api/work-items/${workItem.id}`, { priority }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['timeline-all'] }); toast.success('Priority updated') },
+    onError: () => toast.error('Failed to update priority'),
+  })
+
+  const WF_STATUS_OPTIONS = (Object.keys(STATUS_LABELS) as WorkflowStatus[]).map(v => ({
+    value: v,
+    label: STATUS_LABELS[v],
+    className: STATUS_COLORS[v],
+  }))
+
+  const PRIORITY_OPTIONS = (Object.keys(PRIORITY_LABELS) as Priority[]).map(v => ({
+    value: v as string,
+    label: PRIORITY_LABELS[v],
+    className: PRIORITY_COLORS[v],
+  }))
 
   const TABS = [
     { key: 'details', label: 'Details' },
@@ -572,20 +711,23 @@ function DetailPanel({ workItem, selectedTask, onClose, canEdit, onEditTask }: {
             )}
             <div>
               <p className="text-xs text-muted-foreground mb-1.5">Status</p>
-              <div className={cn('flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium',
-                STATUS_COLORS[workItem.status as WorkflowStatus])}>
-                <span className="w-2 h-2 rounded-full bg-current opacity-60 flex-shrink-0" />
-                {STATUS_LABELS[workItem.status as WorkflowStatus]}
-                <ChevronDown size={12} className="ml-auto text-muted-foreground" />
-              </div>
+              <InlineSelect
+                label="Status"
+                value={workItem.status as WorkflowStatus}
+                options={WF_STATUS_OPTIONS}
+                onChange={v => statusMut.mutate(v)}
+                disabled={!canEdit}
+              />
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1.5">Priority</p>
-              <div className={cn('flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium',
-                PRIORITY_COLORS[workItem.priority as Priority])}>
-                {PRIORITY_LABELS[workItem.priority as Priority]}
-                <ChevronDown size={12} className="ml-auto text-muted-foreground" />
-              </div>
+              <InlineSelect
+                label="Priority"
+                value={workItem.priority}
+                options={PRIORITY_OPTIONS}
+                onChange={v => priorityMut.mutate(v)}
+                disabled={!canEdit}
+              />
             </div>
             {workItem.manager && (
               <div>
