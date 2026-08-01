@@ -7,6 +7,7 @@ import { apiGet } from '@/lib/api'
 import { exportToExcel, exportToCSV } from '@/lib/export-utils'
 import { ReportFilters } from '../report-filters'
 import { MandaysKPICards } from './mandays-kpi-cards'
+import { VendorMandaysBalance } from './vendor-mandays-balance'
 import { MandaysByVendorChart } from './mandays-by-vendor-chart'
 import { MandaysTrendChart } from './mandays-trend-chart'
 import { MandaysByProjectTable } from './mandays-by-project-table'
@@ -171,6 +172,13 @@ export function MandaysReportPage() {
 
       {/* KPI Cards */}
       <MandaysKPICards data={reportData} isLoading={isLoading} />
+
+      {/* Vendor Mandays Balance - sisa mandays per vendor */}
+      <VendorMandaysBalance
+        data={reportData?.vendorMandays}
+        isLoading={isLoading}
+        onTopup={() => setShowTopupModal(true)}
+      />
 
       {/* Charts */}
       <div className="grid lg:grid-cols-2 gap-6">
