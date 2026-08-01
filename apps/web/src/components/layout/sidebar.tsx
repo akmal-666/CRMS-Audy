@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -26,6 +26,7 @@ interface NavItem {
 const allNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard size={16} /> },
   { label: 'Kanban Board', href: '/kanban', icon: <Kanban size={16} /> },
+  { label: 'Timeline', href: '/timeline', icon: <CalendarRange size={16} /> },
   { label: 'Calendar', href: '/requests/calendar', icon: <Calendar size={16} /> },
   { label: 'All Requests', href: '/requests', icon: <ListChecks size={16} /> },
   // New Request is visible to business_user and administrator
@@ -66,7 +67,7 @@ export function Sidebar({ collapsed, mobileOpen, onMobileClose }: SidebarProps) 
 
   // For business_user, only show: Kanban, Calendar, All Requests, New Request, Notifications
   const filteredNavItems = isBusinessUser
-    ? navItems.filter(item => ['/kanban', '/requests/calendar', '/requests', '/requests/new', '/notifications'].includes(item.href ?? ''))
+    ? navItems.filter(item => ['/kanban', '/timeline', '/requests/calendar', '/requests', '/requests/new', '/notifications'].includes(item.href ?? ''))
     : navItems
 
   return (
@@ -169,8 +170,8 @@ function SidebarContent({
         <div className="space-y-0.5">
           {navItems.map((item) => {
             const isReqDetail = item.href === '/requests' && pathname.startsWith('/requests/') && pathname !== '/requests/calendar' && pathname !== '/requests/new'
-            const isKanbanTimeline = item.href === '/kanban' && pathname.startsWith('/timeline/')
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && item.href !== '/requests' && item.href !== '/requests/new' && pathname.startsWith(item.href!)) || isReqDetail || isKanbanTimeline
+            const isTimelineActive = item.href === '/timeline' && (pathname === '/timeline' || pathname.startsWith('/timeline/'))
+            const isActive = pathname === item.href || (item.href !== '/dashboard' && item.href !== '/requests' && item.href !== '/requests/new' && pathname.startsWith(item.href!)) || isReqDetail || isTimelineActive
             return (
               <NavLink
                 key={item.href}
@@ -266,3 +267,4 @@ function NavLink({ item, collapsed, isActive, onClick, highlight }: {
     </Link>
   )
 }
+
