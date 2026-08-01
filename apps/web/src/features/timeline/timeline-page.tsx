@@ -3,6 +3,7 @@
 import {
   useState, useRef, useCallback, useEffect, useMemo, useId,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -106,8 +107,13 @@ function Tooltip({ children, content, disabled }: { children: React.ReactNode; c
   const [show, setShow] = useState(false)
   const [pos, setPos] = useState({ x: 0, y: 0, above: true, arrowLeft: '50%' })
   const triggerRef = useRef<HTMLDivElement>(null)
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [mounted, setMounted] = useState(false)
   const TOOLTIP_W = 240
   const TOOLTIP_H = 160
+
+  // Only render portal on client
+  useEffect(() => { setMounted(true) }, [])
 
   const updatePos = useCallback(() => {
     if (!triggerRef.current) return
@@ -129,20 +135,25 @@ function Tooltip({ children, content, disabled }: { children: React.ReactNode; c
     setPos({ x, y, above, arrowLeft })
   }, [])
 
+  const handleMouseEnter = useCallback(() => {
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null }
+    updatePos()
+    setShow(true)
+  }, [updatePos])
+
+  const handleMouseLeave = useCallback(() => {
+    hideTimer.current = setTimeout(() => setShow(false), 80)
+  }, [])
+
+  useEffect(() => () => { if (hideTimer.current) clearTimeout(hideTimer.current) }, [])
+
   if (disabled) return <>{children}</>
 
-  return (
-    <>
-      <div ref={triggerRef}
-        onMouseEnter={() => { updatePos(); setShow(true) }}
-        onMouseLeave={() => setShow(false)}
-        onTouchStart={(e) => { e.stopPropagation(); updatePos(); setShow(v => !v) }}
-        className="contents">
-        {children}
-      </div>
-      <AnimatePresence>
-        {show && (
+  const tooltip = mounted && show
+    ? createPortal(
+        <AnimatePresence>
           <motion.div
+            key="tooltip"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
@@ -165,8 +176,21 @@ function Tooltip({ children, content, disabled }: { children: React.ReactNode; c
               style={{ left: pos.arrowLeft, transform: `translateX(-50%) rotate(45deg)` }}
             />
           </motion.div>
-        )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body
+      )
+    : null
+
+  return (
+    <>
+      <div ref={triggerRef}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onTouchStart={(e) => { e.stopPropagation(); updatePos(); setShow(v => !v) }}
+        className="contents">
+        {children}
+      </div>
+      {tooltip}
     </>
   )
 }
@@ -1235,3 +1259,4 @@ export function PublicTimelinePage({ token }: { token: string }) {
   const workItemId = data?.data?.workItem?.id ?? ''
   return <TimelinePage workItemId={workItemId} readOnly />
 }
+
