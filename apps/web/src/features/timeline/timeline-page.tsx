@@ -104,13 +104,29 @@ function Avatar({ name, avatarUrl, size = 20 }: { name: string; avatarUrl?: stri
 // ─── Portal-based Tooltip (fixed positioning, works on mobile too) ────────────
 function Tooltip({ children, content, disabled }: { children: React.ReactNode; content: React.ReactNode; disabled?: boolean }) {
   const [show, setShow] = useState(false)
-  const [pos, setPos] = useState({ x: 0, y: 0 })
+  const [pos, setPos] = useState({ x: 0, y: 0, above: true, arrowLeft: '50%' })
   const triggerRef = useRef<HTMLDivElement>(null)
+  const TOOLTIP_W = 240
+  const TOOLTIP_H = 160
 
   const updatePos = useCallback(() => {
     if (!triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
-    setPos({ x: rect.left + rect.width / 2, y: rect.top - 8 })
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+
+    // X: centre on trigger, clamp within viewport with 8px padding
+    let x = rect.left + rect.width / 2
+    const halfW = TOOLTIP_W / 2
+    const clampedX = Math.min(Math.max(x, halfW + 8), vw - halfW - 8)
+    const arrowLeft = `${Math.round(50 + (x - clampedX) / (TOOLTIP_W / 2) * 50)}%`
+    x = clampedX
+
+    // Y: prefer above, flip below if not enough space
+    const above = rect.top > TOOLTIP_H + 16
+    const y = above ? rect.top - 12 : rect.bottom + 12
+
+    setPos({ x, y, above, arrowLeft })
   }, [])
 
   if (disabled) return <>{children}</>
@@ -120,23 +136,34 @@ function Tooltip({ children, content, disabled }: { children: React.ReactNode; c
       <div ref={triggerRef}
         onMouseEnter={() => { updatePos(); setShow(true) }}
         onMouseLeave={() => setShow(false)}
-        onTouchStart={() => { updatePos(); setShow(v => !v) }}
+        onTouchStart={(e) => { e.stopPropagation(); updatePos(); setShow(v => !v) }}
         className="contents">
         {children}
       </div>
       <AnimatePresence>
         {show && (
           <motion.div
-            initial={{ opacity: 0, y: 6, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.96 }}
-            transition={{ duration: 0.13 }}
-            style={{ position: 'fixed', left: pos.x, top: pos.y, transform: 'translate(-50%, -100%)', zIndex: 9999 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.1 }}
+            style={{
+              position: 'fixed',
+              left: pos.x,
+              top: pos.y,
+              transform: pos.above ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+              zIndex: 9999,
+              width: TOOLTIP_W,
+            }}
             className="pointer-events-none">
-            <div className="bg-popover border border-border rounded-xl shadow-2xl p-3 text-xs min-w-[180px] max-w-[240px] backdrop-blur-sm">
+            <div className="bg-popover border border-border rounded-xl shadow-2xl p-3 text-xs backdrop-blur-sm">
               {content}
             </div>
-            <div className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 w-3 h-3 bg-popover border-r border-b border-border rotate-45" />
+            {/* Arrow */}
+            <div
+              className={`absolute w-3 h-3 bg-popover border-border ${pos.above ? '-bottom-1.5 border-r border-b' : '-top-1.5 border-l border-t'} rotate-45`}
+              style={{ left: pos.arrowLeft, transform: `translateX(-50%) rotate(45deg)` }}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -191,29 +218,67 @@ function BarTooltipContent({ task }: { task: TimelineTask }) {
 // ─── Generic Dropdown wrapper ─────────────────────────────────────────────────
 function Dropdown({ trigger, children, align = 'right' }: { trigger: React.ReactNode; children: React.ReactNode; align?: 'left' | 'right' }) {
   const [open, setOpen] = useState(false)
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, right: 0, flipUp: false })
   const ref = useRef<HTMLDivElement>(null)
+  const dropRef = useRef<HTMLDivElement>(null)
 
+  // Close on outside click/touch
   useEffect(() => {
-    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
     document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler)
+    return () => { document.removeEventListener('mousedown', handler); document.removeEventListener('touchstart', handler) }
   }, [])
+
+  // Close on scroll (so dropdown doesn't float away)
+  useEffect(() => {
+    if (!open) return
+    const handler = () => setOpen(false)
+    window.addEventListener('scroll', handler, true)
+    return () => window.removeEventListener('scroll', handler, true)
+  }, [open])
+
+  const handleOpen = () => {
+    if (!ref.current) { setOpen(o => !o); return }
+    const rect = ref.current.getBoundingClientRect()
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const dropH = 300 // estimated max height
+    const flipUp = rect.bottom + dropH > vh && rect.top > dropH
+
+    // Fixed positioning to escape overflow:hidden parents
+    setDropPos({
+      top: flipUp ? rect.top : rect.bottom + 6,
+      left: align === 'left' ? rect.left : 0,
+      right: align === 'right' ? vw - rect.right : 0,
+      flipUp,
+    })
+    setOpen(o => !o)
+  }
 
   return (
     <div ref={ref} className="relative flex-shrink-0">
-      <div onClick={() => setOpen(o => !o)}>{trigger}</div>
+      <div onClick={handleOpen}>{trigger}</div>
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: 4, scale: 0.97 }}
+            ref={dropRef}
+            initial={{ opacity: 0, y: dropPos.flipUp ? 4 : -4, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 4, scale: 0.97 }}
+            exit={{ opacity: 0, y: dropPos.flipUp ? 4 : -4, scale: 0.97 }}
             transition={{ duration: 0.13 }}
-            style={{ zIndex: 9998 }}
-            className={cn(
-              'absolute top-full mt-1.5 bg-popover border border-border rounded-xl shadow-2xl backdrop-blur-sm min-w-[180px]',
-              align === 'right' ? 'right-0' : 'left-0'
-            )}
+            style={{
+              position: 'fixed',
+              top: dropPos.flipUp ? undefined : dropPos.top,
+              bottom: dropPos.flipUp ? `calc(100vh - ${dropPos.top}px)` : undefined,
+              left: align === 'left' ? dropPos.left : undefined,
+              right: align === 'right' ? dropPos.right : undefined,
+              zIndex: 9998,
+              maxWidth: 'calc(100vw - 16px)',
+            }}
+            className="bg-popover border border-border rounded-xl shadow-2xl backdrop-blur-sm min-w-[180px]"
             onClick={e => e.stopPropagation()}>
             {children}
           </motion.div>
@@ -267,7 +332,7 @@ function FiltersDropdown({ filterStatus, setFilterStatus, filterColor, setFilter
         {hasFilter && <span className="bg-primary text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold">!</span>}
       </button>
     }>
-      <div className="p-3 space-y-3 w-[220px]">
+      <div className="p-3 space-y-3 w-[min(220px,calc(100vw-32px))]">
         <div>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Status</p>
           <div className="flex flex-wrap gap-1">
