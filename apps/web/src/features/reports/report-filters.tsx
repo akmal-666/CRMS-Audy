@@ -1,3 +1,5 @@
+'use client'
+
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Filter as FilterIcon } from 'lucide-react'
@@ -35,13 +37,17 @@ export function ReportFilters(props: ReportFiltersProps) {
     select: (res) => res.data ?? [],
   })
 
-  const currentYear = new Date().getFullYear()
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - i)
+  // Use fixed year range - no new Date() during render to avoid SSR mismatch
+  const years = [2027, 2026, 2025, 2024, 2023]
   const quarters = [1, 2, 3, 4]
-  const months = Array.from({ length: 12 }, (_, i) => ({
-    value: i + 1,
-    label: new Date(2024, i).toLocaleDateString('en-US', { month: 'long' }),
-  }))
+  const months = [
+    { value: 1, label: 'January' }, { value: 2, label: 'February' },
+    { value: 3, label: 'March' }, { value: 4, label: 'April' },
+    { value: 5, label: 'May' }, { value: 6, label: 'June' },
+    { value: 7, label: 'July' }, { value: 8, label: 'August' },
+    { value: 9, label: 'September' }, { value: 10, label: 'October' },
+    { value: 11, label: 'November' }, { value: 12, label: 'December' },
+  ]
 
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="card">
