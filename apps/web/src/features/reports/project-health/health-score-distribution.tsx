@@ -73,10 +73,12 @@ export function HealthScoreDistribution({ data, isLoading, total }: HealthScoreD
               </PieChart>
             </ResponsiveContainer>
 
-            {/* Center text */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-              <div className="text-4xl font-bold text-foreground">{totalProjects}</div>
-              <div className="text-xs text-muted-foreground">Projects</div>
+            {/* Center text - positioned absolutely on top of chart */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center">
+                <div className="text-4xl font-bold text-foreground">{totalProjects}</div>
+                <div className="text-xs text-muted-foreground mt-1">Projects</div>
+              </div>
             </div>
           </div>
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -32,6 +32,7 @@ type FormData = z.infer<typeof requestSchema>
 export function BusinessRequestForm() {
   const router = useRouter()
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   const [ticketNumber, setTicketNumber] = useState<string | null>(null)
   const [files, setFiles] = useState<File[]>([])
   
@@ -81,6 +82,16 @@ export function BusinessRequestForm() {
     onSuccess: (res) => {
       setTicketNumber(res.data?.ticketNumber ?? 'N/A')
       toast.success('Request submitted successfully')
+      
+      // Invalidate all queries to trigger auto refresh across all modules
+      queryClient.invalidateQueries({ queryKey: ['work-items'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['kanban'] })
+      queryClient.invalidateQueries({ queryKey: ['timeline'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['executive-overview'] })
+      queryClient.invalidateQueries({ queryKey: ['project-health'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to submit request')

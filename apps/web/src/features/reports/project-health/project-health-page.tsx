@@ -211,8 +211,8 @@ export function ProjectHealthPage() {
         </div>
       </div>
 
-      {/* Issues Summary */}
-      <IssuesSummary data={safeReportData.issuesSummary} isLoading={isLoading} />
+      {/* Issues Summary - HIDDEN FOR NOW */}
+      {/* <IssuesSummary data={safeReportData.issuesSummary} isLoading={isLoading} /> */}
 
       {/* Health Score Over Time & By Category */}
       <div className="grid lg:grid-cols-2 gap-6">
