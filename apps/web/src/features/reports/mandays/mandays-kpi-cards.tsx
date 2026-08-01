@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, Clock, CheckCircle2, AlertTriangle, BarChart3 } from 'lucide-react'
+import { TrendingUp, TrendingDown, Clock, CheckCircle2, AlertTriangle } from 'lucide-react'
 
 interface MandaysKPICardsProps {
   data: any
@@ -24,15 +24,6 @@ export function MandaysKPICards({ data, isLoading }: MandaysKPICardsProps) {
   const summary = data?.summary || {}
 
   const cards = [
-    {
-      title: 'Total Mandays (Planned)',
-      value: summary.totalPlanned || 0,
-      suffix: 'MD',
-      icon: BarChart3,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
-      change: '+12.5% vs last period',
-    },
     {
       title: 'Total Mandays (Actual)',
       value: summary.totalUsed || 0,
@@ -81,7 +72,7 @@ export function MandaysKPICards({ data, isLoading }: MandaysKPICardsProps) {
   ]
 
   return (
-    <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-4">
+    <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
       {cards.map((card, index) => {
         const Icon = card.icon
         return (

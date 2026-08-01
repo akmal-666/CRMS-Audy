@@ -55,7 +55,6 @@ export function MandaysByVendorChart({ data, isLoading }: MandaysByVendorChartPr
               formatter={(value: any) => [`${value} MD`, '']}
             />
             <Legend wrapperStyle={{ fontSize: '12px' }} />
-            <Bar dataKey="planned" name="Planned" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             <Bar dataKey="actual" name="Actual" fill="#10b981" radius={[4, 4, 0, 0]} />
             <Bar dataKey="topup" name="Top-up" fill="#f59e0b" radius={[4, 4, 0, 0]} />
           </BarChart>

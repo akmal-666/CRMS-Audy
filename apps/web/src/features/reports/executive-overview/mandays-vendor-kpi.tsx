@@ -19,12 +19,10 @@ export function MandaysVendorKPI({ data, summary, isLoading }: MandaysVendorKPIP
   }
 
   const vendors = data || []
-  const totalPlanned = summary?.totalPlanned || 0
   const totalUsed = summary?.totalUsed || 0
   const totalRemaining = summary?.totalRemaining || 0
-  const usedPct = totalPlanned + (summary?.totalTopup || 0) > 0
-    ? Math.round((totalUsed / (totalPlanned + (summary?.totalTopup || 0))) * 100)
-    : 0
+  const totalAllocated = vendors.reduce((sum, v) => sum + (v.total || 0), 0)
+  const usedPct = totalAllocated > 0 ? Math.round((totalUsed / totalAllocated) * 100) : 0
 
   const fmt = (v: number) => v % 1 === 0 ? v.toString() : v.toFixed(1)
 
@@ -60,10 +58,6 @@ export function MandaysVendorKPI({ data, summary, isLoading }: MandaysVendorKPIP
 
         {/* Summary totals */}
         <div className="hidden md:flex items-center gap-6 text-xs">
-          <div className="text-center">
-            <div className="font-bold text-foreground">{fmt(totalPlanned)} MD</div>
-            <div className="text-muted-foreground">Planned</div>
-          </div>
           <div className="text-center">
             <div className="font-bold text-blue-600">{fmt(totalUsed)} MD</div>
             <div className="text-muted-foreground">Used</div>
@@ -152,9 +146,9 @@ export function MandaysVendorKPI({ data, summary, isLoading }: MandaysVendorKPIP
                   />
                 </div>
 
-                {/* Breakdown: Planned / Topup / Used */}
+                {/* Breakdown: Used / Topup */}
                 <div className="flex items-center gap-3 mt-0.5 text-[10px] text-muted-foreground">
-                  <span>Planned: <span className="text-foreground font-medium">{fmt(vendor.planned)}</span></span>
+                  <span>Used: <span className="text-foreground font-medium">{fmt(vendor.used)}</span></span>
                   {vendor.topup > 0 && (
                     <span className="text-amber-600">+{fmt(vendor.topup)} top-up</span>
                   )}

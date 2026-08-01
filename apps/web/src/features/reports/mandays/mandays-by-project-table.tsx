@@ -9,7 +9,7 @@ interface MandaysByProjectTableProps {
   isLoading: boolean
 }
 
-type SortKey = 'planned' | 'actual' | 'variance' | 'utilizationPercent'
+type SortKey = 'actual' | 'variance' | 'utilizationPercent'
 type SortDir = 'asc' | 'desc'
 
 const STATUS_LABELS: Record<string, string> = {
@@ -93,14 +93,6 @@ export function MandaysByProjectTable({ data, isLoading }: MandaysByProjectTable
                   <th className="text-center p-2 font-medium text-muted-foreground">Status</th>
                   <th
                     className="text-right p-2 font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground"
-                    onClick={() => toggleSort('planned')}
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      Planned MD <SortIcon k="planned" />
-                    </div>
-                  </th>
-                  <th
-                    className="text-right p-2 font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground"
                     onClick={() => toggleSort('actual')}
                   >
                     <div className="flex items-center justify-end gap-1">
@@ -138,9 +130,6 @@ export function MandaysByProjectTable({ data, isLoading }: MandaysByProjectTable
                       <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                         {STATUS_LABELS[project.status] || project.status}
                       </span>
-                    </td>
-                    <td className="p-2 text-right font-medium text-foreground">
-                      {project.planned > 0 ? `${project.planned} MD` : '—'}
                     </td>
                     <td className="p-2 text-right font-semibold text-foreground">
                       {project.actual > 0 ? `${project.actual} MD` : '—'}

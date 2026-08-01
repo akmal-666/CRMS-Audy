@@ -49,7 +49,7 @@ export function VendorMandaysBalance({ data, isLoading, onTopup }: VendorMandays
           </div>
           <div>
             <h3 className="text-sm font-semibold text-foreground">Mandays Balance per Vendor</h3>
-            <p className="text-xs text-muted-foreground">Remaining = Allocated (Planned + Top-up) − Used</p>
+            <p className="text-xs text-muted-foreground">Remaining = Allocated (Top-up) − Used</p>
           </div>
         </div>
         {onTopup && (
@@ -120,12 +120,8 @@ export function VendorMandaysBalance({ data, isLoading, onTopup }: VendorMandays
                 </div>
 
                 {/* Breakdown row */}
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-black/5 dark:border-white/10">
-                  <div className="text-center">
-                    <div className="text-[11px] font-semibold text-blue-600">{formatMD(vendor.planned)}</div>
-                    <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Planned</div>
-                  </div>
-                  <div className="text-center border-x border-black/5 dark:border-white/10">
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-black/5 dark:border-white/10">
+                  <div className="text-center border-r border-black/5 dark:border-white/10">
                     <div className="text-[11px] font-semibold text-amber-600">+{formatMD(vendor.topup)}</div>
                     <div className="text-[9px] text-muted-foreground uppercase tracking-wide">Top-up</div>
                   </div>

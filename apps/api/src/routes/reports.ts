@@ -848,9 +848,9 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
     // Mandays per vendor
     mandaysPerVendor,
     mandaysSummary: {
-      totalPlanned: totalMandaysPlanned,
       totalUsed: totalMandaysUsed,
       totalRemaining: totalMandaysRemaining,
+      totalTopup: mandaysPerVendor.reduce((s, v) => s + v.topup, 0),
     },
     
     // Raw data for export

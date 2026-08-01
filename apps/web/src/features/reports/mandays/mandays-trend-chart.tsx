@@ -36,7 +36,7 @@ export function MandaysTrendChart({ data, isLoading, filterType }: MandaysTrendC
       case 'quarter': return 'Mandays Trend by Month (Quarter)'
       case 'year': return 'Mandays Trend by Month (Yearly)'
       case 'custom': return 'Mandays Trend (Custom Range)'
-      default: return 'Mandays Trend (Planned vs Actual)'
+      default: return 'Mandays Trend (Actual)'
     }
   }
 
@@ -81,15 +81,6 @@ export function MandaysTrendChart({ data, isLoading, filterType }: MandaysTrendC
               formatter={(value: any) => [`${value} MD`, '']}
             />
             <Legend wrapperStyle={{ fontSize: '12px' }} iconType="line" />
-            <Line
-              type="monotone"
-              dataKey="planned"
-              name="Planned Mandays"
-              stroke="#3b82f6"
-              strokeWidth={2}
-              dot={{ fill: '#3b82f6', r: 4 }}
-              activeDot={{ r: 6 }}
-            />
             <Line
               type="monotone"
               dataKey="actual"
