@@ -20,19 +20,17 @@ import { ProjectHealthTable } from './project-health-table'
 import { MandaysVendorKPI } from './mandays-vendor-kpi'
 
 export function ExecutiveOverviewPage() {
-  // Use static initial values to avoid SSR/client mismatch
+  const [mounted, setMounted] = useState(false)
   const [filterType, setFilterType] = useState<'year' | 'quarter' | 'month' | 'custom'>('month')
   const [year, setYear] = useState('2026')
   const [quarter, setQuarter] = useState('1')
-  const [month, setMonth] = useState('8')
+  const [month, setMonth] = useState('7')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [vendorId, setVendorId] = useState('')
   const [showExportMenu, setShowExportMenu] = useState(false)
-  const [mounted, setMounted] = useState(false)
 
-  // After mount, update to real current date (client only)
   useEffect(() => {
     const now = new Date()
     setYear(now.getFullYear().toString())
@@ -64,7 +62,7 @@ export function ExecutiveOverviewPage() {
     queryKey: ['executive-overview', queryParams],
     queryFn: () => apiGet<any>('/api/reports/executive-overview', queryParams),
     select: (res) => res.data,
-    enabled: mounted, // only fetch after client mount to avoid SSR mismatch
+    enabled: mounted,
   })
 
   const handleExportExcel = async () => {
@@ -94,15 +92,22 @@ export function ExecutiveOverviewPage() {
     } else if (filterType === 'quarter') {
       return `Q${quarter} ${year}`
     } else if (filterType === 'month') {
-      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
+      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
       return `${monthNames[parseInt(month) - 1]} ${year}`
     }
     return year
   }
 
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
@@ -112,7 +117,7 @@ export function ExecutiveOverviewPage() {
             High-level summary of project portfolio performance and delivery status.
           </p>
           <p className="text-xs text-muted-foreground mt-1 font-medium">
-            Custom: {getDateRangeLabel()}
+            Period: {getDateRangeLabel()}
           </p>
         </div>
         
@@ -131,7 +136,7 @@ export function ExecutiveOverviewPage() {
             className="btn-secondary flex items-center gap-2 text-sm"
           >
             <Share2 size={14} />
-            Share
+            Print
           </button>
           
           <div className="relative">
@@ -173,7 +178,6 @@ export function ExecutiveOverviewPage() {
         </div>
       </div>
 
-      {/* Filters */}
       <ReportFilters
         filterType={filterType}
         setFilterType={setFilterType}
@@ -193,48 +197,39 @@ export function ExecutiveOverviewPage() {
         setVendorId={setVendorId}
       />
 
-      {/* KPI Cards */}
       <OverviewKPICards data={reportData} isLoading={isLoading} />
 
-      {/* Mandays Used per Vendor */}
       <MandaysVendorKPI
         data={reportData?.mandaysPerVendor}
         summary={reportData?.mandaysSummary}
         isLoading={isLoading}
       />
 
-      {/* Main Charts Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Requests by Status - Pie Chart */}
         <div className="lg:col-span-1">
           <StatusChart data={reportData?.requestsByStatus} isLoading={isLoading} total={reportData?.summary?.totalRequests} />
         </div>
 
-        {/* Created vs Completed Trend - Line Chart */}
         <div className="lg:col-span-2">
           <TrendChart data={reportData?.monthlyTrend} isLoading={isLoading} filterType={filterType} />
         </div>
       </div>
 
-      {/* Projects Progress & Timeline */}
       <div className="grid lg:grid-cols-2 gap-6">
         <ProjectProgressList data={reportData?.projectProgress} isLoading={isLoading} />
         <TimelineRoadmap data={reportData?.timelineProjects} isLoading={isLoading} />
       </div>
 
-      {/* Priority & SLA */}
       <div className="grid lg:grid-cols-2 gap-6">
         <PriorityChart data={reportData?.requestsByPriority} isLoading={isLoading} />
         <SLAChart data={reportData?.slaBreakdown} isLoading={isLoading} />
       </div>
 
-      {/* Workload & Cycle Time */}
       <div className="grid lg:grid-cols-2 gap-6">
         <WorkloadChart data={reportData?.workloadByAssignee} isLoading={isLoading} />
         <CycleTimeChart data={reportData?.avgCycleTimeByStage} isLoading={isLoading} />
       </div>
 
-      {/* Recent Activity & Project Health Summary */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <RecentActivity data={reportData?.recentActivity} isLoading={isLoading} />

@@ -1,7 +1,9 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useMemo } from 'react'
 import dynamic from 'next/dynamic'
+
 const BarChart = dynamic(() => import('recharts').then(m => ({ default: m.BarChart })), { ssr: false })
 const Bar = dynamic(() => import('recharts').then(m => ({ default: m.Bar })), { ssr: false })
 const XAxis = dynamic(() => import('recharts').then(m => ({ default: m.XAxis })), { ssr: false })
@@ -23,6 +25,14 @@ const STAGE_LABELS: Record<string, string> = {
 }
 
 export function CycleTimeChart({ data, isLoading }: CycleTimeChartProps) {
+  const chartData = useMemo(() => {
+    if (!data || !Array.isArray(data)) return []
+    return data.map(item => ({
+      stage: STAGE_LABELS[item.stage] || item.stage,
+      days: item.avgDays,
+    }))
+  }, [data])
+
   if (isLoading) {
     return (
       <div className="card h-[360px] animate-pulse">
@@ -30,11 +40,6 @@ export function CycleTimeChart({ data, isLoading }: CycleTimeChartProps) {
       </div>
     )
   }
-
-  const chartData = (data || []).map(item => ({
-    stage: STAGE_LABELS[item.stage] || item.stage,
-    days: item.avgDays,
-  }))
 
   return (
     <motion.div

@@ -1,13 +1,15 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useMemo } from 'react'
 import dynamic from 'next/dynamic'
+import { TrendingUp } from 'lucide-react'
+
 const PieChart = dynamic(() => import('recharts').then(m => ({ default: m.PieChart })), { ssr: false })
 const Pie = dynamic(() => import('recharts').then(m => ({ default: m.Pie })), { ssr: false })
 const Cell = dynamic(() => import('recharts').then(m => ({ default: m.Cell })), { ssr: false })
 const ResponsiveContainer = dynamic(() => import('recharts').then(m => ({ default: m.ResponsiveContainer })), { ssr: false })
 const Tooltip = dynamic(() => import('recharts').then(m => ({ default: m.Tooltip })), { ssr: false })
-import { TrendingUp } from 'lucide-react'
 
 interface SLAChartProps {
   data: any
@@ -15,6 +17,19 @@ interface SLAChartProps {
 }
 
 export function SLAChart({ data, isLoading }: SLAChartProps) {
+  const chartData = useMemo(() => {
+    const withinSLA = data?.withinSLA || 0
+    const overSLA = data?.overSLA || 0
+    return [
+      { name: 'Within SLA', value: withinSLA, fill: '#10b981' },
+      { name: 'Over SLA', value: overSLA, fill: '#ef4444' },
+    ]
+  }, [data])
+
+  const withinSLA = data?.withinSLA || 0
+  const overSLA = data?.overSLA || 0
+  const percentage = data?.percentage || 0
+
   if (isLoading) {
     return (
       <div className="card h-[360px] animate-pulse">
@@ -22,15 +37,6 @@ export function SLAChart({ data, isLoading }: SLAChartProps) {
       </div>
     )
   }
-
-  const withinSLA = data?.withinSLA || 0
-  const overSLA = data?.overSLA || 0
-  const percentage = data?.percentage || 0
-
-  const chartData = [
-    { name: 'Within SLA', value: withinSLA, fill: '#10b981' },
-    { name: 'Over SLA', value: overSLA, fill: '#ef4444' },
-  ]
 
   return (
     <motion.div
@@ -75,14 +81,12 @@ export function SLAChart({ data, isLoading }: SLAChartProps) {
               </PieChart>
             </ResponsiveContainer>
 
-            {/* Center percentage */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-8 text-center">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-8 text-center pointer-events-none">
               <div className="text-4xl font-bold text-green-600">{percentage}%</div>
               <div className="text-xs text-muted-foreground">Within SLA</div>
             </div>
           </div>
 
-          {/* Breakdown */}
           <div className="grid grid-cols-2 gap-4 mt-4">
             <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
               <div className="flex items-center justify-center gap-1 mb-1">
@@ -101,7 +105,6 @@ export function SLAChart({ data, isLoading }: SLAChartProps) {
             </div>
           </div>
 
-          {/* Link to detailed report */}
           <div className="mt-3 text-center">
             <button className="text-xs text-primary hover:underline flex items-center gap-1 mx-auto">
               <span>View detailed report</span>

@@ -1,7 +1,9 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useMemo } from 'react'
 import dynamic from 'next/dynamic'
+
 const PieChart = dynamic(() => import('recharts').then(m => ({ default: m.PieChart })), { ssr: false })
 const Pie = dynamic(() => import('recharts').then(m => ({ default: m.Pie })), { ssr: false })
 const Cell = dynamic(() => import('recharts').then(m => ({ default: m.Cell })), { ssr: false })
@@ -14,10 +16,10 @@ interface PriorityChartProps {
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
-  critical: '#ef4444', // red
-  high: '#f59e0b', // amber
-  medium: '#3b82f6', // blue
-  low: '#6b7280', // gray
+  critical: '#ef4444',
+  high: '#f59e0b',
+  medium: '#3b82f6',
+  low: '#6b7280',
 }
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -28,6 +30,16 @@ const PRIORITY_LABELS: Record<string, string> = {
 }
 
 export function PriorityChart({ data, isLoading }: PriorityChartProps) {
+  const chartData = useMemo(() => {
+    if (!data || !Array.isArray(data)) return []
+    return data.map(item => ({
+      name: PRIORITY_LABELS[item.priority] || item.priority,
+      value: item.count,
+      percentage: item.percentage,
+      fill: PRIORITY_COLORS[item.priority] || '#6b7280',
+    }))
+  }, [data])
+
   if (isLoading) {
     return (
       <div className="card h-[360px] animate-pulse">
@@ -35,13 +47,6 @@ export function PriorityChart({ data, isLoading }: PriorityChartProps) {
       </div>
     )
   }
-
-  const chartData = (data || []).map(item => ({
-    name: PRIORITY_LABELS[item.priority] || item.priority,
-    value: item.count,
-    percentage: item.percentage,
-    fill: PRIORITY_COLORS[item.priority] || '#6b7280',
-  }))
 
   return (
     <motion.div
@@ -87,7 +92,6 @@ export function PriorityChart({ data, isLoading }: PriorityChartProps) {
             </PieChart>
           </ResponsiveContainer>
 
-          {/* List breakdown */}
           <div className="space-y-2 mt-4">
             {chartData.map((item) => (
               <div key={item.name} className="flex items-center justify-between">

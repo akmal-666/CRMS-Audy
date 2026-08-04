@@ -2,6 +2,8 @@
 
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
+import { useMemo } from 'react'
+
 const PieChart = dynamic(() => import('recharts').then(m => ({ default: m.PieChart })), { ssr: false })
 const Pie = dynamic(() => import('recharts').then(m => ({ default: m.Pie })), { ssr: false })
 const Cell = dynamic(() => import('recharts').then(m => ({ default: m.Cell })), { ssr: false })
@@ -15,14 +17,14 @@ interface StatusChartProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  in_pipeline: '#3b82f6', // blue
-  assessment: '#f59e0b', // amber
-  development: '#8b5cf6', // purple
-  uat: '#ec4899', // pink
-  deployment: '#14b8a6', // teal
-  go_live: '#10b981', // green
-  drop: '#ef4444', // red
-  on_hold: '#6b7280', // gray
+  in_pipeline: '#3b82f6',
+  assessment: '#f59e0b',
+  development: '#8b5cf6',
+  uat: '#ec4899',
+  deployment: '#14b8a6',
+  go_live: '#10b981',
+  drop: '#ef4444',
+  on_hold: '#6b7280',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -37,6 +39,16 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 export function StatusChart({ data, isLoading, total }: StatusChartProps) {
+  const chartData = useMemo(() => {
+    if (!data || !Array.isArray(data)) return []
+    return data.map(item => ({
+      name: STATUS_LABELS[item.status] || item.status,
+      value: item.count,
+      percentage: item.percentage,
+      fill: STATUS_COLORS[item.status] || '#6b7280',
+    }))
+  }, [data])
+
   if (isLoading) {
     return (
       <div className="card h-[400px] animate-pulse">
@@ -44,13 +56,6 @@ export function StatusChart({ data, isLoading, total }: StatusChartProps) {
       </div>
     )
   }
-
-  const chartData = (data || []).map(item => ({
-    name: STATUS_LABELS[item.status] || item.status,
-    value: item.count,
-    percentage: item.percentage,
-    fill: STATUS_COLORS[item.status] || '#6b7280',
-  }))
 
   return (
     <motion.div
@@ -98,14 +103,12 @@ export function StatusChart({ data, isLoading, total }: StatusChartProps) {
               </PieChart>
             </ResponsiveContainer>
             
-            {/* Center text */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
               <div className="text-3xl font-bold text-foreground">{total || 0}</div>
               <div className="text-xs text-muted-foreground">Total</div>
             </div>
           </div>
 
-          {/* Legend */}
           <div className="grid grid-cols-2 gap-2 mt-4">
             {chartData.map((item) => (
               <div key={item.name} className="flex items-center gap-2">

@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
+
 const LineChart = dynamic(() => import('recharts').then(m => ({ default: m.LineChart })), { ssr: false })
 const Line = dynamic(() => import('recharts').then(m => ({ default: m.Line })), { ssr: false })
 const XAxis = dynamic(() => import('recharts').then(m => ({ default: m.XAxis })), { ssr: false })
@@ -23,29 +24,16 @@ type ViewMode = 'monthly' | 'quarterly' | 'yearly'
 export function TrendChart({ data, isLoading, filterType }: TrendChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('monthly')
 
-  if (isLoading) {
-    return (
-      <div className="card h-[400px] animate-pulse">
-        <div className="h-full bg-muted rounded" />
-      </div>
-    )
-  }
-
-  // Transform data based on filter type - if Month selected, show weeks
   const aggregatedData = useMemo(() => {
     if (!data || data.length === 0) return []
     
-    // If filter is "month", transform to show weeks
     if (filterType === 'month') {
-      // For month filter, create 4 weeks of data
       const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4']
-      
-      // Distribute data across weeks
       const totalCreated = data.reduce((sum, item) => sum + (item.created || 0), 0)
       const totalCompleted = data.reduce((sum, item) => sum + (item.completed || 0), 0)
       
-      return weeks.map((week, index) => ({
-        month: week,
+      return weeks.map(() => ({
+        month: `Week ${Math.floor(Math.random() * 4) + 1}`,
         created: Math.floor(totalCreated / 4),
         completed: Math.floor(totalCompleted / 4),
       }))
@@ -53,6 +41,14 @@ export function TrendChart({ data, isLoading, filterType }: TrendChartProps) {
     
     return data
   }, [data, filterType])
+
+  if (isLoading) {
+    return (
+      <div className="card h-[400px] animate-pulse">
+        <div className="h-full bg-muted rounded" />
+      </div>
+    )
+  }
 
   return (
     <motion.div
@@ -85,7 +81,6 @@ export function TrendChart({ data, isLoading, filterType }: TrendChartProps) {
               dataKey="month"
               tick={{ fontSize: 12, fill: '#6b7280' }}
               stroke="#9ca3af"
-              label={filterType === 'month' ? { value: 'Week', position: 'insideBottom', offset: -5, fontSize: 11 } : undefined}
             />
             <YAxis
               tick={{ fontSize: 12, fill: '#6b7280' }}
