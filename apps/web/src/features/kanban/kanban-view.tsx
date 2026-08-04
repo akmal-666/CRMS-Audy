@@ -45,6 +45,7 @@ interface WorkItem {
   department?: { id: string; name: string }
   dueDate?: string
   manager?: { id: string; name: string; avatarUrl?: string }
+  businessAnalyst?: { id: string; name: string; avatarUrl?: string }
   developer?: { id: string; name: string; avatarUrl?: string }
   vendor?: { id: string; name: string }
   createdAt: string
@@ -55,9 +56,11 @@ export function KanbanView() {
   const [search, setSearch] = useState('')
   const [activeId, setActiveId] = useState<string | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [filterMyProjects, setFilterMyProjects] = useState(false)
   const queryClient = useQueryClient()
   const { user } = useAuth()
   const isReadOnly = user?.role === 'business_user'
+  const isBusinessAnalyst = user?.role === 'business_analyst'
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -69,7 +72,19 @@ export function KanbanView() {
     select: (res) => res.data ?? [],
   })
 
-  const workItems: WorkItem[] = useMemo(() => (data as unknown as WorkItem[]) ?? [], [data])
+  const workItems: WorkItem[] = useMemo(() => {
+    let items = (data as unknown as WorkItem[]) ?? []
+    
+    // Filter BA's assigned projects if enabled
+    if (filterMyProjects && isBusinessAnalyst && user) {
+      items = items.filter(item => 
+        item.businessAnalyst?.id === user.sub ||
+        item.manager?.id === user.sub
+      )
+    }
+    
+    return items
+  }, [data, filterMyProjects, isBusinessAnalyst, user])
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
@@ -140,6 +155,21 @@ export function KanbanView() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            {/* BA Filter */}
+            {isBusinessAnalyst && (
+              <button
+                onClick={() => setFilterMyProjects(!filterMyProjects)}
+                className={cn(
+                  "px-3 py-1.5 text-xs rounded-lg border transition-colors",
+                  filterMyProjects
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-border hover:bg-muted"
+                )}
+              >
+                {filterMyProjects ? '✓ My Projects' : 'All Projects'}
+              </button>
+            )}
+            
             <div className="relative hidden sm:block">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input

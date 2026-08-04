@@ -121,12 +121,15 @@ export function KanbanGroupedColumn({ status, items, isLoading, onCardClick, isR
         </div>
       </div>
 
-      {/* Drop zone with grouped items */}
+      {/* Drop zone with grouped items and scroll */}
       <div
         ref={setNodeRef}
         className={cn(
-          'flex flex-col gap-2.5 min-h-[200px] rounded-xl p-2 transition-all duration-200',
-          isOver ? 'bg-primary/5 border-2 border-dashed border-primary/30' : 'bg-muted/30'
+          'flex flex-col gap-2.5 rounded-xl p-3 transition-all duration-200',
+          'bg-gray-50/80 dark:bg-gray-900/30',
+          'max-h-[calc(100vh-200px)] overflow-y-auto',
+          'scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent',
+          isOver ? 'ring-2 ring-primary/30 ring-inset' : ''
         )}
       >
         {isLoading ? (
