@@ -23,6 +23,8 @@ import notificationRoutes from './routes/notifications'
 import reportRoutes from './routes/reports'
 import timelineRoutes from './routes/timeline'
 import migrationRoutes from './routes/migration'
+import workItemDepartmentsRoutes from './routes/work-item-departments'
+import mandaysNegotiationsRoutes from './routes/mandays-negotiations'
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
@@ -56,6 +58,7 @@ app.route('/api/auth', authRoutes)
 app.route('/api/work-items', workItemRoutes)
 app.route('/api/work-items', commentRoutes)
 app.route('/api/work-items', attachmentRoutes)
+app.route('/api/work-items', workItemDepartmentsRoutes)
 app.route('/api/dashboard', dashboardRoutes)
 app.route('/api/users', userRoutes)
 app.route('/api/master', masterDataRoutes)
@@ -63,6 +66,7 @@ app.route('/api/notifications', notificationRoutes)
 app.route('/api/reports', reportRoutes)
 app.route('/api/timeline', timelineRoutes)
 app.route('/api/migration', migrationRoutes)
+app.route('/api/negotiations', mandaysNegotiationsRoutes)
 
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }))
