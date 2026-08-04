@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { apiGet } from '@/lib/api'
-import { exportToExcel, exportToCSV, exportToPDF } from '@/lib/export-utils'
 import { Download, Share2, RefreshCw } from 'lucide-react'
 import { ReportFilters } from '../report-filters'
 import { OverviewKPICards } from './overview-kpi-cards'
@@ -68,20 +67,23 @@ export function ExecutiveOverviewPage() {
     enabled: mounted, // only fetch after client mount to avoid SSR mismatch
   })
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!reportData) return
+    const { exportToExcel } = await import('@/lib/export-utils')
     exportToExcel(reportData, `executive-overview-${new Date().toISOString().split('T')[0]}`)
     setShowExportMenu(false)
   }
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (!reportData?._exportData?.items) return
+    const { exportToCSV } = await import('@/lib/export-utils')
     exportToCSV(reportData._exportData.items, `executive-overview-${new Date().toISOString().split('T')[0]}`)
     setShowExportMenu(false)
   }
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!reportData) return
+    const { exportToPDF } = await import('@/lib/export-utils')
     exportToPDF(reportData, 'Executive Overview Report', queryParams)
     setShowExportMenu(false)
   }
