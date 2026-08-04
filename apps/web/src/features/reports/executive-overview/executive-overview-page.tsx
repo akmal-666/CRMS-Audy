@@ -55,6 +55,7 @@ export function ExecutiveOverviewPage() {
     } else {
       params.year = year
     }
+    
     return params
   }, [filterType, year, quarter, month, startDate, endDate, departmentId, vendorId])
 
@@ -63,15 +64,15 @@ export function ExecutiveOverviewPage() {
     queryFn: () => apiGet<any>('/api/reports/executive-overview', queryParams),
     select: (res) => res.data,
     enabled: mounted,
+    staleTime: 0, // Always refetch when params change
   })
 
-  // Debug: log data when it changes
+  // Debug: log query params when they change
   useEffect(() => {
-    if (reportData) {
-      console.log('📊 Executive Overview Data:', reportData)
-      console.log('📈 Status Data:', reportData.requestsByStatus)
+    if (mounted) {
+      console.log('🔍 Query Params Changed:', queryParams)
     }
-  }, [reportData])
+  }, [queryParams, mounted])
 
   const handleExportExcel = async () => {
     if (!reportData) return
