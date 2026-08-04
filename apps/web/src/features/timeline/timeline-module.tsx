@@ -1156,10 +1156,11 @@ export function TimelineModule() {
       // Also fetch all work items (for items with no tasks)
       const wiRes = await apiGet<any>('/api/work-items?pageSize=500')
       const workItems: WorkItem[] = (wiRes as any).data?.items ?? (wiRes as any).data ?? []
+      // Show all active work items (not go_live or drop) - even without timeline tasks
       const grouped = workItems.map(wi => ({
         ...wi,
         tasks: allTasks.filter(t => t.workItemId === wi.id).sort((a, b) => a.sortOrder - b.sortOrder),
-      })).filter(wi => wi.tasks.length > 0 || expandedGroups.has(wi.id))
+      })).filter(wi => wi.status !== 'go_live' && wi.status !== 'drop')
       return { workItems: grouped }
     },
     staleTime: 30_000,
