@@ -518,23 +518,18 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
     },
   })
 
-  // Filter items: include active projects OR projects in selected period
+  // Filter items: STRICTLY by selected period (createdAt only)
   const items = allItems.filter(item => {
-    // Selalu tampilkan project yang masih aktif (belum selesai)
-    const isActive = !['go_live', 'drop'].includes(item.status)
-    if (isActive) return true
-
-    // Untuk project yang sudah selesai, cek apakah dalam periode
+    // Skip dropped items
+    if (item.status === 'drop') return false
+    
+    // If period filter exists, filter by created date
     if (periodStart && periodEnd) {
       const createdAt = new Date(item.createdAt)
-      const completedAt = item.goLiveDate ? new Date(item.goLiveDate) : null
-      
-      // Include jika dibuat atau selesai dalam periode
-      return (createdAt >= periodStart && createdAt <= periodEnd) ||
-             (completedAt && completedAt >= periodStart && completedAt <= periodEnd)
+      return createdAt >= periodStart && createdAt <= periodEnd
     }
 
-    // Jika tidak ada filter periode, tampilkan semua
+    // Jika tidak ada filter periode, tampilkan semua kecuali drop
     return true
   })
 
