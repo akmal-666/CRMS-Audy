@@ -60,11 +60,12 @@ export function ExecutiveOverviewPage() {
   }, [filterType, year, quarter, month, startDate, endDate, departmentId, vendorId])
 
   const { data: reportData, isLoading, refetch } = useQuery({
-    queryKey: ['executive-overview', queryParams],
+    queryKey: ['executive-overview', JSON.stringify(queryParams)], // Stringify untuk ensure unique key
     queryFn: () => apiGet<any>('/api/reports/executive-overview', queryParams),
     select: (res) => res.data,
     enabled: mounted,
     staleTime: 0, // Always refetch when params change
+    cacheTime: 0, // Don't cache results
   })
 
   // Debug: log query params when they change
