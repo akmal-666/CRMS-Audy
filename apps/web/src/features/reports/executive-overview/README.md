@@ -1,105 +1,128 @@
-# Executive Overview Report Module
+# Executive Overview Report
 
 ## Overview
-Sub modul Executive Overview menyediakan dashboard komprehensif untuk melihat performa portfolio project dan status delivery secara high-level.
+Comprehensive executive dashboard providing high-level insights into project portfolio performance, delivery metrics, and resource utilization.
 
-## Fitur Utama
+## Features
 
-### 1. **KPI Cards (6 Metrics)**
-- Total Requests - Total permintaan dalam periode
-- Active Projects - Project yang sedang berjalan
-- Completed - Project yang sudah selesai
-- Delayed - Project yang terlambat
-- Avg Cycle Time - Rata-rata waktu penyelesaian
-- SLA Achievement - Persentase pencapaian SLA
+### 📊 Key Performance Indicators (KPIs)
+- **Total Requests** - Total number of change requests
+- **Active Projects** - Currently in-progress projects
+- **Completed** - Successfully delivered projects
+- **Delayed** - Projects behind schedule
+- **Avg Cycle Time** - Average time from assessment to go-live
+- **SLA Achievement** - Percentage of projects meeting SLA targets
 
-### 2. **Visualisasi Data**
+### 💰 Mandays & Vendor KPIs
+- Real-time mandays utilization per vendor/platform
+- Visual progress bars with color-coded alerts
+- Remaining mandays tracking
+- Top-up visibility
+- Multi-CR aggregation per vendor
+
+### 📈 Charts & Analytics
 
 #### Requests by Status (Pie Chart)
-- Menampilkan distribusi request berdasarkan status
-- Status: In Pipeline, Assessment, Development, UAT, Deployment, Completed, Cancelled, On Hold
+- Visual breakdown by project stage
+- Percentage distribution
+- Interactive tooltips
 
 #### Created vs Completed Trend (Line Chart)
-- Trend bulanan request yang dibuat vs diselesaikan
-- Menampilkan data 6 bulan terakhir
+- Monthly/Quarterly/Yearly trends
+- Comparison of intake vs delivery rate
+- Helps identify bottlenecks
 
-#### Project Progress (Top 5)
-- Daftar 5 project dengan progress tertinggi
-- Progress bar dengan warna berdasarkan status
+#### Project Progress List
+- Top 5 active projects
+- Progress bars with stage indicators
+- Quick access to project details
 
 #### Timeline / Roadmap Overview
-- Timeline project yang sedang berjalan
-- Indikator: On Track, At Risk, Milestone
-- Menampilkan tanggal mulai dan target selesai
+- Upcoming milestones
+- Project timelines with risk indicators
+- Visual roadmap for planning
 
-#### Requests by Priority (Pie Chart)
-- Distribusi request berdasarkan prioritas
-- Priority: Critical, High, Medium, Low
+#### Requests by Priority
+- Critical/High/Medium/Low breakdown
+- Helps prioritize resource allocation
 
-#### SLA Achievement (Donut Chart)
-- Persentase Within SLA vs Over SLA
-- Breakdown jumlah detail
+#### SLA Achievement
+- On-time vs Overdue projects
+- Percentage achievement rate
+- Detailed breakdown
 
-#### Workload by Assignee (Top 5)
-- Workload 5 developer teratas
-- Kolom: Assigned, Completed, Remaining, Utilization
+#### Workload by Assignee
+- Top 5 team members by workload
+- Assigned/Completed/Remaining counts
+- Utilization percentage with visual indicators
 
-#### Average Cycle Time by Stage (Bar Chart)
-- Rata-rata waktu per tahap: Assessment, Development, UAT, Deployment
+#### Average Cycle Time by Stage
+- Time spent in each stage
+- Identify process improvements
+- Benchmark against standards
 
-#### Recent Activity (Timeline)
-- 10 aktivitas terakhir dengan timestamp
-- Menampilkan action dan user yang melakukan
+#### Recent Activity Feed
+- Latest project updates
+- Status changes, comments, assignments
+- Real-time collaboration visibility
 
-#### Projects Health Summary (Table)
-- Tabel lengkap status kesehatan project
-- Kolom: Project, Progress, Status, Health, Priority, Issues, Avg Cycle Time, SLA
+#### Projects Health Summary Table
+- Comprehensive project health dashboard
+- Progress tracking
+- Risk indicators
+- Issue counts (open/in-progress/done)
+- SLA status
 
-## Filter
+## Technical Implementation
 
-### Filter Periode
-- **Year**: Filter per tahun
-- **Quarter**: Filter per kuartal (Q1-Q4)
-- **Month**: Filter per bulan
-- **Custom**: Range tanggal custom
+### Architecture
+- **Client-side rendering** with React Query for data fetching
+- **Dynamic imports** for all Recharts components to avoid SSR issues
+- **Optimistic UI** with loading states and skeletons
+- **Responsive design** with Tailwind CSS
 
-### Filter Tambahan
-- **Department**: Filter berdasarkan departemen
-- **Vendor/Platform**: Filter berdasarkan vendor
+### SSR Compatibility (Cloudflare Pages Edge)
+All chart components use proper SSR handling:
 
-## Export Features
-
-### 1. Export to Excel
-- Export data lengkap dalam format CSV (kompatibel Excel)
-- Mencakup semua data raw dari report
-
-### 2. Export to CSV
-- Export data detail dalam format CSV
-- Field: ticketNumber, title, status, priority, department, vendor, dates
-
-### 3. Export to PDF
-- Generate PDF printable
-- Mencakup KPI summary dan tabel breakdown
-- Otomatis membuka print dialog
-
-## API Endpoint
-
-### GET `/api/reports/executive-overview`
-
-**Query Parameters:**
 ```typescript
-{
-  startDate?: string       // Format: YYYY-MM-DD
-  endDate?: string         // Format: YYYY-MM-DD
-  departmentId?: string
-  vendorId?: string
-  year?: string           // Format: YYYY
-  quarter?: string        // 1-4
-  month?: string          // 1-12
-}
+// ✅ Correct pattern used throughout
+const PieChart = dynamic(() => import('recharts').then(m => ({ default: m.PieChart })), { ssr: false })
+const Pie = dynamic(() => import('recharts').then(m => ({ default: m.Pie })), { ssr: false })
 ```
 
-**Response:**
+**Key fixes applied:**
+- ✅ All Recharts components dynamically imported with `ssr: false`
+- ✅ `useMemo` for data transformations to prevent unnecessary re-renders
+- ✅ Mounted state check to avoid hydration mismatches
+- ✅ Lazy-loaded export utilities to prevent browser API calls on server
+- ✅ Separated layout (server) from guard logic (client)
+
+### Data Flow
+1. User applies filters (year/quarter/month/custom date range)
+2. Query params constructed via `useMemo`
+3. React Query fetches data from `/api/reports/executive-overview`
+4. Components render with loading states
+5. Data displayed in charts and tables
+6. Export functions available for Excel/CSV/PDF
+
+### Export Functionality
+- **Excel/CSV**: Raw data export for further analysis
+- **PDF**: Formatted print-ready report
+- All export functions lazy-loaded to avoid SSR issues
+
+## API Endpoint
+`GET /api/reports/executive-overview`
+
+### Query Parameters
+- `year` - Filter by year (e.g., 2026)
+- `quarter` - Filter by quarter (1-4)
+- `month` - Filter by month (1-12)
+- `startDate` - Custom start date (YYYY-MM-DD)
+- `endDate` - Custom end date (YYYY-MM-DD)
+- `departmentId` - Filter by department
+- `vendorId` - Filter by vendor
+
+### Response Structure
 ```typescript
 {
   summary: {
@@ -109,60 +132,102 @@ Sub modul Executive Overview menyediakan dashboard komprehensif untuk melihat pe
     delayed: number
     avgCycleTimeDays: number
     slaAchievement: number
-  }
-  requestsByStatus: Array<{ status, count, percentage }>
-  requestsByPriority: Array<{ priority, count, percentage }>
-  monthlyTrend: Array<{ month, created, completed }>
-  projectProgress: Array<{ name, ticketNumber, progress, status }>
-  timelineProjects: Array<{ name, ticketNumber, startDate, endDate, status, isAtRisk, isDelayed, milestone }>
-  slaBreakdown: { withinSLA, overSLA, percentage }
-  workloadByAssignee: Array<{ name, assigned, completed, remaining, utilization }>
-  avgCycleTimeByStage: Array<{ stage, avgDays }>
-  recentActivity: Array<{ ticketNumber, action, description, createdAt, userName }>
-  projectsHealth: Array<{ name, ticketNumber, progress, status, health, priority, openIssues, inProgressIssues, doneIssues, avgCycleTime, sla }>
-  _exportData: { items: Array<...> }
+  },
+  mandaysPerVendor: Array<{
+    vendorId: string
+    vendorName: string
+    used: number
+    total: number
+    remaining: number
+    utilizationPercent: number
+    projectCount: number
+  }>,
+  requestsByStatus: Array<{ status: string, count: number, percentage: number }>,
+  monthlyTrend: Array<{ month: string, created: number, completed: number }>,
+  projectProgress: Array<{ name: string, ticketNumber: string, progress: number, status: string }>,
+  // ... more data structures
 }
 ```
 
-## Komponen
+## Performance Optimizations
+- React Query caching with smart invalidation
+- Component memoization with `useMemo`
+- Virtualized lists for large datasets (via overflow-auto)
+- Lazy loading for export utilities
+- Debounced filter changes
 
-### Main Components
-- `executive-overview-page.tsx` - Halaman utama
-- `overview-kpi-cards.tsx` - KPI Cards
-- `status-chart.tsx` - Pie chart status
-- `trend-chart.tsx` - Line chart trend
-- `project-progress-list.tsx` - Daftar progress project
-- `timeline-roadmap.tsx` - Timeline roadmap
-- `priority-chart.tsx` - Pie chart priority
-- `sla-chart.tsx` - Donut chart SLA
-- `workload-chart.tsx` - Tabel workload
-- `cycle-time-chart.tsx` - Bar chart cycle time
-- `recent-activity.tsx` - Timeline aktivitas
-- `project-health-table.tsx` - Tabel health summary
+## Access Control
+Protected by `ReportsGuard` component - only accessible to:
+- **Administrator**
+- **Manager**
+- **Business Analyst**
 
-### Shared Components
-- `report-filters.tsx` - Filter component (shared)
+Unauthorized users redirected to dashboard.
 
-## Route
-- `/reports/executive-overview`
+## Known Issues & Resolutions
 
-## Akses
-Role yang dapat mengakses:
-- Administrator
-- Manager
-- Business Analyst
+### ❌ React Error #300 (RESOLVED)
+**Issue**: "Minified React error #300" on Cloudflare Pages deployment
 
-## Tech Stack
-- **React Query** - Data fetching & caching
-- **Recharts** - Chart library
-- **Framer Motion** - Animations
-- **date-fns** - Date formatting
-- **Tailwind CSS** - Styling
+**Root Causes:**
+1. Recharts components causing SSR hydration mismatches
+2. Browser APIs (`window`, `document`) called during SSR
+3. Layout file using `'use client'` directive incompatible with edge runtime
+
+**Solutions Applied:**
+- All chart components rebuilt with proper dynamic imports
+- Export utilities lazy-loaded with `typeof window` guards
+- Layout/Guard separation (server component imports client component)
+- Mounted state check before rendering client-only content
+
+**Status**: ✅ **FIXED** - Deployed successfully on Cloudflare Pages
 
 ## Future Enhancements
-- [ ] Drill-down capability per chart
-- [ ] Comparison dengan periode sebelumnya
-- [ ] Export to PowerPoint
-- [ ] Real-time updates dengan WebSocket
-- [ ] Customizable dashboard widgets
+- [ ] Add drill-down capability to charts
+- [ ] Real-time updates via WebSocket
+- [ ] Custom report builder
 - [ ] Scheduled email reports
+- [ ] Comparison with previous periods
+- [ ] Predictive analytics for forecasting
+- [ ] Export templates customization
+
+## Dependencies
+- `recharts` - Chart library
+- `@tanstack/react-query` - Data fetching
+- `framer-motion` - Animations
+- `lucide-react` - Icons
+- `next` - Framework with dynamic imports
+
+## Files Structure
+```
+executive-overview/
+├── executive-overview-page.tsx      # Main container
+├── overview-kpi-cards.tsx           # KPI summary cards
+├── status-chart.tsx                 # Pie chart for status
+├── trend-chart.tsx                  # Line chart for trends
+├── priority-chart.tsx               # Pie chart for priority
+├── sla-chart.tsx                    # SLA achievement chart
+├── workload-chart.tsx               # Assignee workload
+├── cycle-time-chart.tsx             # Bar chart for cycle time
+├── project-progress-list.tsx        # Progress list
+├── timeline-roadmap.tsx             # Timeline view
+├── recent-activity.tsx              # Activity feed
+├── project-health-table.tsx         # Health summary table
+├── mandays-vendor-kpi.tsx           # Mandays tracking
+└── README.md                        # This file
+```
+
+## Usage Example
+```tsx
+import { ExecutiveOverviewPage } from '@/features/reports/executive-overview'
+
+export default function ExecutiveOverviewRoute() {
+  return <ExecutiveOverviewPage />
+}
+```
+
+---
+
+**Last Updated**: January 2026  
+**Status**: ✅ Production Ready  
+**Deployment**: Cloudflare Pages Compatible
