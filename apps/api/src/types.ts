@@ -29,6 +29,7 @@ export interface JwtPayload {
   email: string
   name: string
   role: UserRole
+  departmentId: string | null
   sessionId: string
   iat: number
   exp: number

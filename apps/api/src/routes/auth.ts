@@ -49,7 +49,7 @@ app.post('/login', zValidator('json', loginSchema), async (c) => {
   })
 
   const token = await signJwt(
-    { sub: user.id, email: user.email, name: user.name, role: user.role as any, sessionId },
+    { sub: user.id, email: user.email, name: user.name, role: user.role as any, departmentId: user.departmentId, sessionId },
     c.env.JWT_SECRET
   )
 
