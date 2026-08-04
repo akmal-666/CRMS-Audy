@@ -9,6 +9,7 @@ import { authMiddleware } from '../middleware/auth'
 import { requireRole } from '../middleware/rbac'
 import { UserRole } from '@crms/types'
 import { generateId } from '../lib/id'
+import { calculateBusinessDays } from '../lib/business-days'
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
@@ -545,18 +546,18 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
     return new Date(i.dueDate) < new Date()
   })
 
-  // Calculate metrics with proper handling
+  // Calculate metrics with proper handling (business days only)
   const avgCycleTime = completedItems.length > 0
     ? completedItems.reduce((acc, item) => {
         if (!item.goLiveDate) return acc
-        const days = Math.floor((new Date(item.goLiveDate).getTime() - new Date(item.createdAt).getTime()) / (1000 * 60 * 60 * 24))
-        return acc + Math.max(0, days) // Ensure non-negative
+        const businessDays = calculateBusinessDays(new Date(item.createdAt), new Date(item.goLiveDate))
+        return acc + Math.max(0, businessDays) // Ensure non-negative
       }, 0) / completedItems.length
     : 0
 
-  // SLA Achievement
+  // SLA Achievement (business days)
   const slaItems = completedItems.map(item => {
-    const cycleTime = Math.floor((new Date(item.goLiveDate!).getTime() - new Date(item.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+    const cycleTime = calculateBusinessDays(new Date(item.createdAt), new Date(item.goLiveDate!))
     const slaTarget = item.priority === 'critical' ? 15 : item.priority === 'high' ? 30 : 60
     return cycleTime <= slaTarget
   })
@@ -686,7 +687,7 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
     .sort((a, b) => b.assigned - a.assigned)
     .slice(0, 5)
 
-  // Average cycle time by stage
+  // Average cycle time by stage (business days)
   const stageMap = new Map<string, number[]>()
   
   completedItems.forEach(item => {
@@ -702,9 +703,9 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
         : logs.find(log => log.description?.includes(`Status changed`) && log.description?.includes('go_live'))
       
       if (stageStart && stageEnd) {
-        const days = Math.floor((new Date(stageEnd.createdAt).getTime() - new Date(stageStart.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+        const businessDays = calculateBusinessDays(new Date(stageStart.createdAt), new Date(stageEnd.createdAt))
         if (!stageMap.has(stage)) stageMap.set(stage, [])
-        stageMap.get(stage)!.push(days)
+        stageMap.get(stage)!.push(businessDays)
       }
     })
   })
@@ -751,7 +752,7 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
       else if (item.status === 'uat') statusProgress = 75
       else if (item.status === 'deployment') statusProgress = 90
       
-      const cycleTimeDays = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
+      const cycleTimeDays = calculateBusinessDays(created, now)
       const slaTarget = item.priority === 'critical' ? 15 : item.priority === 'high' ? 30 : 60
       
       const issuesInProgress = item.status === 'development' || item.status === 'uat' ? 1 : 0
