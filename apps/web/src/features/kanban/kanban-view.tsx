@@ -66,28 +66,32 @@ export function KanbanView() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
 
-  const { data, isLoading } = useQuery({
+  const { data: rawData, isLoading } = useQuery({
     queryKey: ['work-items', 'kanban', search],
     queryFn: () => apiGet<WorkItem[]>('/api/work-items', { search: search || undefined, pageSize: 500 }),
-    select: (res) => res.data ?? [],
   })
 
   const workItems: WorkItem[] = useMemo(() => {
-    let items = (data as unknown as WorkItem[]) ?? []
+    // Extract data array from API response
+    console.log('🔍 Raw API Response:', rawData)
+    const items = (rawData?.data ?? []) as WorkItem[]
+    console.log('🔍 Extracted items count:', items.length)
     
     // Debug: log sample item structure
     if (items.length > 0) {
-      console.log('📋 Sample Work Item:', items[0])
+      console.log('📋 Sample Work Item:', JSON.stringify(items[0], null, 2))
       console.log('🔍 Has businessAnalyst?', !!items[0].businessAnalyst)
+      console.log('🔍 businessAnalyst:', items[0].businessAnalyst)
     }
     
     // Filter BA's assigned projects if enabled
     if (filterMyProjects && isBusinessAnalyst && user) {
       console.log('🎯 Filtering for BA:', user.sub)
+      console.log('🎯 User object:', user)
       const filtered = items.filter(item => {
         const matchBA = item.businessAnalyst?.id === user.sub
         const matchManager = item.manager?.id === user.sub
-        console.log(`  ${item.ticketNumber}: BA=${matchBA}, Manager=${matchManager}`)
+        console.log(`  ${item.ticketNumber}: BA match=${matchBA} (BA.id="${item.businessAnalyst?.id}" vs user.sub="${user.sub}"), Manager match=${matchManager}`)
         return matchBA || matchManager
       })
       console.log(`✅ Filtered: ${filtered.length}/${items.length} items`)
@@ -95,7 +99,7 @@ export function KanbanView() {
     }
     
     return items
-  }, [data, filterMyProjects, isBusinessAnalyst, user])
+  }, [rawData, filterMyProjects, isBusinessAnalyst, user])
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
