@@ -73,28 +73,44 @@ export function KanbanView() {
 
   const workItems: WorkItem[] = useMemo(() => {
     // Extract data array from API response
-    console.log('🔍 Raw API Response:', rawData)
     const items = (rawData?.data ?? []) as WorkItem[]
-    console.log('🔍 Extracted items count:', items.length)
     
-    // Debug: log sample item structure
-    if (items.length > 0) {
-      console.log('📋 Sample Work Item:', JSON.stringify(items[0], null, 2))
-      console.log('🔍 Has businessAnalyst?', !!items[0].businessAnalyst)
-      console.log('🔍 businessAnalyst:', items[0].businessAnalyst)
+    // Debug: log sample items
+    if (items.length > 0 && filterMyProjects) {
+      console.log('==================== KANBAN FILTER DEBUG ====================')
+      console.log('📊 Total items from API:', items.length)
+      console.log('👤 Current user:', { sub: user?.sub, role: user?.role, email: user?.email })
+      console.log('🔍 Sample items (first 3):')
+      items.slice(0, 3).forEach((item, idx) => {
+        console.log(`  [${idx + 1}] ${item.ticketNumber}:`)
+        console.log(`      businessAnalyst:`, item.businessAnalyst)
+        console.log(`      manager:`, item.manager)
+      })
     }
     
     // Filter BA's assigned projects if enabled
     if (filterMyProjects && isBusinessAnalyst && user) {
-      console.log('🎯 Filtering for BA:', user.sub)
-      console.log('🎯 User object:', user)
+      console.log('🎯 FILTERING ENABLED for user.sub:', user.sub)
+      
+      let matchCount = 0
       const filtered = items.filter(item => {
-        const matchBA = item.businessAnalyst?.id === user.sub
-        const matchManager = item.manager?.id === user.sub
-        console.log(`  ${item.ticketNumber}: BA match=${matchBA} (BA.id="${item.businessAnalyst?.id}" vs user.sub="${user.sub}"), Manager match=${matchManager}`)
-        return matchBA || matchManager
+        const baId = item.businessAnalyst?.id
+        const managerId = item.manager?.id
+        const matchBA = baId === user.sub
+        const matchManager = managerId === user.sub
+        const matched = matchBA || matchManager
+        
+        if (matched) {
+          matchCount++
+          console.log(`✅ MATCH #${matchCount}: ${item.ticketNumber}`, { baId, managerId, userSub: user.sub })
+        }
+        
+        return matched
       })
-      console.log(`✅ Filtered: ${filtered.length}/${items.length} items`)
+      
+      console.log(`📊 FILTER RESULT: ${filtered.length}/${items.length} items matched`)
+      console.log('===========================================================')
+      
       return filtered
     }
     
