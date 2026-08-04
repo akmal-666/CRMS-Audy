@@ -54,14 +54,14 @@ export function TrendChart({ data, isLoading, filterType }: TrendChartProps) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="card h-[400px]"
+      className="card h-auto sm:h-[400px]"
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-foreground">Created vs Completed Trend</h3>
         <select 
           value={viewMode}
           onChange={(e) => setViewMode(e.target.value as ViewMode)}
-          className="text-xs border border-border rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          className="text-[11px] sm:text-xs border border-border rounded px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="monthly">Monthly</option>
           <option value="quarterly">Quarterly</option>
@@ -70,11 +70,58 @@ export function TrendChart({ data, isLoading, filterType }: TrendChartProps) {
       </div>
       
       {!aggregatedData || aggregatedData.length === 0 ? (
-        <div className="flex items-center justify-center h-[320px] text-muted-foreground text-sm">
+        <div className="flex items-center justify-center h-[250px] sm:h-[320px] text-muted-foreground text-sm">
           No data available
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={320}>
+        <ResponsiveContainer width="100%" height={280} className="sm:hidden">
+          <LineChart data={aggregatedData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis
+              dataKey="month"
+              tick={{ fontSize: 10, fill: '#6b7280' }}
+              stroke="#9ca3af"
+            />
+            <YAxis
+              tick={{ fontSize: 10, fill: '#6b7280' }}
+              stroke="#9ca3af"
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                fontSize: '11px',
+              }}
+            />
+            <Legend
+              wrapperStyle={{ fontSize: '11px' }}
+              iconType="line"
+            />
+            <Line
+              type="monotone"
+              dataKey="created"
+              name="Created"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              dot={{ fill: '#3b82f6', r: 3 }}
+              activeDot={{ r: 5 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="completed"
+              name="Completed"
+              stroke="#10b981"
+              strokeWidth={2}
+              dot={{ fill: '#10b981', r: 3 }}
+              activeDot={{ r: 5 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+      
+      {aggregatedData && aggregatedData.length > 0 && (
+        <ResponsiveContainer width="100%" height={320} className="hidden sm:block">
           <LineChart data={aggregatedData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis

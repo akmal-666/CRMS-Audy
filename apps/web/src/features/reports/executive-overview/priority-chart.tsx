@@ -52,17 +52,47 @@ export function PriorityChart({ data, isLoading }: PriorityChartProps) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="card h-[360px]"
+      className="card h-auto sm:h-[360px]"
     >
       <h3 className="text-sm font-semibold text-foreground mb-4">Requests by Priority</h3>
       
       {chartData.length === 0 ? (
-        <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm">
+        <div className="flex items-center justify-center h-[200px] sm:h-[280px] text-muted-foreground text-sm">
           No data available
         </div>
       ) : (
         <>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={200} className="sm:hidden">
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={40}
+                outerRadius={70}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                }}
+                formatter={(value: any, name: any, props: any) => [
+                  `${value} (${props.payload.percentage}%)`,
+                  name,
+                ]}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+
+          <ResponsiveContainer width="100%" height={220} className="hidden sm:block">
             <PieChart>
               <Pie
                 data={chartData}
@@ -92,7 +122,7 @@ export function PriorityChart({ data, isLoading }: PriorityChartProps) {
             </PieChart>
           </ResponsiveContainer>
 
-          <div className="space-y-2 mt-4">
+          <div className="space-y-1.5 sm:space-y-2 mt-3 sm:mt-4">
             {chartData.map((item) => (
               <div key={item.name} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -100,11 +130,11 @@ export function PriorityChart({ data, isLoading }: PriorityChartProps) {
                     className="w-3 h-3 rounded-full flex-shrink-0"
                     style={{ backgroundColor: item.fill }}
                   />
-                  <span className="text-xs text-muted-foreground">{item.name}</span>
+                  <span className="text-[11px] sm:text-xs text-muted-foreground">{item.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-foreground">{item.value}</span>
-                  <span className="text-xs text-muted-foreground">({item.percentage}%)</span>
+                  <span className="text-[11px] sm:text-xs text-muted-foreground">({item.percentage}%)</span>
                 </div>
               </div>
             ))}

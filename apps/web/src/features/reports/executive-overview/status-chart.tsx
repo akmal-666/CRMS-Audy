@@ -78,18 +78,49 @@ export function StatusChart({ data, isLoading, total }: StatusChartProps) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="card h-[400px]"
+      className="card h-auto sm:h-[400px]"
     >
       <h3 className="text-sm font-semibold text-foreground mb-4">Requests by Status</h3>
       
       {chartData.length === 0 ? (
-        <div className="flex items-center justify-center h-[320px] text-muted-foreground text-sm">
+        <div className="flex items-center justify-center h-[250px] sm:h-[320px] text-muted-foreground text-sm">
           No data available
         </div>
       ) : (
         <>
-          <div className="relative">
-            <ResponsiveContainer width="100%" height={260}>
+          <div className="relative min-h-[220px] sm:min-h-[260px]">
+            <ResponsiveContainer width="100%" height={220} className="sm:hidden">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={75}
+                  paddingAngle={2}
+                  dataKey="value"
+                  label={false}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                  }}
+                  formatter={(value: any, name: any, props: any) => [
+                    `${value} (${props.payload.percentage}%)`,
+                    name,
+                  ]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+
+            <ResponsiveContainer width="100%" height={260} className="hidden sm:block">
               <PieChart>
                 <Pie
                   data={chartData}
@@ -121,19 +152,19 @@ export function StatusChart({ data, isLoading, total }: StatusChartProps) {
             </ResponsiveContainer>
             
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-              <div className="text-3xl font-bold text-foreground">{total || 0}</div>
-              <div className="text-xs text-muted-foreground">Total</div>
+              <div className="text-2xl sm:text-3xl font-bold text-foreground">{total || 0}</div>
+              <div className="text-[10px] sm:text-xs text-muted-foreground">Total</div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 mt-3 sm:mt-4">
             {chartData.map((item) => (
               <div key={item.name} className="flex items-center gap-2">
                 <div
                   className="w-3 h-3 rounded-sm flex-shrink-0"
                   style={{ backgroundColor: item.fill }}
                 />
-                <span className="text-xs text-muted-foreground truncate">
+                <span className="text-[11px] sm:text-xs text-muted-foreground truncate">
                   {item.name}: <span className="font-medium text-foreground">{item.value}</span> ({item.percentage}%)
                 </span>
               </div>

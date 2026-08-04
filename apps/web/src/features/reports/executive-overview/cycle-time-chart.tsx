@@ -45,20 +45,50 @@ export function CycleTimeChart({ data, isLoading }: CycleTimeChartProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="card h-[360px]"
+      className="card h-auto sm:h-[360px]"
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-foreground">Average Cycle Time (by Stage)</h3>
-        <span className="text-xs text-muted-foreground">Days</span>
+        <span className="text-[11px] sm:text-xs text-muted-foreground">Days</span>
       </div>
 
       {!chartData || chartData.length === 0 ? (
-        <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm">
+        <div className="flex items-center justify-center h-[250px] sm:h-[280px] text-muted-foreground text-sm">
           No cycle time data
         </div>
       ) : (
         <>
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={230} className="sm:hidden">
+            <BarChart data={chartData} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis
+                dataKey="stage"
+                tick={{ fontSize: 10, fill: '#6b7280' }}
+                stroke="#9ca3af"
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: '#6b7280' }}
+                stroke="#9ca3af"
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                }}
+                formatter={(value: any) => [`${value} days`, 'Avg Time']}
+              />
+              <Bar
+                dataKey="days"
+                fill="#3b82f6"
+                radius={[6, 6, 0, 0]}
+                maxBarSize={50}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+
+          <ResponsiveContainer width="100%" height={260} className="hidden sm:block">
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis
@@ -88,8 +118,8 @@ export function CycleTimeChart({ data, isLoading }: CycleTimeChartProps) {
             </BarChart>
           </ResponsiveContainer>
 
-          <div className="mt-3 text-center">
-            <button className="text-xs text-primary hover:underline">
+          <div className="mt-2 sm:mt-3 text-center">
+            <button className="text-[11px] sm:text-xs text-primary hover:underline">
               View cycle time report
             </button>
           </div>

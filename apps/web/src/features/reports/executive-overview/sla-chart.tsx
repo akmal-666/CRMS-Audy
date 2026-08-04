@@ -42,18 +42,46 @@ export function SLAChart({ data, isLoading }: SLAChartProps) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="card h-[360px]"
+      className="card h-auto sm:h-[360px]"
     >
       <h3 className="text-sm font-semibold text-foreground mb-4">SLA Achievement</h3>
       
       {withinSLA === 0 && overSLA === 0 ? (
-        <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm">
+        <div className="flex items-center justify-center h-[250px] sm:h-[280px] text-muted-foreground text-sm">
           No SLA data available
         </div>
       ) : (
         <>
-          <div className="relative">
-            <ResponsiveContainer width="100%" height={220}>
+          <div className="relative min-h-[180px] sm:min-h-[220px]">
+            <ResponsiveContainer width="100%" height={180} className="sm:hidden">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={75}
+                  paddingAngle={2}
+                  dataKey="value"
+                  startAngle={90}
+                  endAngle={-270}
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+
+            <ResponsiveContainer width="100%" height={220} className="hidden sm:block">
               <PieChart>
                 <Pie
                   data={chartData}
@@ -82,31 +110,31 @@ export function SLAChart({ data, isLoading }: SLAChartProps) {
             </ResponsiveContainer>
 
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-8 text-center pointer-events-none">
-              <div className="text-4xl font-bold text-green-600">{percentage}%</div>
-              <div className="text-xs text-muted-foreground">Within SLA</div>
+              <div className="text-3xl sm:text-4xl font-bold text-green-600">{percentage}%</div>
+              <div className="text-[10px] sm:text-xs text-muted-foreground">Within SLA</div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
+            <div className="text-center p-2.5 sm:p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
               <div className="flex items-center justify-center gap-1 mb-1">
                 <div className="w-2 h-2 rounded-full bg-green-500" />
-                <p className="text-xs text-muted-foreground">Within SLA</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Within SLA</p>
               </div>
-              <p className="text-2xl font-bold text-green-600">{withinSLA}</p>
+              <p className="text-xl sm:text-2xl font-bold text-green-600">{withinSLA}</p>
             </div>
 
-            <div className="text-center p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
+            <div className="text-center p-2.5 sm:p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
               <div className="flex items-center justify-center gap-1 mb-1">
                 <div className="w-2 h-2 rounded-full bg-red-500" />
-                <p className="text-xs text-muted-foreground">Over SLA</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">Over SLA</p>
               </div>
-              <p className="text-2xl font-bold text-red-600">{overSLA}</p>
+              <p className="text-xl sm:text-2xl font-bold text-red-600">{overSLA}</p>
             </div>
           </div>
 
-          <div className="mt-3 text-center">
-            <button className="text-xs text-primary hover:underline flex items-center gap-1 mx-auto">
+          <div className="mt-2 sm:mt-3 text-center">
+            <button className="text-[11px] sm:text-xs text-primary hover:underline flex items-center gap-1 mx-auto">
               <span>View detailed report</span>
               <TrendingUp size={12} />
             </button>
