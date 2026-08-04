@@ -1,7 +1,12 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import dynamic from 'next/dynamic'
+const PieChart = dynamic(() => import('recharts').then(m => ({ default: m.PieChart })), { ssr: false })
+const Pie = dynamic(() => import('recharts').then(m => ({ default: m.Pie })), { ssr: false })
+const Cell = dynamic(() => import('recharts').then(m => ({ default: m.Cell })), { ssr: false })
+const ResponsiveContainer = dynamic(() => import('recharts').then(m => ({ default: m.ResponsiveContainer })), { ssr: false })
+const Tooltip = dynamic(() => import('recharts').then(m => ({ default: m.Tooltip })), { ssr: false })
 import { TrendingUp } from 'lucide-react'
 
 interface SLAChartProps {
