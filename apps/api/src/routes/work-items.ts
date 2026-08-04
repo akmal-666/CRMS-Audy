@@ -271,6 +271,7 @@ app.get('/', authMiddleware, async (c) => {
       with: {
         department: true,
         manager: { columns: { id: true, name: true, avatarUrl: true } },
+        businessAnalyst: { columns: { id: true, name: true, avatarUrl: true } },
         developer: { columns: { id: true, name: true, avatarUrl: true } },
         vendor: { columns: { id: true, name: true } },
       },

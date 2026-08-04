@@ -75,12 +75,23 @@ export function KanbanView() {
   const workItems: WorkItem[] = useMemo(() => {
     let items = (data as unknown as WorkItem[]) ?? []
     
+    // Debug: log sample item structure
+    if (items.length > 0) {
+      console.log('📋 Sample Work Item:', items[0])
+      console.log('🔍 Has businessAnalyst?', !!items[0].businessAnalyst)
+    }
+    
     // Filter BA's assigned projects if enabled
     if (filterMyProjects && isBusinessAnalyst && user) {
-      items = items.filter(item => 
-        item.businessAnalyst?.id === user.sub ||
-        item.manager?.id === user.sub
-      )
+      console.log('🎯 Filtering for BA:', user.sub)
+      const filtered = items.filter(item => {
+        const matchBA = item.businessAnalyst?.id === user.sub
+        const matchManager = item.manager?.id === user.sub
+        console.log(`  ${item.ticketNumber}: BA=${matchBA}, Manager=${matchManager}`)
+        return matchBA || matchManager
+      })
+      console.log(`✅ Filtered: ${filtered.length}/${items.length} items`)
+      return filtered
     }
     
     return items
