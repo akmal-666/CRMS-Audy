@@ -75,43 +75,13 @@ export function KanbanView() {
     // Extract data array from API response
     const items = (rawData?.data ?? []) as WorkItem[]
     
-    // Debug: log sample items
-    if (items.length > 0 && filterMyProjects) {
-      console.log('==================== KANBAN FILTER DEBUG ====================')
-      console.log('📊 Total items from API:', items.length)
-      console.log('👤 Current user:', { id: user?.id, role: user?.role, email: user?.email })
-      console.log('🔍 Sample items (first 3):')
-      items.slice(0, 3).forEach((item, idx) => {
-        console.log(`  [${idx + 1}] ${item.ticketNumber}:`)
-        console.log(`      businessAnalyst:`, item.businessAnalyst)
-        console.log(`      manager:`, item.manager)
-      })
-    }
-    
     // Filter BA's assigned projects if enabled
     if (filterMyProjects && isBusinessAnalyst && user) {
-      console.log('🎯 FILTERING ENABLED for user.id:', user.id)
-      
-      let matchCount = 0
-      const filtered = items.filter(item => {
-        const baId = item.businessAnalyst?.id
-        const managerId = item.manager?.id
-        const matchBA = baId === user.id
-        const matchManager = managerId === user.id
-        const matched = matchBA || matchManager
-        
-        if (matched) {
-          matchCount++
-          console.log(`✅ MATCH #${matchCount}: ${item.ticketNumber}`, { baId, managerId, userId: user.id })
-        }
-        
-        return matched
+      return items.filter(item => {
+        const matchBA = item.businessAnalyst?.id === user.id
+        const matchManager = item.manager?.id === user.id
+        return matchBA || matchManager
       })
-      
-      console.log(`📊 FILTER RESULT: ${filtered.length}/${items.length} items matched`)
-      console.log('===========================================================')
-      
-      return filtered
     }
     
     return items
