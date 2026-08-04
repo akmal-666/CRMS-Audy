@@ -14,6 +14,8 @@ import { useAuth } from '@/context/auth-context'
 import { ActivityTimeline } from './activity-timeline'
 import { CommentSection } from './comment-section'
 import { AssessmentPanel } from './assessment-panel'
+import { CollaboratingDepartments } from './collaborating-departments'
+import { MandaysNegotiation } from './mandays-negotiation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { useState } from 'react'
@@ -66,6 +68,9 @@ export function TicketDetailPage({ id }: { id: string }) {
 
   const canChangeStatus = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
   const canEditAssessment = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST, UserRole.VENDOR].includes(user.role as UserRole)
+  const canManageDepartments = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
+  const canProposeNegotiation = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
+  const isRequester = user && user.email === item.requesterEmail
   const allowedTransitions = WORKFLOW_TRANSITIONS[item.status] ?? []
 
   return (
@@ -204,8 +209,27 @@ export function TicketDetailPage({ id }: { id: string }) {
             </div>
           </motion.div>
 
+          {/* Collaborating Departments */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="card">
+            <CollaboratingDepartments 
+              workItemId={id} 
+              primaryDepartmentId={item.departmentId}
+              canEdit={!!canManageDepartments}
+            />
+          </motion.div>
+
+          {/* Mandays Negotiation */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="card">
+            <MandaysNegotiation
+              workItemId={id}
+              currentMandays={item.mandays}
+              canPropose={!!canProposeNegotiation}
+              isRequester={!!isRequester}
+            />
+          </motion.div>
+
           {/* Attachments */}
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card space-y-3">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} className="card space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Paperclip size={14} className="text-muted-foreground" />
