@@ -13,10 +13,10 @@ export function OverviewKPICards({ data, isLoading }: OverviewKPICardsProps) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="card animate-pulse">
-            <div className="h-24 bg-muted rounded" />
+            <div className="h-20 sm:h-24 bg-muted rounded" />
           </div>
         ))}
       </div>
@@ -75,26 +75,26 @@ export function OverviewKPICards({ data, isLoading }: OverviewKPICardsProps) {
   ]
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4">
       {cards.map((card, index) => (
         <motion.div
           key={card.label}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.05 }}
-          className="card bg-white dark:bg-gray-800"
+          className="card bg-white dark:bg-gray-800 min-h-[100px] sm:min-h-[110px]"
         >
           <div className="flex flex-col h-full">
-            <div className="flex items-start justify-between mb-3">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <div className="flex items-start justify-between mb-2 sm:mb-3">
+              <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wide line-clamp-2">
                 {card.label}
               </p>
-              <div className={`p-2 rounded-lg ${card.iconBg}`}>
-                <card.icon size={20} className={card.iconColor} />
+              <div className={`p-1.5 sm:p-2 rounded-lg ${card.iconBg} flex-shrink-0`}>
+                <card.icon size={16} className={`sm:w-5 sm:h-5 ${card.iconColor}`} />
               </div>
             </div>
             
-            <p className={`text-2xl font-bold ${card.textColor}`}>
+            <p className={`text-xl sm:text-2xl font-bold ${card.textColor} break-words`}>
               {card.value}
             </p>
           </div>

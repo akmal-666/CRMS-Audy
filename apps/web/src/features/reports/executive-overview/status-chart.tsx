@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 
 const PieChart = dynamic(() => import('recharts').then(m => ({ default: m.PieChart })), { ssr: false })
 const Pie = dynamic(() => import('recharts').then(m => ({ default: m.Pie })), { ssr: false })
@@ -39,6 +39,12 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 export function StatusChart({ data, isLoading, total }: StatusChartProps) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const chartData = useMemo(() => {
     if (!data || !Array.isArray(data)) return []
     return data.map(item => ({
@@ -53,6 +59,17 @@ export function StatusChart({ data, isLoading, total }: StatusChartProps) {
     return (
       <div className="card h-[400px] animate-pulse">
         <div className="h-full bg-muted rounded" />
+      </div>
+    )
+  }
+
+  if (!mounted) {
+    return (
+      <div className="card h-[400px]">
+        <h3 className="text-sm font-semibold text-foreground mb-4">Requests by Status</h3>
+        <div className="flex items-center justify-center h-[320px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
       </div>
     )
   }

@@ -205,7 +205,7 @@ export function ExecutiveOverviewPage() {
         isLoading={isLoading}
       />
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="lg:col-span-1">
           <StatusChart data={reportData?.requestsByStatus} isLoading={isLoading} total={reportData?.summary?.totalRequests} />
         </div>
@@ -215,22 +215,22 @@ export function ExecutiveOverviewPage() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <ProjectProgressList data={reportData?.projectProgress} isLoading={isLoading} />
         <TimelineRoadmap data={reportData?.timelineProjects} isLoading={isLoading} />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <PriorityChart data={reportData?.requestsByPriority} isLoading={isLoading} />
         <SLAChart data={reportData?.slaBreakdown} isLoading={isLoading} />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         <WorkloadChart data={reportData?.workloadByAssignee} isLoading={isLoading} />
         <CycleTimeChart data={reportData?.avgCycleTimeByStage} isLoading={isLoading} />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="lg:col-span-1">
           <RecentActivity data={reportData?.recentActivity} isLoading={isLoading} />
         </div>

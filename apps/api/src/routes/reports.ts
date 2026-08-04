@@ -548,8 +548,9 @@ app.get('/executive-overview', authMiddleware, requireRole(UserRole.ADMINISTRATO
   // Calculate metrics with proper handling
   const avgCycleTime = completedItems.length > 0
     ? completedItems.reduce((acc, item) => {
-        const days = Math.floor((new Date(item.goLiveDate!).getTime() - new Date(item.createdAt).getTime()) / (1000 * 60 * 60 * 24))
-        return acc + days
+        if (!item.goLiveDate) return acc
+        const days = Math.floor((new Date(item.goLiveDate).getTime() - new Date(item.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+        return acc + Math.max(0, days) // Ensure non-negative
       }, 0) / completedItems.length
     : 0
 
