@@ -65,6 +65,14 @@ export function ExecutiveOverviewPage() {
     enabled: mounted,
   })
 
+  // Debug: log data when it changes
+  useEffect(() => {
+    if (reportData) {
+      console.log('📊 Executive Overview Data:', reportData)
+      console.log('📈 Status Data:', reportData.requestsByStatus)
+    }
+  }, [reportData])
+
   const handleExportExcel = async () => {
     if (!reportData) return
     const { exportToExcel } = await import('@/lib/export-utils')
