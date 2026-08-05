@@ -68,8 +68,8 @@ export function TicketDetailPage({ id }: { id: string }) {
 
   const canChangeStatus = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
   const canEditAssessment = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST, UserRole.VENDOR].includes(user.role as UserRole)
-  const canManageDepartments = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
-  const canProposeNegotiation = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
+  const canManageDepartments = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(user.role as UserRole)
+  const canProposeNegotiation = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER].includes(user.role as UserRole)
   const isRequester = user && user.email === item.requesterEmail
   const allowedTransitions = WORKFLOW_TRANSITIONS[item.status] ?? []
 

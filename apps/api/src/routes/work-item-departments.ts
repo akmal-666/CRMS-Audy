@@ -35,7 +35,7 @@ const addDepartmentSchema = z.object({
 app.post(
   '/:workItemId/departments',
   authMiddleware,
-  requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST),
+  requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER),
   zValidator('json', addDepartmentSchema),
   async (c) => {
     const { workItemId } = c.req.param()
@@ -100,7 +100,7 @@ app.post(
 app.delete(
   '/:workItemId/departments/:departmentId',
   authMiddleware,
-  requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST),
+  requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER),
   async (c) => {
     const { workItemId, departmentId } = c.req.param()
     const db = c.get('db')
