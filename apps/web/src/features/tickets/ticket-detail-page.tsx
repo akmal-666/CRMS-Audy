@@ -40,6 +40,12 @@ export function TicketDetailPage({ id }: { id: string }) {
   const queryClient = useQueryClient()
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
 
+  // Define permissions at top level
+  const canChangeStatus = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
+  const canEditAssessment = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST, UserRole.VENDOR].includes(user.role as UserRole)
+  const canManageDepartments = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
+  const canProposeNegotiation = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
+
   const { data, isLoading } = useQuery({
     queryKey: ['work-item', id],
     queryFn: () => apiGet<any>(`/api/work-items/${id}`),
@@ -66,10 +72,6 @@ export function TicketDetailPage({ id }: { id: string }) {
     </div>
   )
 
-  const canChangeStatus = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
-  const canEditAssessment = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST, UserRole.VENDOR].includes(user.role as UserRole)
-  const canManageDepartments = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
-  const canProposeNegotiation = user && [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
   const isRequester = user && user.email === item.requesterEmail
   const allowedTransitions = WORKFLOW_TRANSITIONS[item.status] ?? []
 
