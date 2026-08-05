@@ -43,7 +43,7 @@ const createNegotiationSchema = z.object({
 app.post(
   '/:workItemId',
   authMiddleware,
-  requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER),
+  requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST),
   zValidator('json', createNegotiationSchema),
   async (c) => {
     const { workItemId } = c.req.param()
@@ -128,7 +128,7 @@ const proposeNegotiationSchema = z.object({
 app.patch(
   '/:workItemId/propose',
   authMiddleware,
-  requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER),
+  requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST),
   zValidator('json', proposeNegotiationSchema),
   async (c) => {
     const { workItemId } = c.req.param()
