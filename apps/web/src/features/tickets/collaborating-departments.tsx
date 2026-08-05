@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost, apiDelete } from '@/lib/api'
 import { UserRole } from '@crms/types'
 import { useAuth } from '@/context/auth-context'
-import { Plus, X, Building2, Loader2 } from 'lucide-react'
+import { Plus, X, Check, Building2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 

@@ -89,6 +89,22 @@ export function MandaysNegotiation({
 
   const negotiation = data?.data
 
+  // Create new negotiation record (when none exists)
+  const createMutation = useMutation({
+    mutationFn: (payload: { mandaysRequested: number; mandaysApproved: number; mandaysNegotiated?: number }) =>
+      apiPost(`/api/negotiations/${workItemId}`, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mandays-negotiation', workItemId] })
+      queryClient.invalidateQueries({ queryKey: ['work-item', workItemId] })
+      toast.success('Negotiation record created')
+      setShowProposeForm(false)
+      setProposeMandays('')
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || 'Failed to create negotiation')
+    },
+  })
+
   const proposeMutation = useMutation({
     mutationFn: (payload: { mandaysNegotiated: number; negotiationNotes: string }) =>
       apiPatch(`/api/negotiations/${workItemId}/propose`, payload),
@@ -134,6 +150,20 @@ export function MandaysNegotiation({
     proposeMutation.mutate({ mandaysNegotiated: mandays, negotiationNotes: proposeNotes })
   }
 
+  const handleCreate = () => {
+    const mandays = parseFloat(proposeMandays)
+    if (!mandays || mandays <= 0) {
+      toast.error('Please enter valid mandays')
+      return
+    }
+    const original = currentMandays ?? mandays
+    createMutation.mutate({
+      mandaysRequested: original,
+      mandaysApproved: original,
+      mandaysNegotiated: mandays !== original ? mandays : undefined,
+    })
+  }
+
   const handleAccept = () => {
     respondMutation.mutate({ action: 'accept' })
   }
@@ -156,14 +186,61 @@ export function MandaysNegotiation({
 
   if (!negotiation) {
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <TrendingDown size={14} className="text-muted-foreground" />
           Mandays Negotiation
         </h3>
-        <p className="text-sm text-muted-foreground italic">
-          No negotiation record yet
-        </p>
+        {!showProposeForm && (
+          <p className="text-sm text-muted-foreground italic">No negotiation record yet</p>
+        )}
+        {canPropose && (
+          <div className="space-y-2">
+            {!showProposeForm ? (
+              <button
+                onClick={() => setShowProposeForm(true)}
+                className="text-xs text-primary hover:text-primary/80 transition-colors font-medium flex items-center gap-1"
+              >
+                <Edit2 size={12} /> Add Negotiation
+              </button>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={proposeMandays}
+                    onChange={(e) => setProposeMandays(e.target.value)}
+                    placeholder="Negotiated mandays"
+                    className="flex-1 px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    disabled={createMutation.isPending}
+                  />
+                  <button
+                    onClick={handleCreate}
+                    disabled={createMutation.isPending || !proposeMandays}
+                    className="p-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Save"
+                  >
+                    {createMutation.isPending ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Check size={14} />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => { setShowProposeForm(false); setProposeMandays('') }}
+                    disabled={createMutation.isPending}
+                    className="p-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+                    title="Cancel"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     )
   }
