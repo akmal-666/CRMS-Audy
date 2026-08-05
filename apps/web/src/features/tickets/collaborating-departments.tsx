@@ -114,63 +114,12 @@ export function CollaboratingDepartments({
             </span>
           )}
         </h3>
-        {canEdit && !showAddForm && (
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="text-xs text-primary hover:text-primary/80 transition-colors font-medium flex items-center gap-1"
-          >
-            <Plus size={12} /> Add
-          </button>
-        )}
       </div>
 
       {collabDepartments.length === 0 && !showAddForm && (
         <p className="text-sm text-muted-foreground italic">
           No collaborating departments
         </p>
-      )}
-
-      {/* Add form */}
-      {showAddForm && (
-        <div className="p-3 border border-border rounded-lg bg-muted/20 space-y-2">
-          <select
-            value={selectedDeptId}
-            onChange={(e) => setSelectedDeptId(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-            disabled={addMutation.isPending}
-          >
-            <option value="">Select department...</option>
-            {availableDepartments.map(dept => (
-              <option key={dept.id} value={dept.id}>
-                {dept.name} ({dept.code})
-              </option>
-            ))}
-          </select>
-          <div className="flex gap-2">
-            <button
-              onClick={handleAdd}
-              disabled={!selectedDeptId || addMutation.isPending}
-              className="flex-1 btn-primary text-xs py-1.5 flex items-center justify-center gap-1 disabled:opacity-50"
-            >
-              {addMutation.isPending ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <Plus size={12} />
-              )}
-              Add
-            </button>
-            <button
-              onClick={() => {
-                setShowAddForm(false)
-                setSelectedDeptId('')
-              }}
-              disabled={addMutation.isPending}
-              className="px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
       )}
 
       {/* List of collaborating departments */}
@@ -201,6 +150,59 @@ export function CollaboratingDepartments({
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Inline Add form */}
+      {canEdit && (
+        <div className="flex items-center gap-2">
+          {!showAddForm ? (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="text-xs text-primary hover:text-primary/80 transition-colors font-medium flex items-center gap-1"
+            >
+              <Plus size={12} /> Add Collaboration
+            </button>
+          ) : (
+            <>
+              <select
+                value={selectedDeptId}
+                onChange={(e) => setSelectedDeptId(e.target.value)}
+                className="flex-1 px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                disabled={addMutation.isPending}
+              >
+                <option value="">Select department...</option>
+                {availableDepartments.map(dept => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={handleAdd}
+                disabled={!selectedDeptId || addMutation.isPending}
+                className="p-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Save"
+              >
+                {addMutation.isPending ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Check size={14} />
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddForm(false)
+                  setSelectedDeptId('')
+                }}
+                disabled={addMutation.isPending}
+                className="p-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+                title="Cancel"
+              >
+                <X size={14} />
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

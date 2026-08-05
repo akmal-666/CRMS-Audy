@@ -209,7 +209,12 @@ export function MandaysNegotiation({
       <div className="space-y-2 p-3 border border-border rounded-lg bg-background">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Requested:</span>
-          <span className="font-semibold text-foreground">
+          <span className={cn(
+            "font-semibold",
+            negotiation.negotiationStatus === 'accepted' && negotiation.mandaysRequested !== negotiation.mandaysApproved
+              ? "line-through text-muted-foreground"
+              : "text-foreground"
+          )}>
             {negotiation.mandaysRequested} days
           </span>
         </div>
@@ -280,71 +285,66 @@ export function MandaysNegotiation({
         </div>
       )}
 
-      {/* Propose form */}
-      <AnimatePresence>
-        {showProposeForm && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="p-3 border border-border rounded-lg bg-muted/20 space-y-3"
-          >
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                Negotiated Mandays
-              </label>
-              <input
-                type="number"
-                step="0.5"
-                min="0"
-                value={proposeMandays}
-                onChange={(e) => setProposeMandays(e.target.value)}
-                placeholder="e.g., 35"
-                className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-                disabled={proposeMutation.isPending}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                Reason / Notes
-              </label>
+      {/* Inline Propose form */}
+      {canPropose && negotiation.negotiationStatus !== 'proposed' && (
+        <div className="space-y-2">
+          {!showProposeForm ? (
+            <button
+              onClick={() => setShowProposeForm(true)}
+              className="text-xs text-primary hover:text-primary/80 transition-colors font-medium flex items-center gap-1"
+            >
+              <Edit2 size={12} /> Add Negotiation
+            </button>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  value={proposeMandays}
+                  onChange={(e) => setProposeMandays(e.target.value)}
+                  placeholder="Mandays"
+                  className="flex-1 px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  disabled={proposeMutation.isPending}
+                />
+                <button
+                  onClick={handlePropose}
+                  disabled={proposeMutation.isPending || !proposeMandays || !proposeNotes}
+                  className="p-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Save"
+                >
+                  {proposeMutation.isPending ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Check size={14} />
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowProposeForm(false)
+                    setProposeMandays('')
+                    setProposeNotes('')
+                  }}
+                  disabled={proposeMutation.isPending}
+                  className="p-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+                  title="Cancel"
+                >
+                  <X size={14} />
+                </button>
+              </div>
               <textarea
                 value={proposeNotes}
                 onChange={(e) => setProposeNotes(e.target.value)}
-                placeholder="Explain why this negotiation is proposed..."
-                rows={3}
+                placeholder="Reason for negotiation..."
+                rows={2}
                 className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 disabled={proposeMutation.isPending}
               />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handlePropose}
-                disabled={proposeMutation.isPending}
-                className="flex-1 btn-primary text-xs py-1.5 flex items-center justify-center gap-1"
-              >
-                {proposeMutation.isPending ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <Check size={12} />
-                )}
-                Submit Proposal
-              </button>
-              <button
-                onClick={() => {
-                  setShowProposeForm(false)
-                  setProposeMandays('')
-                  setProposeNotes('')
-                }}
-                disabled={proposeMutation.isPending}
-                className="px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Respond to proposal (Requester only) */}
       {canRespond && !showRespondForm && (
