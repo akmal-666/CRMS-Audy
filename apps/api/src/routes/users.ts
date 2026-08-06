@@ -21,7 +21,7 @@ const createUserSchema = z.object({
   branchId: z.string().optional(),
 })
 
-app.get('/', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER), async (c) => {
+app.get('/', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST), async (c) => {
   const db = c.get('db')
   const { page = '1', pageSize = '20', role } = c.req.query()
 
