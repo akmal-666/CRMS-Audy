@@ -238,14 +238,22 @@ app.get('/', authMiddleware, async (c) => {
 
   const conditions: any[] = []
 
-  // business_user can only see requests from their email OR their department
+  // business_user can only see requests from their email OR their department (primary OR collaborating)
   if (user.role === UserRole.BUSINESS_USER) {
     const userDepartmentId = user.departmentId
     
     if (userDepartmentId) {
-      // Can see: own requests OR requests from same department
+      // Can see: own requests OR primary department matches OR department is in collaborating departments
       conditions.push(
-        sql`(${schema.workItems.requesterEmail} = ${user.email} OR ${schema.workItems.departmentId} = ${userDepartmentId})`
+        sql`(
+          ${schema.workItems.requesterEmail} = ${user.email}
+          OR ${schema.workItems.departmentId} = ${userDepartmentId}
+          OR EXISTS (
+            SELECT 1 FROM work_item_departments wid
+            WHERE wid.work_item_id = ${schema.workItems.id}
+            AND wid.department_id = ${userDepartmentId}
+          )
+        )`
       )
     } else {
       // Fallback: only own requests if no department assigned
