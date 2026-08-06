@@ -32,9 +32,15 @@ export function StatusAgingSummaryInline({ logs, currentStatus, createdAt, goLiv
   const [isExpanded, setIsExpanded] = useState(true)
 
   const statusPeriods = useMemo(() => {
-    // Parse activity logs to get status change timeline
+    // Use the 'created' activity log timestamp as the real start date
+    // This prevents manual edits to createdAt from affecting duration calculation
+    const createdLog = logs.find(log => log.action === 'created')
+    const realStartDate = createdLog 
+      ? new Date(createdLog.createdAt)
+      : new Date(createdAt)
+
     const statusChanges: Array<{ status: string; timestamp: Date }> = [
-      { status: 'in_pipeline', timestamp: new Date(createdAt) }
+      { status: 'in_pipeline', timestamp: realStartDate }
     ]
 
     // Extract status changes from activity logs
@@ -55,10 +61,9 @@ export function StatusAgingSummaryInline({ logs, currentStatus, createdAt, goLiv
     // add it as the latest entry so the timeline shows the real state
     const lastKnownStatus = statusChanges[statusChanges.length - 1]?.status
     if (lastKnownStatus !== currentStatus) {
-      // Use the last activity log timestamp or createdAt as approximation
       const lastLogDate = logs.length > 0
         ? new Date(Math.max(...logs.map(l => new Date(l.createdAt).getTime())))
-        : new Date(createdAt)
+        : realStartDate
       statusChanges.push({
         status: currentStatus,
         timestamp: lastLogDate,
