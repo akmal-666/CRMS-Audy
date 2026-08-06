@@ -290,21 +290,33 @@ app.get('/:id', authMiddleware, async (c) => {
   const db = c.get('db')
 
   try {
+    // First, try with all relations
     const item = await db.query.workItems.findFirst({
       where: eq(schema.workItems.id, id),
       with: {
         department: true,
+        vendor: true,
         manager: true,
         businessAnalyst: true,
-        vendor: true,
         developer: true,
         qa: true,
-        assessment: true,
-        tasks: { with: { subtasks: true, assignee: true } },
-        comments: { with: { user: { columns: { id: true, name: true, avatarUrl: true, role: true } } }, orderBy: [desc(schema.comments.createdAt)] },
-        attachments: { with: { uploader: { columns: { id: true, name: true } } } },
-        activityLogs: { with: { user: { columns: { id: true, name: true, avatarUrl: true } } }, orderBy: [desc(schema.activityLogs.createdAt)] },
-        deployments: true,
+        comments: { 
+          with: { 
+            user: { columns: { id: true, name: true, avatarUrl: true, role: true } } 
+          }, 
+          orderBy: [desc(schema.comments.createdAt)] 
+        },
+        attachments: { 
+          with: { 
+            uploader: { columns: { id: true, name: true } } 
+          } 
+        },
+        activityLogs: { 
+          with: { 
+            user: { columns: { id: true, name: true, avatarUrl: true } } 
+          }, 
+          orderBy: [desc(schema.activityLogs.createdAt)] 
+        },
       },
     })
 
@@ -320,10 +332,35 @@ app.get('/:id', authMiddleware, async (c) => {
       }
     }
 
-    return c.json(ok(item))
+    // Fetch assessment separately to avoid join issues
+    const assessment = await db.query.assessments.findFirst({
+      where: eq(schema.assessments.workItemId, id)
+    }).catch(() => null)
+
+    // Fetch tasks separately
+    const tasks = await db.query.tasks.findMany({
+      where: eq(schema.tasks.workItemId, id),
+      with: { 
+        assignee: true,
+        subtasks: true 
+      }
+    }).catch(() => [])
+
+    // Fetch deployments separately
+    const deployments = await db.query.deployments.findMany({
+      where: eq(schema.deployments.workItemId, id)
+    }).catch(() => [])
+
+    return c.json(ok({
+      ...item,
+      assessment,
+      tasks,
+      deployments
+    }))
   } catch (error) {
     console.error('Error fetching work item:', error)
-    return c.json(err('Failed to fetch work item details'), 500)
+    // Return more detailed error for debugging
+    return c.json(err(`Failed to fetch work item: ${error instanceof Error ? error.message : 'Unknown error'}`), 500)
   }
 })
 
