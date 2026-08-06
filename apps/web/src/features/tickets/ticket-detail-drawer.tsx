@@ -24,8 +24,12 @@ interface TicketDetailDrawerProps {
 
 export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps) {
   const { user } = useAuth()
-  const canEditAssignment = user?.role === UserRole.ADMINISTRATOR || user?.role === UserRole.MANAGER
-  const canEditDetails = user?.role === UserRole.ADMINISTRATOR
+  const canEditAssignment = user?.role === UserRole.ADMINISTRATOR 
+    || user?.role === UserRole.MANAGER 
+    || user?.role === UserRole.BUSINESS_ANALYST
+  const canEditDetails = user?.role === UserRole.ADMINISTRATOR 
+    || user?.role === UserRole.MANAGER
+    || user?.role === UserRole.BUSINESS_ANALYST
   const { data, isLoading } = useQuery({
     queryKey: ['work-item', itemId],
     queryFn: () => apiGet<any>(`/api/work-items/${itemId}`),

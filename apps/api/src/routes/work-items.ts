@@ -7,7 +7,7 @@ import { schema } from '@crms/db'
 import { ok, err, paginate } from '../lib/response'
 import { generateId, generateTicketNumber } from '../lib/id'
 import { authMiddleware } from '../middleware/auth'
-import { requireRole, MANAGER_ROLES, STAFF_ROLES } from '../middleware/rbac'
+import { requireRole, MANAGER_ROLES, ASSIGNMENT_ROLES, STAFF_ROLES } from '../middleware/rbac'
 import { UserRole, WorkflowStatus } from '@crms/types'
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
@@ -422,7 +422,7 @@ const assignSchema = z.object({
   qaId: z.string().optional().nullable(),
 })
 
-app.patch('/:id/assign', authMiddleware, requireRole(...MANAGER_ROLES), zValidator('json', assignSchema), async (c) => {
+app.patch('/:id/assign', authMiddleware, requireRole(...ASSIGNMENT_ROLES), zValidator('json', assignSchema), async (c) => {
   const { id } = c.req.param()
   const data = c.req.valid('json')
   const user = c.get('user')!
@@ -581,7 +581,7 @@ const updateDetailsSchema = z.object({
   createdAt: z.string().optional(),
 })
 
-app.patch('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), zValidator('json', updateDetailsSchema), async (c) => {
+app.patch('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST), zValidator('json', updateDetailsSchema), async (c) => {
   const { id } = c.req.param()
   const data = c.req.valid('json')
   const user = c.get('user')!

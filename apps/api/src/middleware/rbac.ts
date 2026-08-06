@@ -20,6 +20,7 @@ export function requireAnyRole(...roles: UserRole[]): MiddlewareHandler<{ Bindin
 
 export const ADMIN_ROLES = [UserRole.ADMINISTRATOR]
 export const MANAGER_ROLES = [UserRole.ADMINISTRATOR, UserRole.MANAGER]
+export const ASSIGNMENT_ROLES = [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST]
 export const STAFF_ROLES = [
   UserRole.ADMINISTRATOR,
   UserRole.MANAGER,
