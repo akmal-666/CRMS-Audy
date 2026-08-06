@@ -2,9 +2,9 @@ name: Deploy CRMS
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
   pull_request:
-    branches: [main]
+    branches: [main, staging]
 
 env:
   PNPM_VERSION: 9.15.0
@@ -45,7 +45,7 @@ jobs:
     name: Deploy API (Cloudflare Workers)
     needs: lint-and-type-check
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
     steps:
       - uses: actions/checkout@v4
 
@@ -61,14 +61,30 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Set environment
+        id: set-env
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/staging" ]; then
+            echo "ENV_NAME=staging" >> $GITHUB_OUTPUT
+            echo "DB_NAME=crms-db-staging" >> $GITHUB_OUTPUT
+          else
+            echo "ENV_NAME=production" >> $GITHUB_OUTPUT
+            echo "DB_NAME=crms-db" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run D1 migrations
-        run: pnpm --filter @crms/api exec wrangler d1 migrations apply crms-db --remote
+        run: pnpm --filter @crms/api exec wrangler d1 migrations apply ${{ steps.set-env.outputs.DB_NAME }} --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy Workers
-        run: pnpm --filter @crms/api exec wrangler deploy
+        run: |
+          if [ "${{ steps.set-env.outputs.ENV_NAME }}" == "staging" ]; then
+            pnpm --filter @crms/api exec wrangler deploy --env staging
+          else
+            pnpm --filter @crms/api exec wrangler deploy
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -77,7 +93,7 @@ jobs:
     name: Deploy Web (Cloudflare Pages)
     needs: lint-and-type-check
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'
     steps:
       - uses: actions/checkout@v4
 
@@ -93,15 +109,29 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Set environment
+        id: set-env
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/staging" ]; then
+            echo "ENV_NAME=staging" >> $GITHUB_OUTPUT
+            echo "API_URL=${{ secrets.NEXT_PUBLIC_API_URL_STAGING }}" >> $GITHUB_OUTPUT
+            echo "BRANCH=staging" >> $GITHUB_OUTPUT
+          else
+            echo "ENV_NAME=production" >> $GITHUB_OUTPUT
+            echo "API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> $GITHUB_OUTPUT
+            echo "BRANCH=main" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build web app
         run: pnpm --filter @crms/web build:cf
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_API_URL: ${{ steps.set-env.outputs.API_URL }}
 
       - name: Deploy to Cloudflare Pages
         run: |
           pnpm --filter @crms/api exec wrangler pages deploy ../../apps/web/.vercel/output/static \
             --project-name=crms-audy \
+            --branch=${{ steps.set-env.outputs.BRANCH }} \
             --commit-dirty=true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

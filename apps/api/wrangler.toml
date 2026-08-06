@@ -30,6 +30,36 @@ B2_ENDPOINT = "https://s3.us-east-005.backblazeb2.com"
 B2_BUCKET_NAME = "crms-attachments"
 B2_REGION = "us-east-005"
 
+# Staging environment
+[env.staging]
+name = "crms-api-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "crms-db-staging"
+database_id = "PLACEHOLDER_STAGING_DB_ID"
+migrations_dir = "../../packages/db/migrations"
+
+[[env.staging.kv_namespaces]]
+binding = "CACHE"
+id = "PLACEHOLDER_STAGING_KV_ID"
+
+[[env.staging.queues.producers]]
+binding = "EMAIL_QUEUE"
+queue = "crms-email-queue-staging"
+
+[[env.staging.queues.consumers]]
+queue = "crms-email-queue-staging"
+max_batch_size = 10
+max_batch_timeout = 5
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+APP_URL = "https://staging.crms-audy.pages.dev"
+B2_ENDPOINT = "https://s3.us-east-005.backblazeb2.com"
+B2_BUCKET_NAME = "crms-attachments-staging"
+B2_REGION = "us-east-005"
+
 [dev]
 port = 8787
 local_protocol = "http"
