@@ -316,12 +316,23 @@ app.get('/:id', authMiddleware, async (c) => {
 
     if (!item) return c.json(err('Work item not found'), 404)
 
-    // business_user can only access requests from their email OR their department
+    // business_user can only access requests from their email OR their department (primary OR collaborating)
     if (user.role === UserRole.BUSINESS_USER) {
       const isOwnRequest = item.requesterEmail === user.email
-      const isSameDepartment = user.departmentId && item.departmentId === user.departmentId
-      if (!isOwnRequest && !isSameDepartment) {
-        return c.json(err('Work item not found'), 404)
+      const isPrimaryDept = user.departmentId && item.departmentId === user.departmentId
+
+      if (!isOwnRequest && !isPrimaryDept) {
+        // Check collaborating departments
+        const collabRecord = await db.query.workItemDepartments.findFirst({
+          where: and(
+            eq(schema.workItemDepartments.workItemId, id),
+            eq(schema.workItemDepartments.departmentId, user.departmentId!)
+          ),
+        }).catch(() => null)
+
+        if (!collabRecord) {
+          return c.json(err('Work item not found'), 404)
+        }
       }
     }
 
