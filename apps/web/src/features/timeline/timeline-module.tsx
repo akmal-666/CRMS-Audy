@@ -698,7 +698,33 @@ function DetailPanel({ workItem, selectedTask, onClose, canEdit, onEditTask }: {
   const [activeTab, setActiveTab] = useState<'details' | 'subitems' | 'activity'>('details')
   const tasks = workItem.tasks
   const completedCount = tasks.filter(t => t.status === 'completed').length
-  const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0
+
+  // Calculate progress based on elapsed days vs total duration
+  const progress = (() => {
+    if (tasks.length === 0) return 0
+
+    const today = new Date()
+    let totalDays = 0
+    let elapsedDays = 0
+
+    tasks.forEach(task => {
+      if (task.status === 'milestone') return
+      const start = new Date(task.startDate)
+      const end = new Date(task.endDate)
+      const taskDuration = differenceInCalendarDays(end, start) + 1
+      totalDays += taskDuration
+
+      if (today <= start) {
+        elapsedDays += 0
+      } else if (today >= end) {
+        elapsedDays += taskDuration
+      } else {
+        elapsedDays += differenceInCalendarDays(today, start) + 1
+      }
+    })
+
+    return totalDays > 0 ? Math.min(Math.round((elapsedDays / totalDays) * 100), 100) : 0
+  })()
 
   const minStart = tasks.length > 0
     ? tasks.reduce((m, t) => { const d = new Date(t.startDate); return d < m ? d : m }, new Date(tasks[0].startDate))
