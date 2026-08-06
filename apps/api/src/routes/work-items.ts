@@ -232,8 +232,8 @@ app.get('/', authMiddleware, async (c) => {
   const pageNum = parseInt(page)
   // Allow higher pageSize for staff roles (BA, Manager, Admin) for kanban view
   const isStaff = [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
-  const maxPageSize = isStaff ? 500 : 100
-  const pageSizeNum = Math.min(parseInt(pageSize), maxPageSize)
+  const maxPageSize = isStaff ? 1000 : 200
+  const pageSizeNum = Math.min(parseInt(pageSize) || 20, maxPageSize)
   const offset = (pageNum - 1) * pageSizeNum
 
   const conditions: any[] = []
