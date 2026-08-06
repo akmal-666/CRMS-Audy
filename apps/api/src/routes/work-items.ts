@@ -230,7 +230,10 @@ app.get('/', authMiddleware, async (c) => {
   const { page = '1', pageSize = '20', search, status, priority, departmentId, assignee, vendorId } = c.req.query()
 
   const pageNum = parseInt(page)
-  const pageSizeNum = Math.min(parseInt(pageSize), 100)
+  // Allow higher pageSize for staff roles (BA, Manager, Admin) for kanban view
+  const isStaff = [UserRole.ADMINISTRATOR, UserRole.MANAGER, UserRole.BUSINESS_ANALYST].includes(user.role as UserRole)
+  const maxPageSize = isStaff ? 500 : 100
+  const pageSizeNum = Math.min(parseInt(pageSize), maxPageSize)
   const offset = (pageNum - 1) * pageSizeNum
 
   const conditions: any[] = []
