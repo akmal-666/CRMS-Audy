@@ -37,11 +37,23 @@ app.get('/all', authMiddleware, async (c) => {
   let filteredTasks = tasks
   if (user.role === UserRole.BUSINESS_USER) {
     const userDepartmentId = user.departmentId
+
+    // Get collaborating department work item IDs for this user's department
+    let collabWorkItemIds: string[] = []
+    if (userDepartmentId) {
+      const collabRecords = await db.query.workItemDepartments.findMany({
+        where: eq(schema.workItemDepartments.departmentId, userDepartmentId),
+        columns: { workItemId: true },
+      }).catch(() => [])
+      collabWorkItemIds = collabRecords.map(r => r.workItemId)
+    }
+
     filteredTasks = tasks.filter(t => {
       if (!t.workItem) return false
       const isOwnRequest = t.workItem.requesterEmail === user.email
-      const isSameDepartment = userDepartmentId && t.workItem.departmentId === userDepartmentId
-      return isOwnRequest || isSameDepartment
+      const isPrimaryDept = userDepartmentId && t.workItem.departmentId === userDepartmentId
+      const isCollabDept = collabWorkItemIds.includes(t.workItem.id)
+      return isOwnRequest || isPrimaryDept || isCollabDept
     })
   }
 
@@ -69,11 +81,24 @@ app.get('/:workItemId', authMiddleware, async (c) => {
 
   if (!workItem) return c.json(err('Work item not found'), 404)
 
-  // business_user access control
+  // business_user access control — check primary AND collaborating departments
   if (user.role === UserRole.BUSINESS_USER) {
     const isOwnRequest = workItem.requesterEmail === user.email
-    const isSameDepartment = user.departmentId && workItem.departmentId === user.departmentId
-    if (!isOwnRequest && !isSameDepartment) {
+    const isPrimaryDept = user.departmentId && workItem.departmentId === user.departmentId
+
+    // Check collaborating departments
+    let isCollabDept = false
+    if (user.departmentId && !isOwnRequest && !isPrimaryDept) {
+      const collabRecord = await db.query.workItemDepartments.findFirst({
+        where: and(
+          eq(schema.workItemDepartments.workItemId, workItem.id),
+          eq(schema.workItemDepartments.departmentId, user.departmentId)
+        ),
+      }).catch(() => null)
+      isCollabDept = !!collabRecord
+    }
+
+    if (!isOwnRequest && !isPrimaryDept && !isCollabDept) {
       return c.json(err('Work item not found'), 404)
     }
   }
