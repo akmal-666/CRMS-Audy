@@ -289,37 +289,42 @@ app.get('/:id', authMiddleware, async (c) => {
   const user = c.get('user')!
   const db = c.get('db')
 
-  const item = await db.query.workItems.findFirst({
-    where: eq(schema.workItems.id, id),
-    with: {
-      department: true,
-      manager: true,
-      businessAnalyst: true,
-      vendor: true,
-      developer: true,
-      qa: true,
-      assessment: true,
-      tasks: { with: { subtasks: true, assignee: true } },
-      comments: { with: { user: { columns: { id: true, name: true, avatarUrl: true, role: true } } }, orderBy: [desc(schema.comments.createdAt)] },
-      attachments: { with: { uploader: { columns: { id: true, name: true } } } },
-      activityLogs: { with: { user: { columns: { id: true, name: true, avatarUrl: true } } }, orderBy: [desc(schema.activityLogs.createdAt)] },
-      deployments: true,
-    },
-  })
+  try {
+    const item = await db.query.workItems.findFirst({
+      where: eq(schema.workItems.id, id),
+      with: {
+        department: true,
+        manager: true,
+        businessAnalyst: true,
+        vendor: true,
+        developer: true,
+        qa: true,
+        assessment: true,
+        tasks: { with: { subtasks: true, assignee: true } },
+        comments: { with: { user: { columns: { id: true, name: true, avatarUrl: true, role: true } } }, orderBy: [desc(schema.comments.createdAt)] },
+        attachments: { with: { uploader: { columns: { id: true, name: true } } } },
+        activityLogs: { with: { user: { columns: { id: true, name: true, avatarUrl: true } } }, orderBy: [desc(schema.activityLogs.createdAt)] },
+        deployments: true,
+      },
+    })
 
-  if (!item) return c.json(err('Work item not found'), 404)
+    if (!item) return c.json(err('Work item not found'), 404)
 
-  // business_user can only access requests from their email OR their department
-  if (user.role === UserRole.BUSINESS_USER) {
-    const isOwnRequest = item.requesterEmail === user.email
-    const isSameDepartment = user.departmentId && item.departmentId === user.departmentId
-    
-    if (!isOwnRequest && !isSameDepartment) {
-      return c.json(err('Work item not found'), 404)
+    // business_user can only access requests from their email OR their department
+    if (user.role === UserRole.BUSINESS_USER) {
+      const isOwnRequest = item.requesterEmail === user.email
+      const isSameDepartment = user.departmentId && item.departmentId === user.departmentId
+      
+      if (!isOwnRequest && !isSameDepartment) {
+        return c.json(err('Work item not found'), 404)
+      }
     }
-  }
 
-  return c.json(ok(item))
+    return c.json(ok(item))
+  } catch (error) {
+    console.error('Error fetching work item:', error)
+    return c.json(err('Failed to fetch work item details'), 500)
+  }
 })
 
 // Update status
