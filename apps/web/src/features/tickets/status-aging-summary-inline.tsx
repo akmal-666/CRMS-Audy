@@ -38,7 +38,6 @@ export function StatusAgingSummaryInline({ logs, currentStatus, createdAt, goLiv
     ]
 
     // Extract status changes from activity logs
-    // API stores metadata as { oldStatus, newStatus } - use newStatus field
     logs
       .filter(log => log.action === 'status_changed' && (log.metadata?.newStatus || log.metadata?.to))
       .forEach(log => {
@@ -52,6 +51,20 @@ export function StatusAgingSummaryInline({ logs, currentStatus, createdAt, goLiv
     // Sort by timestamp
     statusChanges.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
 
+    // If the current status is not reflected in the logs (e.g. migrated data),
+    // add it as the latest entry so the timeline shows the real state
+    const lastKnownStatus = statusChanges[statusChanges.length - 1]?.status
+    if (lastKnownStatus !== currentStatus) {
+      // Use the last activity log timestamp or createdAt as approximation
+      const lastLogDate = logs.length > 0
+        ? new Date(Math.max(...logs.map(l => new Date(l.createdAt).getTime())))
+        : new Date(createdAt)
+      statusChanges.push({
+        status: currentStatus,
+        timestamp: lastLogDate,
+      })
+    }
+
     // Calculate periods for each status
     const periods: StatusPeriod[] = []
     
@@ -62,7 +75,6 @@ export function StatusAgingSummaryInline({ logs, currentStatus, createdAt, goLiv
       const startDate = change.timestamp
       const endDate = nextChange ? nextChange.timestamp : null
       
-      // Calculate duration in days
       const durationMs = endDate 
         ? endDate.getTime() - startDate.getTime()
         : Date.now() - startDate.getTime()
@@ -77,7 +89,7 @@ export function StatusAgingSummaryInline({ logs, currentStatus, createdAt, goLiv
     }
 
     return periods
-  }, [logs, createdAt])
+  }, [logs, createdAt, currentStatus])
 
   // Calculate total duration
   const totalDuration = useMemo(() => {
