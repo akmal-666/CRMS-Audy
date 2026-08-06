@@ -12,13 +12,11 @@ import {
   type DragEndEvent,
   closestCenter,
 } from '@dnd-kit/core'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Search } from 'lucide-react'
+import { Search, Filter } from 'lucide-react'
 import { apiGet, apiPatch } from '@/lib/api'
-import { WorkflowStatus } from '@crms/types'
-import { STATUS_LABELS, STATUS_DOT_COLORS, cn } from '@/lib/utils'
+import { WorkflowStatus, UserRole } from '@crms/types'
+import { STATUS_LABELS, cn } from '@/lib/utils'
 import { KanbanColumn } from './kanban-column'
-import { KanbanGroupedColumn } from './kanban-grouped-column'
 import { KanbanCard } from './kanban-card'
 import { TicketDetailDrawer } from '../tickets/ticket-detail-drawer'
 import { toast } from 'sonner'
@@ -59,8 +57,13 @@ export function KanbanView() {
   const [filterMyProjects, setFilterMyProjects] = useState(false)
   const queryClient = useQueryClient()
   const { user } = useAuth()
-  const isReadOnly = user?.role === 'business_user'
-  const isBusinessAnalyst = user?.role === 'business_analyst'
+  
+  // Check permissions
+  const canDragDrop = user && [
+    UserRole.ADMINISTRATOR,
+    UserRole.MANAGER,
+    UserRole.BUSINESS_ANALYST
+  ].includes(user.role as UserRole)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -68,15 +71,14 @@ export function KanbanView() {
 
   const { data: rawData, isLoading } = useQuery({
     queryKey: ['work-items', 'kanban', search],
-    queryFn: () => apiGet<WorkItem[]>('/api/work-items', { search: search || undefined, pageSize: 500 }),
+    queryFn: () => apiGet<WorkItem[]>('/api/work-items', { search: search || undefined, pageSize: '500' }),
   })
 
   const workItems: WorkItem[] = useMemo(() => {
-    // Extract data array from API response
     const items = (rawData?.data ?? []) as WorkItem[]
     
-    // Filter BA's assigned projects if enabled
-    if (filterMyProjects && isBusinessAnalyst && user) {
+    // Filter by assigned projects for BA
+    if (filterMyProjects && user?.role === UserRole.BUSINESS_ANALYST) {
       return items.filter(item => {
         const matchBA = item.businessAnalyst?.id === user.id
         const matchManager = item.manager?.id === user.id
@@ -85,19 +87,18 @@ export function KanbanView() {
     }
     
     return items
-  }, [rawData, filterMyProjects, isBusinessAnalyst, user])
+  }, [rawData, filterMyProjects, user])
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       apiPatch(`/api/work-items/${id}/status`, { status }),
     onSuccess: (_, variables) => {
-      // Invalidate kanban list
       queryClient.invalidateQueries({ queryKey: ['work-items'] })
-      // Invalidate the specific work-item detail (used by drawer)
       queryClient.invalidateQueries({ queryKey: ['work-item', variables.id] })
+      toast.success('Status updated')
     },
-    onError: () => {
-      toast.error('Failed to update status')
+    onError: (error: any) => {
+      toast.error(error?.message || 'Failed to update status')
       queryClient.invalidateQueries({ queryKey: ['work-items'] })
     },
   })
@@ -110,12 +111,12 @@ export function KanbanView() {
   const activeItem = activeId ? workItems.find(i => i.id === activeId) : null
 
   function handleDragStart(event: DragStartEvent) {
-    if (isReadOnly) return
+    if (!canDragDrop) return
     setActiveId(event.active.id as string)
   }
 
   function handleDragEnd(event: DragEndEvent) {
-    if (isReadOnly) return
+    if (!canDragDrop) return
     const { active, over } = event
     setActiveId(null)
     if (!over) return
@@ -123,24 +124,21 @@ export function KanbanView() {
     const draggedItem = workItems.find(i => i.id === active.id)
     if (!draggedItem) return
 
-    // Determine target column
     const overId = over.id as string
     const targetColumn = COLUMNS.find(col => col === overId || col === workItems.find(i => i.id === overId)?.status)
 
     if (targetColumn && draggedItem.status !== targetColumn) {
-      // Optimistic update kanban list
+      // Optimistic update
       queryClient.setQueryData(['work-items', 'kanban', search], (old: any) => {
-        if (!old || !old.data) return old
+        if (!old?.data) return old
         return {
           ...old,
-          data: old.data.map((item: any) => item.id === draggedItem.id ? { ...item, status: targetColumn } : item)
+          data: old.data.map((item: any) => 
+            item.id === draggedItem.id ? { ...item, status: targetColumn } : item
+          )
         }
       })
-      // Optimistic update drawer cache so it shows new status immediately
-      queryClient.setQueryData(['work-item', draggedItem.id], (old: any) => {
-        if (!old?.data) return old
-        return { ...old, data: { ...old.data, status: targetColumn } }
-      })
+      
       updateStatusMutation.mutate({ id: draggedItem.id, status: targetColumn })
     }
   }
@@ -148,23 +146,22 @@ export function KanbanView() {
   return (
     <>
       <div className="flex flex-col h-full -m-4 lg:-m-6">
-        {/* Kanban toolbar */}
-        <div className="flex items-center gap-3 px-4 lg:px-6 py-3 border-b border-border bg-card/50 backdrop-blur-sm">
+        {/* Toolbar */}
+        <div className="flex items-center gap-3 px-4 lg:px-6 py-3 border-b border-border bg-card/50">
           <div>
-            <h1 className="text-base font-semibold text-foreground">Kanban Board</h1>
-            <p className="text-xs text-muted-foreground">{workItems.length} total requests</p>
+            <h1 className="text-base font-semibold">Kanban Board</h1>
+            <p className="text-xs text-muted-foreground">{workItems.length} requests</p>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            {/* BA Filter */}
-            {isBusinessAnalyst && (
+            {user?.role === UserRole.BUSINESS_ANALYST && (
               <button
                 onClick={() => setFilterMyProjects(!filterMyProjects)}
                 className={cn(
                   "px-3 py-1.5 text-xs rounded-lg border transition-colors",
                   filterMyProjects
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background border-border hover:bg-muted"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background hover:bg-muted"
                 )}
               >
                 {filterMyProjects ? '✓ My Projects' : 'All Projects'}
@@ -178,13 +175,13 @@ export function KanbanView() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search..."
-                className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary/30 w-40"
+                className="pl-8 pr-3 py-1.5 text-xs rounded-lg border bg-background focus:outline-none focus:ring-1 focus:ring-primary/30 w-40"
               />
             </div>
           </div>
         </div>
 
-        {/* Kanban board */}
+        {/* Board */}
         <div className="flex-1 overflow-x-auto overflow-y-hidden">
           <div className="flex h-full gap-3 p-4 lg:p-6 min-w-max">
             <DndContext
@@ -193,35 +190,18 @@ export function KanbanView() {
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
-              {COLUMNS.map(status => {
-                // Use grouped column for Go Live and Drop
-                if (status === WorkflowStatus.GO_LIVE || status === WorkflowStatus.DROP) {
-                  return (
-                    <KanbanGroupedColumn
-                      key={status}
-                      status={status}
-                      items={getColumnItems(status)}
-                      isLoading={isLoading}
-                      onCardClick={(id) => setSelectedItemId(id)}
-                      isReadOnly={isReadOnly}
-                    />
-                  )
-                }
-                
-                // Use regular column for other statuses
-                return (
-                  <KanbanColumn
-                    key={status}
-                    status={status}
-                    items={getColumnItems(status)}
-                    isLoading={isLoading}
-                    onCardClick={(id) => setSelectedItemId(id)}
-                    isReadOnly={isReadOnly}
-                  />
-                )
-              })}
+              {COLUMNS.map(status => (
+                <KanbanColumn
+                  key={status}
+                  status={status}
+                  items={getColumnItems(status)}
+                  isLoading={isLoading}
+                  onCardClick={(id) => setSelectedItemId(id)}
+                  isReadOnly={!canDragDrop}
+                />
+              ))}
 
-              <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }}>
+              <DragOverlay>
                 {activeItem && (
                   <div className="rotate-1 scale-105">
                     <KanbanCard item={activeItem} isDragging />
@@ -233,7 +213,7 @@ export function KanbanView() {
         </div>
       </div>
 
-      {/* Ticket detail drawer */}
+      {/* Detail drawer */}
       <TicketDetailDrawer
         itemId={selectedItemId}
         onClose={() => setSelectedItemId(null)}
