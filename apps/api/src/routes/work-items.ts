@@ -290,7 +290,7 @@ app.get('/:id', authMiddleware, async (c) => {
   const db = c.get('db')
 
   try {
-    // First, try with all relations
+    // Step 1: Fetch core work item with safe relations only
     const item = await db.query.workItems.findFirst({
       where: eq(schema.workItems.id, id),
       with: {
@@ -300,23 +300,6 @@ app.get('/:id', authMiddleware, async (c) => {
         businessAnalyst: true,
         developer: true,
         qa: true,
-        comments: { 
-          with: { 
-            user: { columns: { id: true, name: true, avatarUrl: true, role: true } } 
-          }, 
-          orderBy: [desc(schema.comments.createdAt)] 
-        },
-        attachments: { 
-          with: { 
-            uploader: { columns: { id: true, name: true } } 
-          } 
-        },
-        activityLogs: { 
-          with: { 
-            user: { columns: { id: true, name: true, avatarUrl: true } } 
-          }, 
-          orderBy: [desc(schema.activityLogs.createdAt)] 
-        },
       },
     })
 
@@ -326,41 +309,57 @@ app.get('/:id', authMiddleware, async (c) => {
     if (user.role === UserRole.BUSINESS_USER) {
       const isOwnRequest = item.requesterEmail === user.email
       const isSameDepartment = user.departmentId && item.departmentId === user.departmentId
-      
       if (!isOwnRequest && !isSameDepartment) {
         return c.json(err('Work item not found'), 404)
       }
     }
 
-    // Fetch assessment separately to avoid join issues
-    const assessment = await db.query.assessments.findFirst({
-      where: eq(schema.assessments.workItemId, id)
-    }).catch(() => null)
+    // Step 2: Fetch each optional relation separately with individual try-catch
+    // This way if any table doesn't exist, other data still loads
+    const [comments, attachments, activityLogs, assessment, tasks, deployments] = await Promise.all([
+      db.query.comments.findMany({
+        where: eq(schema.comments.workItemId, id),
+        with: { user: { columns: { id: true, name: true, avatarUrl: true, role: true } } },
+        orderBy: [desc(schema.comments.createdAt)],
+      }).catch(() => []),
 
-    // Fetch tasks separately
-    const tasks = await db.query.tasks.findMany({
-      where: eq(schema.tasks.workItemId, id),
-      with: { 
-        assignee: true,
-        subtasks: true 
-      }
-    }).catch(() => [])
+      db.query.attachments.findMany({
+        where: eq(schema.attachments.workItemId, id),
+        with: { uploader: { columns: { id: true, name: true } } },
+      }).catch(() => []),
 
-    // Fetch deployments separately
-    const deployments = await db.query.deployments.findMany({
-      where: eq(schema.deployments.workItemId, id)
-    }).catch(() => [])
+      db.query.activityLogs.findMany({
+        where: eq(schema.activityLogs.workItemId, id),
+        with: { user: { columns: { id: true, name: true, avatarUrl: true } } },
+        orderBy: [desc(schema.activityLogs.createdAt)],
+      }).catch(() => []),
+
+      db.query.assessments.findFirst({
+        where: eq(schema.assessments.workItemId, id),
+      }).catch(() => null),
+
+      db.query.tasks.findMany({
+        where: eq(schema.tasks.workItemId, id),
+        with: { assignee: true, subtasks: true },
+      }).catch(() => []),
+
+      db.query.deployments.findMany({
+        where: eq(schema.deployments.workItemId, id),
+      }).catch(() => []),
+    ])
 
     return c.json(ok({
       ...item,
+      comments,
+      attachments,
+      activityLogs,
       assessment,
       tasks,
-      deployments
+      deployments,
     }))
   } catch (error) {
-    console.error('Error fetching work item:', error)
-    // Return more detailed error for debugging
-    return c.json(err(`Failed to fetch work item: ${error instanceof Error ? error.message : 'Unknown error'}`), 500)
+    console.error('[work-items/:id] Error:', error)
+    return c.json(err(`Failed to fetch work item: ${error instanceof Error ? error.message : String(error)}`), 500)
   }
 })
 
