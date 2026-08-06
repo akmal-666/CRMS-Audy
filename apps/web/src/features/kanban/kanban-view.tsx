@@ -17,6 +17,7 @@ import { apiGet, apiPatch } from '@/lib/api'
 import { WorkflowStatus, UserRole } from '@crms/types'
 import { STATUS_LABELS, cn } from '@/lib/utils'
 import { KanbanColumn } from './kanban-column'
+import { KanbanGroupedColumn } from './kanban-grouped-column'
 import { KanbanCard } from './kanban-card'
 import { TicketDetailDrawer } from '../tickets/ticket-detail-drawer'
 import { toast } from 'sonner'
@@ -190,16 +191,31 @@ export function KanbanView() {
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
-              {COLUMNS.map(status => (
-                <KanbanColumn
-                  key={status}
-                  status={status}
-                  items={getColumnItems(status)}
-                  isLoading={isLoading}
-                  onCardClick={(id) => setSelectedItemId(id)}
-                  isReadOnly={!canDragDrop}
-                />
-              ))}
+              {COLUMNS.map(status => {
+                // Go Live and Drop use grouped by department view
+                if (status === WorkflowStatus.GO_LIVE || status === WorkflowStatus.DROP) {
+                  return (
+                    <KanbanGroupedColumn
+                      key={status}
+                      status={status}
+                      items={getColumnItems(status)}
+                      isLoading={isLoading}
+                      onCardClick={(id) => setSelectedItemId(id)}
+                      isReadOnly={!canDragDrop}
+                    />
+                  )
+                }
+                return (
+                  <KanbanColumn
+                    key={status}
+                    status={status}
+                    items={getColumnItems(status)}
+                    isLoading={isLoading}
+                    onCardClick={(id) => setSelectedItemId(id)}
+                    isReadOnly={!canDragDrop}
+                  />
+                )
+              })}
 
               <DragOverlay>
                 {activeItem && (
