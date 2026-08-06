@@ -12,6 +12,39 @@ import { UserRole } from '@crms/types'
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
+// ─── Public route MUST be first, before /:workItemId catches it ───────────────
+// Public timeline view (no auth required)
+app.get('/public/:token', async (c) => {
+  const { token } = c.req.param()
+  const db = c.get('db')
+
+  let workItemId: string
+  try {
+    workItemId = Buffer.from(token, 'base64url').toString('utf-8')
+  } catch {
+    return c.json(err('Invalid share link'), 400)
+  }
+
+  const workItem = await db.query.workItems.findFirst({
+    where: eq(schema.workItems.id, workItemId),
+    with: { department: true, vendor: true, manager: true, developer: true },
+  })
+
+  if (!workItem) return c.json(err('Timeline not found'), 404)
+
+  if (['go_live', 'drop'].includes(workItem.status)) {
+    return c.json(err('Timeline no longer available'), 410)
+  }
+
+  const tasks = await db.query.timelineTasks.findMany({
+    where: eq(schema.timelineTasks.workItemId, workItemId),
+    with: { assignee: { columns: { id: true, name: true, avatarUrl: true } } },
+    orderBy: [schema.timelineTasks.sortOrder],
+  })
+
+  return c.json(ok({ workItem, tasks }))
+})
+
 // Get all timeline tasks (for main timeline view)
 app.get('/all', authMiddleware, async (c) => {
   const db = c.get('db')
@@ -291,48 +324,6 @@ app.post('/:workItemId/share', authMiddleware, async (c) => {
   const token = Buffer.from(workItemId).toString('base64url')
 
   return c.json(ok({ token }, 'Share link generated'))
-})
-
-// Public timeline view (no auth required)
-app.get('/public/:token', async (c) => {
-  const { token } = c.req.param()
-  const db = c.get('db')
-
-  // Decode token
-  let workItemId: string
-  try {
-    workItemId = Buffer.from(token, 'base64url').toString('utf-8')
-  } catch {
-    return c.json(err('Invalid share link'), 400)
-  }
-
-  // Get work item and tasks
-  const workItem = await db.query.workItems.findFirst({
-    where: eq(schema.workItems.id, workItemId),
-    with: {
-      department: true,
-      vendor: true,
-      manager: true,
-      developer: true,
-    },
-  })
-
-  if (!workItem) return c.json(err('Timeline not found'), 404)
-
-  // Don't allow access to completed or dropped items
-  if (['go_live', 'drop'].includes(workItem.status)) {
-    return c.json(err('Timeline no longer available'), 410)
-  }
-
-  const tasks = await db.query.timelineTasks.findMany({
-    where: eq(schema.timelineTasks.workItemId, workItemId),
-    with: {
-      assignee: { columns: { id: true, name: true, avatarUrl: true } },
-    },
-    orderBy: [schema.timelineTasks.sortOrder],
-  })
-
-  return c.json(ok({ workItem, tasks }))
 })
 
 // Reorder tasks (drag & drop)

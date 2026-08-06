@@ -1268,31 +1268,18 @@ function TimelineSkeleton() {
 
 // ─── Public Read-Only Timeline Page ──────────────────────────────────────────
 export function PublicTimelinePage({ token }: { token: string }) {
-  // Use relative path via Next.js rewrites OR the explicit env var.
-  // Never fall back to localhost in production — use window.location.origin as base.
-  const getApiUrl = () => {
-    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL
-    if (typeof window !== 'undefined') {
-      // Same-origin fallback (works if API is on same domain)
-      return window.location.origin
-    }
-    return 'http://localhost:8787'
-  }
-
   const { data, isLoading, isError } = useQuery({
     queryKey: ['timeline-public', token],
     queryFn: async () => {
-      const API_URL = getApiUrl()
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://crms-api.it-support-8bd.workers.dev'
       const res = await fetch(`${API_URL}/api/timeline/public/${token}`, {
         headers: { 'Content-Type': 'application/json' },
-        // Explicitly no credentials — this is a public endpoint
         credentials: 'omit',
       })
       if (!res.ok) throw new Error('Not found or expired')
       return res.json() as Promise<{ data: { workItem: WorkItemInfo; tasks: TimelineTask[] } }>
     },
     retry: false,
-    // Don't retry 404s
     retryOnMount: false,
   })
 
