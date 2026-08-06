@@ -1244,7 +1244,7 @@ export function TimelineModule() {
   if (isLoading) return <ModuleSkeleton />
 
   return (
-    <div className="flex flex-col bg-background h-screen overflow-hidden">
+    <div className="flex flex-col bg-background h-full overflow-hidden -m-4 lg:-m-6">
       {/* ── Top Bar ── */}
       <div className="flex-shrink-0 border-b border-border bg-card px-4 py-3 flex items-center justify-between gap-3">
         <div>
