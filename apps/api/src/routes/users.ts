@@ -126,34 +126,7 @@ app.post('/', authMiddleware, requireRole(UserRole.ADMINISTRATOR), zValidator('j
   return c.json(ok({ id }, 'User created and welcome email sent'), 201)
 })
 
-app.patch('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), async (c) => {
-  const { id } = c.req.param()
-  const body = await c.req.json()
-  const db = c.get('db')
-
-  // If password is provided, hash it
-  if (body.password && body.password.length > 0) {
-    const bcrypt = await import('bcryptjs')
-    body.passwordHash = await bcrypt.hash(body.password, 12)
-    delete body.password
-  } else {
-    // Remove password field if empty
-    delete body.password
-  }
-
-  await db.update(schema.users).set({ ...body, updatedAt: new Date() }).where(eq(schema.users.id, id))
-  return c.json(ok(null, 'User updated'))
-})
-
-app.delete('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), async (c) => {
-  const { id } = c.req.param()
-  const db = c.get('db')
-
-  await db.update(schema.users).set({ isActive: false, updatedAt: new Date() }).where(eq(schema.users.id, id))
-  return c.json(ok(null, 'User deactivated'))
-})
-
-// Upload avatar
+// Upload avatar - MUST be before /:id routes to avoid conflicts
 app.post('/:id/avatar', authMiddleware, async (c) => {
   const { id } = c.req.param()
   const user = c.get('user')!
@@ -227,6 +200,33 @@ app.post('/:id/avatar', authMiddleware, async (c) => {
     console.error('[upload-avatar] Error:', error)
     return c.json(err(`Upload failed: ${error?.message || 'Unknown error'}`), 500)
   }
+})
+
+app.patch('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), async (c) => {
+  const { id } = c.req.param()
+  const body = await c.req.json()
+  const db = c.get('db')
+
+  // If password is provided, hash it
+  if (body.password && body.password.length > 0) {
+    const bcrypt = await import('bcryptjs')
+    body.passwordHash = await bcrypt.hash(body.password, 12)
+    delete body.password
+  } else {
+    // Remove password field if empty
+    delete body.password
+  }
+
+  await db.update(schema.users).set({ ...body, updatedAt: new Date() }).where(eq(schema.users.id, id))
+  return c.json(ok(null, 'User updated'))
+})
+
+app.delete('/:id', authMiddleware, requireRole(UserRole.ADMINISTRATOR), async (c) => {
+  const { id } = c.req.param()
+  const db = c.get('db')
+
+  await db.update(schema.users).set({ isActive: false, updatedAt: new Date() }).where(eq(schema.users.id, id))
+  return c.json(ok(null, 'User deactivated'))
 })
 
 // ─── Welcome email template ───────────────────────────────────────────────────
