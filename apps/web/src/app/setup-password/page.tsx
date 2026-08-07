@@ -43,7 +43,13 @@ function SetupPasswordForm() {
       toast.success('Password set successfully!')
       setTimeout(() => router.push('/login'), 2000)
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message || 'Failed to set password')
+      const msg = error?.response?.data?.message 
+        || error?.response?.data?.error 
+        || error?.message 
+        || 'Failed to set password'
+      const status = error?.response?.status || 'unknown'
+      console.error('[setup-password] Error:', status, error?.response?.data)
+      toast.error(`${msg} (${status})`)
       setLoading(false)
     }
   }
