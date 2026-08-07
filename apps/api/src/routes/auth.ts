@@ -435,7 +435,7 @@ function buildWelcomeEmail({ name, email, setupUrl }: { name: string; email: str
         <tr>
           <td style="background:#4F46E5;border-radius:12px 12px 0 0;padding:28px 32px;text-align:center;">
             <p style="margin:0;color:rgba(255,255,255,0.7);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Change Request Management System</p>
-            <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:700;">Welcome to CRMS! 🎉</h1>
+            <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:700;">Welcome to CRMS!</h1>
           </td>
         </tr>
         <tr>
