@@ -270,18 +270,6 @@ export function MandaysNegotiation({
         )}
       </div>
 
-      {/* Status badge */}
-      <div
-        className={cn(
-          'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
-          STATUS_CONFIG[negotiation.negotiationStatus].bg,
-          STATUS_CONFIG[negotiation.negotiationStatus].color
-        )}
-      >
-        <StatusIcon size={12} />
-        {STATUS_CONFIG[negotiation.negotiationStatus].label}
-      </div>
-
       {/* Mandays breakdown */}
       <div className="space-y-2 p-3 border border-border rounded-lg bg-background">
         <div className="flex justify-between text-sm">
