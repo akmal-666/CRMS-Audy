@@ -42,7 +42,7 @@ export function MandaysEdit({ workItemId, currentValue, canEdit }: MandaysEditPr
     return (
       <div className="flex items-center justify-between gap-2 text-sm group">
         <div>
-          <p className="text-xs text-muted-foreground mb-0.5">Mandays</p>
+          <p className="text-xs text-muted-foreground mb-0.5">Mandays (Final Approval)</p>
           <div className="flex items-center gap-1.5">
             <span className="text-foreground font-medium">
               {currentValue !== null && currentValue !== undefined ? `${currentValue} days` : <span className="text-muted-foreground/60">Not set</span>}
@@ -60,7 +60,7 @@ export function MandaysEdit({ workItemId, currentValue, canEdit }: MandaysEditPr
 
   return (
     <div className="text-sm">
-      <p className="text-xs text-muted-foreground mb-0.5">Mandays</p>
+      <p className="text-xs text-muted-foreground mb-0.5">Mandays (Final Approval)</p>
       <div className="flex items-center gap-1">
         <input
           type="number"

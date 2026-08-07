@@ -19,6 +19,7 @@ interface WorkItem {
   dueDate?: string
   manager?: { id: string; name: string; avatarUrl?: string }
   businessAnalyst?: { id: string; name: string; avatarUrl?: string }
+  businessAnalysts?: Array<{ id: string; name: string; avatarUrl?: string }>
   developer?: { id: string; name: string; avatarUrl?: string }
   createdAt: string
 }
@@ -85,9 +86,13 @@ export function KanbanCard({ item, isDragging, onClick, isReadOnly }: KanbanCard
       {/* Footer */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          {/* Assignee avatars: manager + businessAnalyst */}
+          {/* Assignee avatars: manager + businessAnalysts (multiple) + developer */}
           <div className="flex -space-x-1.5">
-            {[item.manager, item.businessAnalyst, item.developer].filter(Boolean).slice(0, 3).map((user, i) => (
+            {[
+              item.manager,
+              ...(item.businessAnalysts ?? []),
+              item.developer
+            ].filter(Boolean).slice(0, 4).map((user, i) => (
               <div
                 key={i}
                 className="w-5 h-5 rounded-full bg-primary/80 flex items-center justify-center text-white text-xs border border-card ring-1 ring-white/10"
@@ -97,7 +102,7 @@ export function KanbanCard({ item, isDragging, onClick, isReadOnly }: KanbanCard
               </div>
             ))}
           </div>
-          {!item.manager && !item.businessAnalyst && !item.developer && (
+          {!item.manager && (!item.businessAnalysts || item.businessAnalysts.length === 0) && !item.developer && (
             <span className="text-xs text-muted-foreground/60 flex items-center gap-1">
               <User2 size={11} />
               Unassigned

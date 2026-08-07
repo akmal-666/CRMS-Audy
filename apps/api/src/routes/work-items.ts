@@ -290,8 +290,33 @@ app.get('/', authMiddleware, async (c) => {
     db.select({ count: count() }).from(schema.workItems).where(where),
   ])
 
+  // Fetch all businessAnalysts for these work items
+  const workItemIds = items.map(item => item.id)
+  const businessAnalystsRecords = workItemIds.length > 0
+    ? await db.query.workItemBusinessAnalysts.findMany({
+        where: inArray(schema.workItemBusinessAnalysts.workItemId, workItemIds),
+        with: {
+          user: { columns: { id: true, name: true, email: true, avatarUrl: true } },
+        },
+      }).catch(() => [])
+    : []
+
+  // Group BAs by workItemId
+  const basByWorkItem = businessAnalystsRecords.reduce((acc, record) => {
+    if (!acc[record.workItemId]) acc[record.workItemId] = []
+    acc[record.workItemId].push(record.user)
+    return acc
+  }, {} as Record<string, any[]>)
+
+  // Attach businessAnalysts array to each item
+  const itemsWithBAs = items.map(item => ({
+    ...item,
+    businessAnalysts: basByWorkItem[item.id] ?? 
+      (item.businessAnalyst ? [item.businessAnalyst] : []), // Fallback to legacy field
+  }))
+
   const total = totalResult[0]?.count ?? 0
-  return c.json(paginate(items, total, pageNum, pageSizeNum))
+  return c.json(paginate(itemsWithBAs, total, pageNum, pageSizeNum))
 })
 
 // Get single work item
@@ -338,7 +363,7 @@ app.get('/:id', authMiddleware, async (c) => {
 
     // Step 2: Fetch each optional relation separately with individual try-catch
     // This way if any table doesn't exist, other data still loads
-    const [comments, attachments, activityLogs, assessment, tasks, deployments, businessAnalysts] = await Promise.all([
+    const [comments, attachments, activityLogs, assessment, tasks, deployments, businessAnalysts, mandaysNegotiation] = await Promise.all([
       db.query.comments.findMany({
         where: eq(schema.comments.workItemId, id),
         with: { user: { columns: { id: true, name: true, avatarUrl: true, role: true } } },
@@ -377,6 +402,11 @@ app.get('/:id', authMiddleware, async (c) => {
         },
         orderBy: [schema.workItemBusinessAnalysts.createdAt],
       }).catch(() => []),
+
+      // Fetch mandays negotiation record (final approval value)
+      db.query.mandaysNegotiations.findFirst({
+        where: eq(schema.mandaysNegotiations.workItemId, id),
+      }).catch(() => null),
     ])
 
     // Build businessAnalysts list:
@@ -397,6 +427,8 @@ app.get('/:id', authMiddleware, async (c) => {
       deployments,
       // Multiple BAs from junction table (with legacy fallback)
       businessAnalysts: businessAnalystsList,
+      // Mandays negotiation record (includes final approved value)
+      mandaysNegotiation,
     }))
   } catch (error) {
     console.error('[work-items/:id] Error:', error)
@@ -579,7 +611,7 @@ app.put('/:id/assessment', authMiddleware, requireRole(UserRole.ADMINISTRATOR, U
   return c.json(ok(null, 'Assessment updated'))
 })
 
-// Update mandays
+// Update mandays (saves to mandays_negotiations.mandaysApproved for final approval tracking)
 const updateMandaysSchema = z.object({
   mandays: z.number().nullable(),
 })
@@ -593,22 +625,60 @@ app.patch('/:id/mandays', authMiddleware, requireRole(...STAFF_ROLES), zValidato
   const item = await db.query.workItems.findFirst({ where: eq(schema.workItems.id, id) })
   if (!item) return c.json(err('Work item not found'), 404)
 
-  const oldMandays = item.mandays
+  // Check if negotiation record exists
+  const existingNegotiation = await db.query.mandaysNegotiations.findFirst({
+    where: eq(schema.mandaysNegotiations.workItemId, id),
+  }).catch(() => null)
 
+  if (existingNegotiation) {
+    // Update existing negotiation record
+    const oldApproved = existingNegotiation.mandaysApproved
+    
+    await db.update(schema.mandaysNegotiations)
+      .set({
+        mandaysApproved: mandays ?? 0,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.mandaysNegotiations.workItemId, id))
+
+    await db.insert(schema.auditLogs).values({
+      id: generateId(),
+      userId: user.sub,
+      action: 'update',
+      entityType: 'mandays_negotiation',
+      entityId: existingNegotiation.id,
+      oldValues: { mandaysApproved: oldApproved },
+      newValues: { mandaysApproved: mandays },
+      createdAt: new Date(),
+    })
+  } else {
+    // Create new negotiation record (no negotiation flow, just approved directly)
+    await db.insert(schema.mandaysNegotiations).values({
+      id: generateId(),
+      workItemId: id,
+      mandaysRequested: mandays ?? 0,
+      mandaysApproved: mandays ?? 0,
+      negotiationStatus: 'none',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    await db.insert(schema.auditLogs).values({
+      id: generateId(),
+      userId: user.sub,
+      action: 'create',
+      entityType: 'mandays_negotiation',
+      entityId: id,
+      oldValues: null,
+      newValues: { mandaysApproved: mandays },
+      createdAt: new Date(),
+    })
+  }
+
+  // Also update work_items.mandays for legacy compatibility
   await db.update(schema.workItems)
     .set({ mandays, updatedAt: new Date() })
     .where(eq(schema.workItems.id, id))
-
-  await db.insert(schema.auditLogs).values({
-    id: generateId(),
-    userId: user.sub,
-    action: 'update',
-    entityType: 'work_item',
-    entityId: id,
-    oldValues: { mandays: oldMandays },
-    newValues: { mandays },
-    createdAt: new Date(),
-  })
 
   return c.json(ok({ id, mandays }, 'Mandays updated'))
 })

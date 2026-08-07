@@ -174,7 +174,11 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
                         displayValue={item.vendor?.name}
                         canEdit={canEditDetails}
                       />
-                      <MandaysEdit workItemId={item.id} currentValue={item.mandays} canEdit={canEditAssignment} />
+                      <MandaysEdit 
+                        workItemId={item.id} 
+                        currentValue={item.mandaysNegotiation?.mandaysApproved ?? item.mandays} 
+                        canEdit={canEditAssignment} 
+                      />
                     </div>
                   </div>
 

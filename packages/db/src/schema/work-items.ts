@@ -88,5 +88,5 @@ export const workItemsRelations = relations(workItems, ({ one, many }) => ({
   attachments: many(attachments),
   activityLogs: many(activityLogs),
   // Note: These relations are defined in their respective schema files
-  // replies, watchers, collaboratingDepartments, mandaysNegotiation
+  // replies, watchers, collaboratingDepartments, mandaysNegotiation, businessAnalystAssignments
 }))
