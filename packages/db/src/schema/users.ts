@@ -14,12 +14,16 @@ export const users = sqliteTable('users', {
   branchId: text('branch_id').references(() => branches.id),
   avatarUrl: text('avatar_url'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  passwordResetToken: text('password_reset_token'),
+  passwordResetExpiry: integer('password_reset_expiry', { mode: 'timestamp' }),
+  mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 }, (table) => ({
   emailIdx: index('users_email_idx').on(table.email),
   roleIdx: index('users_role_idx').on(table.role),
   departmentIdx: index('users_department_idx').on(table.departmentId),
+  resetTokenIdx: index('users_reset_token_idx').on(table.passwordResetToken),
 }))
 
 export const sessions = sqliteTable('sessions', {

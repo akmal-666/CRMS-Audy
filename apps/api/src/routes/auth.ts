@@ -142,6 +142,88 @@ app.get('/test-email', async (c) => {
     return c.json({ hasKey, keyPrefix, appUrl, emailSent: false, error: err?.message })
   }
 })
+
+// ─── Send Welcome Credentials Email ───────────────────────────────────────────
+app.post('/send-credentials/:userId', authMiddleware, async (c) => {
+  const { userId } = c.req.param()
+  const currentUser = c.get('user')!
+  const db = c.get('db')
+
+  // Only admins and managers can send credentials
+  if (currentUser.role !== 'administrator' && currentUser.role !== 'manager') {
+    return c.json(err('Unauthorized'), 403)
+  }
+
+  const user = await db.query.users.findFirst({
+    where: eq(schema.users.id, userId),
+  })
+
+  if (!user) {
+    return c.json(err('User not found'), 404)
+  }
+
+  // Generate reset token
+  const token = generateId() + generateId()
+  const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+
+  // Store token in database
+  await db.update(schema.users)
+    .set({
+      passwordResetToken: token,
+      passwordResetExpiry: expiryDate,
+      mustChangePassword: true,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.users.id, userId))
+
+  const appUrl = c.env.APP_URL || 'http://localhost:3000'
+  const setupUrl = `${appUrl}/setup-password?token=${token}`
+
+  // Send welcome email via Resend
+  if (c.env.RESEND_API_KEY) {
+    try {
+      const emailRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${c.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'CRMS Audy Dental <noreply@audydental.com>',
+          to: [user.email],
+          subject: 'Welcome to CRMS - Set Your Password',
+          html: buildWelcomeEmail({ name: user.name, email: user.email, setupUrl }),
+        }),
+      })
+
+      const responseText = await emailRes.text()
+      if (!emailRes.ok) {
+        console.error(`[send-credentials] Resend error ${emailRes.status}: ${responseText}`)
+        return c.json(err('Failed to send email'), 500)
+      }
+      
+      console.log(`[send-credentials] Email sent to ${user.email}`)
+    } catch (emailErr) {
+      console.error(`[send-credentials] Email failed:`, emailErr)
+      return c.json(err('Failed to send email'), 500)
+    }
+  } else {
+    console.warn(`[send-credentials] RESEND_API_KEY not configured. Setup URL: ${setupUrl}`)
+  }
+
+  // Audit log
+  await db.insert(schema.auditLogs).values({
+    id: generateId(),
+    userId: currentUser.sub,
+    action: 'send_credentials',
+    entityType: 'user',
+    entityId: userId,
+    createdAt: new Date(),
+  })
+
+  return c.json(ok(null, 'Welcome email sent successfully'))
+})
+
 app.post('/forgot-password', zValidator('json', z.object({ email: z.string().email() })), async (c) => {
   const { email } = c.req.valid('json')
   const db = c.get('db')
@@ -197,7 +279,7 @@ app.post('/forgot-password', zValidator('json', z.object({ email: z.string().ema
   return c.json(ok(null, 'If that email exists, a reset link has been sent.'))
 })
 
-// ─── Reset Password ───────────────────────────────────────────────────────────
+// ─── Reset Password / Setup Password ──────────────────────────────────────────
 app.post('/reset-password', zValidator('json', z.object({
   token: z.string().min(1, 'Token is required'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -205,8 +287,24 @@ app.post('/reset-password', zValidator('json', z.object({
   const { token, password } = c.req.valid('json')
   const db = c.get('db')
 
+  // Try KV first (for forgot-password flow with 1-hour expiry)
   const kvKey = `pwd_reset:${token}`
-  const userId = await c.env.CACHE.get(kvKey)
+  let userId = await c.env.CACHE.get(kvKey)
+
+  // If not in KV, check database (for welcome email flow with 7-day expiry)
+  if (!userId) {
+    const userByToken = await db.query.users.findFirst({
+      where: eq(schema.users.passwordResetToken, token),
+    })
+
+    if (userByToken && userByToken.passwordResetExpiry) {
+      // Check if token is still valid
+      if (new Date() > userByToken.passwordResetExpiry) {
+        return c.json(err('This link has expired. Please request a new one.'), 400)
+      }
+      userId = userByToken.id
+    }
+  }
 
   if (!userId) {
     return c.json(err('This reset link is invalid or has expired. Please request a new one.'), 400)
@@ -223,17 +321,24 @@ app.post('/reset-password', zValidator('json', z.object({
   const bcrypt = await import('bcryptjs')
   const passwordHash = await bcrypt.hash(password, 12)
 
+  // Update password and clear reset token
   await db.update(schema.users)
-    .set({ passwordHash, updatedAt: new Date() })
+    .set({ 
+      passwordHash, 
+      passwordResetToken: null,
+      passwordResetExpiry: null,
+      mustChangePassword: false,
+      updatedAt: new Date() 
+    })
     .where(eq(schema.users.id, userId))
 
-  // Invalidate the token after use
+  // Invalidate the token after use (if it was in KV)
   await c.env.CACHE.delete(kvKey)
 
   // Invalidate all active sessions for security
   await db.delete(schema.sessions).where(eq(schema.sessions.userId, userId))
 
-  return c.json(ok(null, 'Password reset successfully. You can now sign in with your new password.'))
+  return c.json(ok(null, 'Password set successfully. You can now sign in with your new password.'))
 })
 
 // ─── Password reset email template ───────────────────────────────────────────
@@ -280,6 +385,76 @@ function buildPasswordResetEmail({ name, resetUrl }: { name: string; resetUrl: s
             </p>
             <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:1.6;">
               If you didn't request a password reset, you can safely ignore this email. Your password will not be changed.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#F9FAFB;border:1px solid #E2E8F0;border-top:none;border-radius:0 0 12px 12px;padding:16px 32px;text-align:center;">
+            <p style="margin:0;color:#9CA3AF;font-size:12px;">Sent by <strong>CRMS</strong> — IT Change Request Management System</p>
+            <p style="margin:4px 0 0;color:#D1D5DB;font-size:11px;">audydental.com</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+}
+
+// ─── Welcome email template ───────────────────────────────────────────────────
+function buildWelcomeEmail({ name, email, setupUrl }: { name: string; email: string; setupUrl: string }): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:Inter,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#4F46E5;border-radius:12px 12px 0 0;padding:28px 32px;text-align:center;">
+            <p style="margin:0;color:rgba(255,255,255,0.7);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Change Request Management System</p>
+            <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:700;">Welcome to CRMS! 🎉</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#fff;padding:32px;border:1px solid #E2E8F0;border-top:none;">
+            <p style="margin:0 0 16px;color:#374151;font-size:15px;">Hi <strong>${name}</strong>,</p>
+            <p style="margin:0 0 16px;color:#6B7280;font-size:14px;line-height:1.6;">
+              Your CRMS account has been created! You can now access the Change Request Management System.
+            </p>
+            <p style="margin:0 0 24px;color:#6B7280;font-size:14px;line-height:1.6;">
+              Before you can log in, please set your password by clicking the button below. This link will expire in <strong>7 days</strong>.
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background:#F9FAFB;border:1px solid #E2E8F0;border-radius:8px;padding:16px;">
+              <tr>
+                <td>
+                  <p style="margin:0 0 4px;color:#9CA3AF;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Your Email</p>
+                  <p style="margin:0;color:#374151;font-size:14px;font-weight:600;">${email}</p>
+                </td>
+              </tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+              <tr>
+                <td align="center">
+                  <a href="${setupUrl}"
+                    style="display:inline-block;background:#4F46E5;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">
+                    Set Your Password
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 8px;color:#9CA3AF;font-size:12px;line-height:1.6;">
+              If the button doesn't work, copy and paste this link into your browser:
+            </p>
+            <p style="margin:0 0 24px;word-break:break-all;">
+              <a href="${setupUrl}" style="color:#4F46E5;font-size:12px;">${setupUrl}</a>
+            </p>
+            <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:1.6;">
+              If you didn't expect this email or have any questions, please contact your system administrator.
             </p>
           </td>
         </tr>
