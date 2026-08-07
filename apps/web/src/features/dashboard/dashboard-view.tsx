@@ -48,7 +48,7 @@ interface DashboardStats {
 }
 
 export function DashboardView() {
-  const [selectedMonth, setSelectedMonth] = useState<string>('all') // 'all' or 'YYYY-MM'
+  const [selectedMonth, setSelectedMonth] = useState<string>('all')
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -58,149 +58,46 @@ export function DashboardView() {
 
   const stats = data?.data
 
-  if (isLoading) return <DashboardSkeleton />
+  // ── All hooks must be above any early return ──────────────────────────────
 
   // Build month options from monthlyTrend data
   const monthOptions = useMemo(() => {
     const months = stats?.monthlyTrend?.map(m => m.month) ?? []
-    return months.sort((a, b) => b.localeCompare(a)) // newest first
+    return months.sort((a, b) => b.localeCompare(a))
   }, [stats?.monthlyTrend])
 
-  // Calculate filtered stats
-  const filteredStats = useMemo(() => {
-    if (!stats) return null
-    if (selectedMonth === 'all') return stats
-
-    // Filter recentItems by selected month
-    const monthPrefix = selectedMonth // 'YYYY-MM'
-    const filteredItems = stats.recentItems.filter(item => {
+  // Filter recentItems by selected month
+  const filteredRecentItems = useMemo(() => {
+    if (!stats?.recentItems) return []
+    if (selectedMonth === 'all') return stats.recentItems
+    return stats.recentItems.filter(item => {
       const itemMonth = new Date(item.createdAt).toISOString().slice(0, 7)
-      return itemMonth === monthPrefix
+      return itemMonth === selectedMonth
     })
+  }, [stats?.recentItems, selectedMonth])
 
-    // For status counts filtered by month, we approximate using filteredItems
-    const byStatusFiltered: Record<string, number> = {}
-    filteredItems.forEach(item => {
-      byStatusFiltered[item.status] = (byStatusFiltered[item.status] ?? 0) + 1
-    })
+  if (isLoading) return <DashboardSkeleton />
 
-    // Use monthly count from trend data for total
-    const monthCount = stats.monthlyTrend?.find(m => m.month === monthPrefix)?.count ?? 0
-
-    return {
-      ...stats,
-      // Keep full total but filter ongoing display
-      recentItems: filteredItems,
-    }
-  }, [stats, selectedMonth])
-
-  // === DATA SOURCE & CALCULATION EXPLANATION ===
-  // 
-  // 1. Total Projects: Total semua work items (all statuses)
-  //    Source: stats.total
-  //
-  // 2. Active Tasks: Projects dalam status development, uat, deployment
-  //    Source: stats.byStatus['development'] + stats.byStatus['uat'] + stats.byStatus['deployment']
-  //
-  // 3. Completed Milestones: Projects yang sudah status go_live
-  //    Source: stats.byStatus['go_live']
-  //
-  // 4. Portfolio Progress: Persentase completion rate = (go_live / total) * 100%
-  //    100% tercapai ketika semua projects sudah go_live
-  //    Source: (stats.byStatus['go_live'] / stats.total) * 100
-  //
-  // 5. Project Progress Bar: Berdasarkan status kanban dengan bobot:
-  //    - in_pipeline: 0%
-  //    - assessment: 10%
-  //    - development: 40%
-  //    - uat: 70%
-  //    - deployment: 90%
-  //    - go_live: 100%
-  //    - drop: 0%
-  //
-  // 6. Business Analysts: Jumlah BA beserta project count (exclude go_live & drop)
-  //    Source: stats.businessAnalysts array
-  //
-  // 7. Trends: Perbandingan bulan ini vs bulan lalu
-  //    Source: stats.monthlyTrend
-  //
-  // 8. Upcoming Deadlines: Filtered by backend (dueDate > now, active items only)
-  //    Source: stats.upcomingDeadlines (already sorted by dueDate ASC)
-  //
-  // 9. Ongoing Projects: Filtered by backend (status: assessment/development/uat/deployment)
-  //    Source: stats.recentItems (already filtered, sorted by createdAt DESC)
-
-  // === DATA SOURCE & CALCULATION EXPLANATION ===
-  // 
-  // 1. Total Projects: Total semua work items (all statuses)
-  //    Source: stats.total
-  //
-  // 2. Active Tasks: Projects dalam status development, uat, deployment
-  //    Source: stats.byStatus['development'] + stats.byStatus['uat'] + stats.byStatus['deployment']
-  //
-  // 3. Completed Milestones: Projects yang sudah status go_live
-  //    Source: stats.byStatus['go_live']
-  //
-  // 4. Portfolio Progress: Persentase completion rate = (go_live / total) * 100%
-  //    100% tercapai ketika semua projects sudah go_live
-  //    Source: (stats.byStatus['go_live'] / stats.total) * 100
-  //
-  // 5. Project Progress Bar: Berdasarkan status kanban dengan bobot:
-  //    - in_pipeline: 0%
-  //    - assessment: 10%
-  //    - development: 40%
-  //    - uat: 70%
-  //    - deployment: 90%
-  //    - go_live: 100%
-  //    - drop: 0%
-  //
-  // 6. Business Analysts: Jumlah BA beserta project count (exclude go_live & drop)
-  //    Source: stats.businessAnalysts array
-  //
-  // 7. Trends: Perbandingan bulan ini vs bulan lalu
-  //    Source: stats.monthlyTrend
-  //
-  // 8. Upcoming Deadlines: Filtered by backend (dueDate > now, active items only)
-  //    Source: stats.upcomingDeadlines (already sorted by dueDate ASC)
-  //
-  // 9. Ongoing Projects: Filtered by backend (status: assessment/development/uat/deployment)
-  //    Source: stats.recentItems (already filtered, sorted by createdAt DESC)
-
+  // ── Derived values ────────────────────────────────────────────────────────
   const totalProjects = stats?.total ?? 0
-  // Active = semua yang masih berjalan (bukan go_live dan bukan drop)
-  const activeProjects = totalProjects
-    - (stats?.byStatus['go_live'] ?? 0)
-    - (stats?.byStatus['drop'] ?? 0)
+  const activeProjects = totalProjects - (stats?.byStatus['go_live'] ?? 0) - (stats?.byStatus['drop'] ?? 0)
   const completedProjects = stats?.byStatus['go_live'] ?? 0
   const droppedProjects = stats?.byStatus['drop'] ?? 0
   const portfolioProgress = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0
 
-  // Calculate trends (simplified - comparing last month)
   const currentMonthCount = stats?.monthlyTrend?.[stats.monthlyTrend.length - 1]?.count ?? 0
   const lastMonthCount = stats?.monthlyTrend?.[stats.monthlyTrend.length - 2]?.count ?? 0
   const projectsTrend = lastMonthCount > 0 ? Math.round(((currentMonthCount - lastMonthCount) / lastMonthCount) * 100) : 0
 
-  // Status to progress percentage mapping (based on kanban order)
   const STATUS_PROGRESS: Record<string, number> = {
-    'in_pipeline': 0,
-    'assessment': 10,
-    'development': 40,
-    'uat': 70,
-    'deployment': 90,
-    'go_live': 100,
-    'drop': 0,
+    in_pipeline: 0, assessment: 10, development: 40,
+    uat: 70, deployment: 90, go_live: 100, drop: 0,
   }
 
-  // Get ongoing projects - filtered by month if selected
-  const ongoingProjects = (filteredStats?.recentItems ?? stats?.recentItems ?? []).slice(0, 3)
-
-  // Get upcoming deadlines - already filtered and sorted by backend
+  const ongoingProjects = filteredRecentItems.slice(0, 3)
   const upcomingDeadlines = stats?.upcomingDeadlines?.slice(0, 3) ?? []
-
-  // Business Analysts data
   const businessAnalysts = stats?.businessAnalysts ?? []
 
-  // Month label for display
   const monthLabel = selectedMonth === 'all'
     ? 'All Time'
     : new Date(selectedMonth + '-01').toLocaleString('en', { month: 'long', year: 'numeric' })
