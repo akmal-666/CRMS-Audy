@@ -379,6 +379,14 @@ app.get('/:id', authMiddleware, async (c) => {
       }).catch(() => []),
     ])
 
+    // Build businessAnalysts list:
+    // Prefer junction table data; fall back to legacy businessAnalyst field if empty
+    const businessAnalystsList = businessAnalysts.length > 0
+      ? businessAnalysts.map(r => r.user)
+      : item.businessAnalyst
+        ? [{ id: item.businessAnalyst.id, name: item.businessAnalyst.name, email: '', avatarUrl: item.businessAnalyst.avatarUrl ?? null }]
+        : []
+
     return c.json(ok({
       ...item,
       comments,
@@ -387,8 +395,8 @@ app.get('/:id', authMiddleware, async (c) => {
       assessment,
       tasks,
       deployments,
-      // Multiple BAs from junction table
-      businessAnalysts: businessAnalysts.map(r => r.user),
+      // Multiple BAs from junction table (with legacy fallback)
+      businessAnalysts: businessAnalystsList,
     }))
   } catch (error) {
     console.error('[work-items/:id] Error:', error)
