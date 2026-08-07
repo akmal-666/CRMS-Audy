@@ -7,6 +7,7 @@ import { getInitials } from '@/lib/utils'
 import { LogOut, User, Shield, Mail, Key, Camera, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import { apiUpload } from '@/lib/api'
 
 export default function ProfilePage() {
   const { user, logout } = useAuth()
@@ -17,18 +18,7 @@ export default function ProfilePage() {
     mutationFn: async (file: File) => {
       const formData = new FormData()
       formData.append('avatar', file)
-      
-      const res = await fetch(`/api/users/${user?.id}/avatar`, {
-        method: 'POST',
-        body: formData,
-      })
-      
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Upload failed')
-      }
-      
-      return res.json()
+      return apiUpload<{ avatarUrl: string }>(`/api/users/${user?.id}/avatar`, formData)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] })
@@ -37,7 +27,7 @@ export default function ProfilePage() {
       setUploading(false)
     },
     onError: (error: any) => {
-      toast.error(error?.message || 'Failed to upload photo')
+      toast.error(error?.response?.data?.error || error?.message || 'Failed to upload photo')
       setUploading(false)
     },
   })
