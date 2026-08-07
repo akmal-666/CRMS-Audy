@@ -290,16 +290,30 @@ app.get('/', authMiddleware, async (c) => {
     db.select({ count: count() }).from(schema.workItems).where(where),
   ])
 
-  // Fetch all businessAnalysts for these work items
+  // Fetch all businessAnalysts for these work items using raw SQL
+  // (more reliable than Drizzle ORM when table may have just been created)
   const workItemIds = items.map(item => item.id)
-  const businessAnalystsRecords = workItemIds.length > 0
-    ? await db.query.workItemBusinessAnalysts.findMany({
-        where: inArray(schema.workItemBusinessAnalysts.workItemId, workItemIds),
-        with: {
-          user: { columns: { id: true, name: true, email: true, avatarUrl: true } },
-        },
-      }).catch(() => [])
-    : []
+  let businessAnalystsRecords: Array<{ workItemId: string; user: { id: string; name: string; email: string; avatarUrl: string | null } }> = []
+  
+  if (workItemIds.length > 0) {
+    try {
+      const placeholders = workItemIds.map(() => '?').join(', ')
+      const rows = await c.env.DB.prepare(
+        `SELECT wiba.work_item_id, u.id, u.name, u.email, u.avatar_url
+         FROM work_item_business_analysts wiba
+         JOIN users u ON u.id = wiba.user_id
+         WHERE wiba.work_item_id IN (${placeholders})
+         ORDER BY wiba.created_at ASC`
+      ).bind(...workItemIds).all<{ work_item_id: string; id: string; name: string; email: string; avatar_url: string | null }>()
+      
+      businessAnalystsRecords = (rows.results ?? []).map(row => ({
+        workItemId: row.work_item_id,
+        user: { id: row.id, name: row.name, email: row.email, avatarUrl: row.avatar_url },
+      }))
+    } catch {
+      // Table might not exist yet — fall back to legacy field
+    }
+  }
 
   // Group BAs by workItemId
   const basByWorkItem = businessAnalystsRecords.reduce((acc, record) => {
@@ -311,8 +325,9 @@ app.get('/', authMiddleware, async (c) => {
   // Attach businessAnalysts array to each item
   const itemsWithBAs = items.map(item => ({
     ...item,
-    businessAnalysts: basByWorkItem[item.id] ?? 
-      (item.businessAnalyst ? [item.businessAnalyst] : []), // Fallback to legacy field
+    businessAnalysts: basByWorkItem[item.id] && basByWorkItem[item.id].length > 0
+      ? basByWorkItem[item.id]
+      : (item.businessAnalyst ? [item.businessAnalyst] : []), // Fallback to legacy field
   }))
 
   const total = totalResult[0]?.count ?? 0
