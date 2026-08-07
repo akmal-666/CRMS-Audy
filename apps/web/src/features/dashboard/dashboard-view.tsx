@@ -94,9 +94,12 @@ export function DashboardView() {
   //    Source: stats.recentItems (already filtered, sorted by createdAt DESC)
 
   const totalProjects = stats?.total ?? 0
-  const activeTasks = (stats?.byStatus['development'] ?? 0) + (stats?.byStatus['uat'] ?? 0) + (stats?.byStatus['deployment'] ?? 0)
-  const completedMilestones = stats?.byStatus['go_live'] ?? 0
-  const portfolioProgress = totalProjects > 0 ? Math.round((completedMilestones / totalProjects) * 100) : 0
+  // Active = semua yang masih berjalan (bukan go_live dan bukan drop)
+  const activeProjects = totalProjects
+    - (stats?.byStatus['go_live'] ?? 0)
+    - (stats?.byStatus['drop'] ?? 0)
+  const completedProjects = stats?.byStatus['go_live'] ?? 0
+  const portfolioProgress = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0
 
   // Calculate trends (simplified - comparing last month)
   const currentMonthCount = stats?.monthlyTrend?.[stats.monthlyTrend.length - 1]?.count ?? 0
@@ -153,25 +156,25 @@ export function DashboardView() {
           title="Total Projects"
           value={totalProjects}
           trend={projectsTrend}
-          trendLabel="12%"
+          trendLabel={`${Math.abs(projectsTrend)}%`}
           delay={0}
         />
         <StatsCard
           icon={<CheckSquare size={20} />}
           iconBg="bg-purple-50 text-purple-600"
-          title="Active Tasks"
-          value={activeTasks}
+          title="Active Projects"
+          value={activeProjects}
           trend={0}
-          trendLabel="0%"
+          trendLabel={`${totalProjects > 0 ? Math.round((activeProjects / totalProjects) * 100) : 0}%`}
           delay={0.05}
         />
         <StatsCard
           icon={<Flag size={20} />}
           iconBg="bg-green-50 text-green-600"
-          title="Completed Milestones"
-          value={completedMilestones}
+          title="Completed (Go Live)"
+          value={completedProjects}
           trend={5}
-          trendLabel="5%"
+          trendLabel={`${totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0}%`}
           delay={0.1}
         />
         <ProgressCard
