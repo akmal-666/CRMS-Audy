@@ -45,6 +45,7 @@ interface WorkItem {
   dueDate?: string
   manager?: { id: string; name: string; avatarUrl?: string }
   businessAnalyst?: { id: string; name: string; avatarUrl?: string }
+  businessAnalysts?: Array<{ id: string; name: string; avatarUrl?: string }>
   developer?: { id: string; name: string; avatarUrl?: string }
   vendor?: { id: string; name: string }
   createdAt: string
@@ -82,8 +83,9 @@ export function KanbanView() {
     if (filterMyProjects && user?.role === UserRole.BUSINESS_ANALYST) {
       return items.filter(item => {
         const matchBA = item.businessAnalyst?.id === user.id
+        const matchBAArray = item.businessAnalysts?.some(ba => ba.id === user.id)
         const matchManager = item.manager?.id === user.id
-        return matchBA || matchManager
+        return matchBA || matchBAArray || matchManager
       })
     }
     

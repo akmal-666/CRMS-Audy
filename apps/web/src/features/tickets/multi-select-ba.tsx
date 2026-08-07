@@ -86,8 +86,8 @@ export function MultiSelectBA({ workItemId, assignedBAs, canEdit }: MultiSelectB
       apiPost(`/api/work-items/${workItemId}/business-analysts`, { userId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['work-item', workItemId] })
-      queryClient.invalidateQueries({ queryKey: ['work-items'] })
-      queryClient.invalidateQueries({ queryKey: ['work-items', 'kanban'] })
+      // Invalidate ALL work-items queries (including with search params)
+      queryClient.invalidateQueries({ queryKey: ['work-items'], exact: false })
       toast.success('Business Analyst assigned')
     },
     onError: () => toast.error('Failed to assign Business Analyst'),
@@ -99,8 +99,8 @@ export function MultiSelectBA({ workItemId, assignedBAs, canEdit }: MultiSelectB
     onSuccess: () => {
       // Invalidate both the detail view AND the kanban list
       queryClient.invalidateQueries({ queryKey: ['work-item', workItemId] })
-      queryClient.invalidateQueries({ queryKey: ['work-items'] })
-      queryClient.invalidateQueries({ queryKey: ['work-items', 'kanban'] })
+      // Invalidate ALL work-items queries (including with search params)
+      queryClient.invalidateQueries({ queryKey: ['work-items'], exact: false })
       toast.success('Business Analyst removed')
     },
     onError: () => toast.error('Failed to remove Business Analyst'),
