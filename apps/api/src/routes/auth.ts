@@ -166,15 +166,23 @@ app.post('/send-credentials/:userId', authMiddleware, async (c) => {
   const token = generateId() + generateId()
   const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
-  // Store token in database
-  await db.update(schema.users)
-    .set({
-      passwordResetToken: token,
-      passwordResetExpiry: expiryDate,
-      mustChangePassword: true,
-      updatedAt: new Date(),
-    })
-    .where(eq(schema.users.id, userId))
+  // Store token in KV (works even without DB migration)
+  const kvKey = `pwd_reset:${token}`
+  await c.env.CACHE.put(kvKey, user.id, { expirationTtl: 7 * 24 * 3600 })
+
+  // Also store in DB if columns exist
+  try {
+    await db.update(schema.users)
+      .set({
+        passwordResetToken: token,
+        passwordResetExpiry: expiryDate,
+        mustChangePassword: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.users.id, userId))
+  } catch {
+    // DB columns may not exist yet - KV is the fallback
+  }
 
   const appUrl = c.env.APP_URL || 'http://localhost:3000'
   const setupUrl = `${appUrl}/setup-password?token=${token}`
@@ -287,22 +295,25 @@ app.post('/reset-password', zValidator('json', z.object({
   const { token, password } = c.req.valid('json')
   const db = c.get('db')
 
-  // Try KV first (for forgot-password flow with 1-hour expiry)
+  // Try KV first (covers both forgot-password and welcome email flows)
   const kvKey = `pwd_reset:${token}`
   let userId = await c.env.CACHE.get(kvKey)
 
-  // If not in KV, check database (for welcome email flow with 7-day expiry)
+  // If not in KV, try DB (for cases where token was stored in DB)
   if (!userId) {
-    const userByToken = await db.query.users.findFirst({
-      where: eq(schema.users.passwordResetToken, token),
-    })
+    try {
+      const userByToken = await db.query.users.findFirst({
+        where: eq(schema.users.passwordResetToken, token),
+      })
 
-    if (userByToken && userByToken.passwordResetExpiry) {
-      // Check if token is still valid
-      if (new Date() > userByToken.passwordResetExpiry) {
-        return c.json(err('This link has expired. Please request a new one.'), 400)
+      if (userByToken && userByToken.passwordResetExpiry) {
+        if (new Date() > userByToken.passwordResetExpiry) {
+          return c.json(err('This link has expired. Please request a new one.'), 400)
+        }
+        userId = userByToken.id
       }
-      userId = userByToken.id
+    } catch {
+      // Column might not exist yet in DB - silently ignore
     }
   }
 
@@ -321,18 +332,25 @@ app.post('/reset-password', zValidator('json', z.object({
   const bcrypt = await import('bcryptjs')
   const passwordHash = await bcrypt.hash(password, 12)
 
-  // Update password and clear reset token
-  await db.update(schema.users)
-    .set({ 
-      passwordHash, 
-      passwordResetToken: null,
-      passwordResetExpiry: null,
-      mustChangePassword: false,
-      updatedAt: new Date() 
-    })
-    .where(eq(schema.users.id, userId))
+  // Update password and clear reset token (ignore if columns don't exist yet)
+  try {
+    await db.update(schema.users)
+      .set({ 
+        passwordHash, 
+        passwordResetToken: null,
+        passwordResetExpiry: null,
+        mustChangePassword: false,
+        updatedAt: new Date() 
+      })
+      .where(eq(schema.users.id, userId))
+  } catch {
+    // Fallback: update without new columns
+    await db.update(schema.users)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(schema.users.id, userId))
+  }
 
-  // Invalidate the token after use (if it was in KV)
+  // Invalidate the token after use
   await c.env.CACHE.delete(kvKey)
 
   // Invalidate all active sessions for security

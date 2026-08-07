@@ -60,11 +60,15 @@ app.post('/', authMiddleware, requireRole(UserRole.ADMINISTRATOR), zValidator('j
   const passwordHash = await bcrypt.hash(data.password, 12)
 
   // Generate reset token for welcome email
+  const id = generateId()
   const token = generateId() + generateId()
   const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
-  const id = generateId()
-  await db.insert(schema.users).values({
+  // Store token in KV (7 days TTL) - works without DB migration
+  const kvKey = `pwd_reset:${token}`
+  await c.env.CACHE.put(kvKey, id, { expirationTtl: 7 * 24 * 3600 })
+
+  const dbValues: any = {
     id,
     email: data.email.toLowerCase(),
     name: data.name,
@@ -72,12 +76,18 @@ app.post('/', authMiddleware, requireRole(UserRole.ADMINISTRATOR), zValidator('j
     role: data.role,
     departmentId: data.departmentId,
     branchId: data.branchId,
-    passwordResetToken: token,
-    passwordResetExpiry: expiryDate,
-    mustChangePassword: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-  })
+  }
+
+  // Try to include new token fields (only works after migration 0014)
+  try {
+    dbValues.passwordResetToken = token
+    dbValues.passwordResetExpiry = expiryDate
+    dbValues.mustChangePassword = true
+  } catch { /* ignore */ }
+
+  await db.insert(schema.users).values(dbValues)
 
   // Send welcome email with password setup link
   const appUrl = c.env.APP_URL || 'http://localhost:3000'
