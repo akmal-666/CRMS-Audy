@@ -95,10 +95,25 @@ export function KanbanCard({ item, isDragging, onClick, isReadOnly }: KanbanCard
             ].filter(Boolean).slice(0, 4).map((user, i) => (
               <div
                 key={i}
-                className="w-5 h-5 rounded-full bg-primary/80 flex items-center justify-center text-white text-xs border border-card ring-1 ring-white/10"
+                className="w-5 h-5 rounded-full bg-primary/80 flex items-center justify-center text-white text-xs border border-card ring-1 ring-white/10 overflow-hidden flex-shrink-0"
                 title={user!.name}
               >
-                {getInitials(user!.name)[0]}
+                {user!.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user!.avatarUrl}
+                    alt={user!.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback to initials if image fails to load
+                      const target = e.currentTarget
+                      target.style.display = 'none'
+                      target.parentElement!.innerHTML = getInitials(user!.name)[0]
+                    }}
+                  />
+                ) : (
+                  getInitials(user!.name)[0]
+                )}
               </div>
             ))}
           </div>

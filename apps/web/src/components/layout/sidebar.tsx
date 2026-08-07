@@ -267,8 +267,13 @@ function SidebarContent({
           'flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer',
           collapsed ? 'justify-center' : ''
         )}>
-          <div className="w-7 h-7 rounded-full bg-primary/80 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-            {user ? getInitials(user.name) : 'U'}
+          <div className="w-7 h-7 rounded-full bg-primary/80 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 overflow-hidden">
+            {user?.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+              user ? getInitials(user.name) : 'U'
+            )}
           </div>
           {!collapsed && user && (
             <div className="flex-1 min-w-0">

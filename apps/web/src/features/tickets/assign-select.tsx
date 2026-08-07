@@ -11,13 +11,14 @@ interface User {
   id: string
   name: string
   role: string
+  avatarUrl?: string | null
 }
 
 interface AssignSelectProps {
   workItemId: string
   label: string
   field: 'managerId' | 'businessAnalystId'
-  currentUser?: { id: string; name: string }
+  currentUser?: { id: string; name: string; avatarUrl?: string | null }
   canEdit: boolean
 }
 
@@ -70,8 +71,13 @@ export function AssignSelect({ workItemId, label, field, currentUser, canEdit }:
           <div className="flex items-center gap-1.5">
             {currentUser ? (
               <>
-                <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary">
-                  {getInitials(currentUser.name)[0]}
+                <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary overflow-hidden flex-shrink-0">
+                  {currentUser.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-full h-full object-cover" />
+                  ) : (
+                    getInitials(currentUser.name)[0]
+                  )}
                 </div>
                 <span className="text-foreground font-medium">{currentUser.name}</span>
               </>

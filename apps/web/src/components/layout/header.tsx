@@ -68,9 +68,14 @@ export function Header({ onMenuClick, onCollapseToggle, sidebarCollapsed }: Head
           <div className="relative">
             <button
               onClick={() => setProfileOpen(!profileOpen)}
-              className="w-7 h-7 rounded-full bg-primary/80 flex items-center justify-center text-white text-xs font-semibold hover:bg-primary transition-colors"
+              className="w-7 h-7 rounded-full bg-primary/80 flex items-center justify-center text-white text-xs font-semibold hover:bg-primary transition-colors overflow-hidden"
             >
-              {user ? getInitials(user.name) : 'U'}
+              {user?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                user ? getInitials(user.name) : 'U'
+              )}
             </button>
             {profileOpen && (
               <>
