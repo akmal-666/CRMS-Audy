@@ -86,8 +86,17 @@ app.get('/debug/ba-check', async (c) => {
        JOIN users u ON u.id = wiba.user_id
        LIMIT 10`
     ).all()
+
+    // Check specific work item with ticket number CR-2026-000117
+    const ticketInfo = await c.env.DB.prepare(
+      `SELECT wi.id, wi.ticket_number, wi.business_analyst_id, u.name as ba_name,
+              (SELECT COUNT(*) FROM work_item_business_analysts wiba WHERE wiba.work_item_id = wi.id) as junction_count
+       FROM work_items wi
+       LEFT JOIN users u ON u.id = wi.business_analyst_id
+       WHERE wi.ticket_number = 'CR-2026-000117'`
+    ).first()
     
-    return c.json({ tableExists: true, count: rows?.count ?? 0, sample: sample.results })
+    return c.json({ tableExists: true, count: rows?.count ?? 0, sample: sample.results, ticketInfo })
   } catch (e: any) {
     return c.json({ tableExists: false, error: e?.message })
   }
