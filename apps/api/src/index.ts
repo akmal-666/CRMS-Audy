@@ -73,6 +73,26 @@ app.route('/api/negotiations', mandaysNegotiationsRoutes)
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }))
 
+// Debug: check work_item_business_analysts table
+app.get('/debug/ba-check', async (c) => {
+  try {
+    const rows = await c.env.DB.prepare(
+      'SELECT COUNT(*) as count FROM work_item_business_analysts'
+    ).first<{ count: number }>()
+    
+    const sample = await c.env.DB.prepare(
+      `SELECT wiba.work_item_id, wiba.user_id, u.name 
+       FROM work_item_business_analysts wiba
+       JOIN users u ON u.id = wiba.user_id
+       LIMIT 10`
+    ).all()
+    
+    return c.json({ tableExists: true, count: rows?.count ?? 0, sample: sample.results })
+  } catch (e: any) {
+    return c.json({ tableExists: false, error: e?.message })
+  }
+})
+
 // 404 handler
 app.notFound((c) => c.json(err('Route not found'), 404))
 
