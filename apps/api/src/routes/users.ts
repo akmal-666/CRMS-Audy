@@ -167,26 +167,26 @@ app.post('/:id/avatar', authMiddleware, async (c) => {
   const targetUser = await db.query.users.findFirst({ where: eq(schema.users.id, id) })
   if (!targetUser) return c.json(err('User not found'), 404)
 
-  // Parse multipart form
-  const formData = await c.req.formData()
-  const file = formData.get('avatar') as File | null
-
-  if (!file) {
-    return c.json(err('No file uploaded'), 400)
-  }
-
-  // Validate file type
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-  if (!allowedTypes.includes(file.type)) {
-    return c.json(err('Invalid file type. Only JPEG, PNG, and WebP are allowed.'), 400)
-  }
-
-  // Validate file size (max 5MB)
-  if (file.size > 5 * 1024 * 1024) {
-    return c.json(err('File too large. Maximum size is 5MB.'), 400)
-  }
-
   try {
+    // Parse multipart form
+    const formData = await c.req.formData()
+    const file = formData.get('avatar') as File | null
+
+    if (!file) {
+      return c.json(err('No file uploaded'), 400)
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      return c.json(err('Invalid file type. Only JPEG, PNG, and WebP are allowed.'), 400)
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      return c.json(err('File too large. Maximum size is 5MB.'), 400)
+    }
+
     const storageConfig = getStorageConfig(c.env)
     const fileExt = file.name.split('.').pop() || 'jpg'
     const fileName = `avatars/${id}_${Date.now()}.${fileExt}`
