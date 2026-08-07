@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Plus, Search, Edit2, UserX, ShieldCheck, Loader2, Trash2, X, UserCheck } from 'lucide-react'
+import { Plus, Search, Edit2, UserX, ShieldCheck, Loader2, Trash2, X, UserCheck, Mail } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -97,6 +97,14 @@ export function UsersAdminView() {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       toast.success('User reactivated')
     },
+  })
+
+  const sendCredentials = useMutation({
+    mutationFn: (userId: string) => apiPost(`/api/auth/send-credentials/${userId}`, {}),
+    onSuccess: () => {
+      toast.success('Welcome email sent successfully')
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to send email'),
   })
 
   const updateUser = useMutation({
@@ -216,6 +224,18 @@ export function UsersAdminView() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => sendCredentials.mutate(user.id)} 
+                      className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-blue-600" 
+                      title="Send credentials email"
+                      disabled={sendCredentials.isPending}
+                    >
+                      {sendCredentials.isPending && sendCredentials.variables === user.id ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Mail size={14} />
+                      )}
+                    </button>
                     <button 
                       onClick={() => setEditUser(user)} 
                       className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-primary" 
