@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react'
+import { apiPost } from '@/lib/api'
 
 function SetupPasswordForm() {
   const router = useRouter()
@@ -37,27 +38,12 @@ function SetupPasswordForm() {
     setLoading(true)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || ''
-      const res = await fetch(`${apiUrl}/api/auth/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to set password')
-      }
-
+      await apiPost('/api/auth/reset-password', { token, password })
       setSuccess(true)
       toast.success('Password set successfully!')
-      
-      setTimeout(() => {
-        router.push('/login')
-      }, 2000)
+      setTimeout(() => router.push('/login'), 2000)
     } catch (error: any) {
-      toast.error(error.message)
+      toast.error(error?.response?.data?.message || error?.message || 'Failed to set password')
       setLoading(false)
     }
   }
