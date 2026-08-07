@@ -73,35 +73,6 @@ app.route('/api/negotiations', mandaysNegotiationsRoutes)
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }))
 
-// Debug: check work_item_business_analysts table
-app.get('/debug/ba-check', async (c) => {
-  try {
-    const rows = await c.env.DB.prepare(
-      'SELECT COUNT(*) as count FROM work_item_business_analysts'
-    ).first<{ count: number }>()
-    
-    const sample = await c.env.DB.prepare(
-      `SELECT wiba.work_item_id, wiba.user_id, u.name 
-       FROM work_item_business_analysts wiba
-       JOIN users u ON u.id = wiba.user_id
-       LIMIT 10`
-    ).all()
-
-    // Check specific work item with ticket number CR-2026-000117
-    const ticketInfo = await c.env.DB.prepare(
-      `SELECT wi.id, wi.ticket_number, wi.business_analyst_id, u.name as ba_name,
-              (SELECT COUNT(*) FROM work_item_business_analysts wiba WHERE wiba.work_item_id = wi.id) as junction_count
-       FROM work_items wi
-       LEFT JOIN users u ON u.id = wi.business_analyst_id
-       WHERE wi.ticket_number = 'CR-2026-000117'`
-    ).first()
-    
-    return c.json({ tableExists: true, count: rows?.count ?? 0, sample: sample.results, ticketInfo })
-  } catch (e: any) {
-    return c.json({ tableExists: false, error: e?.message })
-  }
-})
-
 // 404 handler
 app.notFound((c) => c.json(err('Route not found'), 404))
 

@@ -409,14 +409,18 @@ app.get('/:id', authMiddleware, async (c) => {
         where: eq(schema.deployments.workItemId, id),
       }).catch(() => []),
 
-      // Fetch multiple BAs from junction table
-      db.query.workItemBusinessAnalysts.findMany({
-        where: eq(schema.workItemBusinessAnalysts.workItemId, id),
-        with: {
-          user: { columns: { id: true, name: true, email: true, avatarUrl: true } },
-        },
-        orderBy: [schema.workItemBusinessAnalysts.createdAt],
-      }).catch(() => []),
+      // Fetch multiple BAs from junction table using raw SQL for reliability
+      c.env.DB.prepare(
+        `SELECT wiba.work_item_id, u.id, u.name, u.email, u.avatar_url
+         FROM work_item_business_analysts wiba
+         JOIN users u ON u.id = wiba.user_id
+         WHERE wiba.work_item_id = ?
+         ORDER BY wiba.created_at ASC`
+      ).bind(id).all<{ work_item_id: string; id: string; name: string; email: string; avatar_url: string | null }>()
+        .then(r => (r.results ?? []).map(row => ({
+          user: { id: row.id, name: row.name, email: row.email, avatarUrl: row.avatar_url }
+        })))
+        .catch(() => []),
 
       // Fetch mandays negotiation record (final approval value)
       db.query.mandaysNegotiations.findFirst({
