@@ -67,13 +67,8 @@ app.post(
       return c.json(err('Negotiation record already exists. Use PATCH to update.'), 400)
     }
 
-    // Determine negotiation status
-    let negotiationStatus: 'none' | 'proposed' | 'accepted' = 'none'
-    if (data.mandaysNegotiated && data.mandaysNegotiated !== data.mandaysApproved) {
-      negotiationStatus = 'proposed'
-    } else if (data.mandaysRequested !== data.mandaysApproved) {
-      negotiationStatus = 'accepted'
-    }
+    // Always auto-accept: mandaysApproved = mandaysNegotiated (or mandaysRequested if no nego)
+    const finalApproved = data.mandaysNegotiated ?? data.mandaysApproved
 
     // Create negotiation record
     const id = generateId()
@@ -82,22 +77,22 @@ app.post(
       workItemId,
       mandaysRequested: data.mandaysRequested,
       mandaysNegotiated: data.mandaysNegotiated ?? null,
-      mandaysApproved: data.mandaysApproved,
-      negotiationStatus,
+      mandaysApproved: finalApproved,
+      negotiationStatus: data.mandaysNegotiated ? 'accepted' : 'none',
       negotiationNotes: data.negotiationNotes ?? null,
       rejectionReason: null,
       negotiatedBy: data.mandaysNegotiated ? user.sub : null,
       negotiatedAt: data.mandaysNegotiated ? new Date() : null,
-      respondedBy: null,
-      respondedAt: null,
+      respondedBy: data.mandaysNegotiated ? user.sub : null,
+      respondedAt: data.mandaysNegotiated ? new Date() : null,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
 
-    // Update work item mandays
+    // Update work item mandays to final approved value
     await db
       .update(schema.workItems)
-      .set({ mandays: data.mandaysApproved, updatedAt: new Date() })
+      .set({ mandays: finalApproved, updatedAt: new Date() })
       .where(eq(schema.workItems.id, workItemId))
 
     // Activity log
@@ -119,10 +114,10 @@ app.post(
   }
 )
 
-// Propose negotiation (BA/PM counter-offers)
+// Propose negotiation — auto-accepts immediately (no separate approval needed)
 const proposeNegotiationSchema = z.object({
   mandaysNegotiated: z.number().positive('Negotiated mandays must be positive'),
-  negotiationNotes: z.string().min(1, 'Negotiation notes required'),
+  negotiationNotes: z.string().optional(),
 })
 
 app.patch(
@@ -144,18 +139,27 @@ app.patch(
       return c.json(err('Negotiation record not found. Create one first.'), 404)
     }
 
-    // Update negotiation with proposal
+    // Auto-accept: set mandaysApproved = mandaysNegotiated immediately
     await db
       .update(schema.mandaysNegotiations)
       .set({
         mandaysNegotiated: data.mandaysNegotiated,
-        negotiationNotes: data.negotiationNotes,
-        negotiationStatus: 'proposed',
+        mandaysApproved: data.mandaysNegotiated, // ← auto-accept
+        negotiationNotes: data.negotiationNotes || null,
+        negotiationStatus: 'accepted',           // ← auto-accept
         negotiatedBy: user.sub,
         negotiatedAt: new Date(),
+        respondedBy: user.sub,
+        respondedAt: new Date(),
         updatedAt: new Date(),
       })
       .where(eq(schema.mandaysNegotiations.id, negotiation.id))
+
+    // Update work item mandays to the negotiated value
+    await db
+      .update(schema.workItems)
+      .set({ mandays: data.mandaysNegotiated, updatedAt: new Date() })
+      .where(eq(schema.workItems.id, workItemId))
 
     // Activity log
     const reduction = negotiation.mandaysRequested - data.mandaysNegotiated
@@ -163,12 +167,12 @@ app.patch(
       id: generateId(),
       workItemId,
       userId: user.sub,
-      action: 'mandays_proposal',
-      description: `Proposed mandays: ${data.mandaysNegotiated} days (${reduction > 0 ? `-${reduction}` : `+${Math.abs(reduction)}`} days from original)`,
+      action: 'mandays_accepted',
+      description: `Mandays negotiated: ${negotiation.mandaysRequested} → ${data.mandaysNegotiated} days (${reduction > 0 ? `saved ${reduction}` : `increased by ${Math.abs(reduction)}`} days)`,
       createdAt: new Date(),
     })
 
-    return c.json(ok(null, 'Negotiation proposal submitted'))
+    return c.json(ok(null, 'Mandays negotiation saved'))
   }
 )
 
