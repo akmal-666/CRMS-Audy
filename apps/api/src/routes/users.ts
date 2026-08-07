@@ -10,6 +10,7 @@ import { authMiddleware } from '../middleware/auth'
 import { requireRole } from '../middleware/rbac'
 import { UserRole } from '@crms/types'
 import { uploadFile, deleteFile, getStorageConfig } from '../lib/supabase-storage'
+import { getB2Config, uploadToB2, getPresignedDownloadUrl, deleteFromB2 } from '../lib/b2-storage'
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
@@ -160,19 +161,25 @@ app.post('/:id/avatar', authMiddleware, async (c) => {
       return c.json(err('File too large. Maximum size is 5MB.'), 400)
     }
 
-    const storageConfig = getStorageConfig(c.env)
+    const b2 = getB2Config(c.env)
     const fileExt = file.name.split('.').pop() || 'jpg'
-    const fileName = `avatars/${id}_${Date.now()}.${fileExt}`
+    const key = `avatars/${id}_${Date.now()}.${fileExt}`
 
-    // Upload to Supabase
+    // Upload to B2
     const arrayBuffer = await file.arrayBuffer()
-    const result = await uploadFile(storageConfig, fileName, arrayBuffer, file.type)
+    await uploadToB2(b2, key, arrayBuffer, file.type)
 
-    // Delete old avatar if exists
+    // Get a long-lived presigned URL (7 days) for avatar display
+    const avatarUrl = await getPresignedDownloadUrl(b2, key, 7 * 24 * 3600)
+
+    // Delete old avatar from B2 if exists
     if (targetUser.avatarUrl) {
-      const oldPath = targetUser.avatarUrl.split('/').slice(-2).join('/') // Extract path from URL
       try {
-        await deleteFile(storageConfig, oldPath)
+        // Extract B2 key from old URL - look for avatars/ path segment
+        const match = targetUser.avatarUrl.match(/avatars\/[^?]+/)
+        if (match) {
+          await deleteFromB2(b2, match[0])
+        }
       } catch {
         // Ignore deletion errors
       }
@@ -180,7 +187,7 @@ app.post('/:id/avatar', authMiddleware, async (c) => {
 
     // Update user record
     await db.update(schema.users)
-      .set({ avatarUrl: result.publicUrl, updatedAt: new Date() })
+      .set({ avatarUrl, updatedAt: new Date() })
       .where(eq(schema.users.id, id))
 
     // Audit log
@@ -191,11 +198,11 @@ app.post('/:id/avatar', authMiddleware, async (c) => {
       entityType: 'user',
       entityId: id,
       oldValues: { avatarUrl: targetUser.avatarUrl },
-      newValues: { avatarUrl: result.publicUrl },
+      newValues: { avatarUrl },
       createdAt: new Date(),
     })
 
-    return c.json(ok({ avatarUrl: result.publicUrl }, 'Avatar uploaded successfully'))
+    return c.json(ok({ avatarUrl }, 'Avatar uploaded successfully'))
   } catch (error: any) {
     console.error('[upload-avatar] Error:', error)
     return c.json(err(`Upload failed: ${error?.message || 'Unknown error'}`), 500)
