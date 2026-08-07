@@ -27,6 +27,8 @@ interface WorkItem {
   department?: { name: string }
   dueDate?: string
   manager?: { id: string; name: string; avatarUrl?: string }
+  businessAnalyst?: { id: string; name: string; avatarUrl?: string }
+  businessAnalysts?: Array<{ id: string; name: string; avatarUrl?: string }>
   developer?: { id: string; name: string; avatarUrl?: string }
   createdAt: string
 }
