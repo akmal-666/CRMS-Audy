@@ -99,6 +99,7 @@ export function DashboardView() {
     - (stats?.byStatus['go_live'] ?? 0)
     - (stats?.byStatus['drop'] ?? 0)
   const completedProjects = stats?.byStatus['go_live'] ?? 0
+  const droppedProjects = stats?.byStatus['drop'] ?? 0
   const portfolioProgress = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0
 
   // Calculate trends (simplified - comparing last month)
@@ -149,7 +150,7 @@ export function DashboardView() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatsCard
           icon={<Folder size={20} />}
           iconBg="bg-blue-50 text-blue-600"
@@ -176,6 +177,15 @@ export function DashboardView() {
           trend={5}
           trendLabel={`${totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0}%`}
           delay={0.1}
+        />
+        <StatsCard
+          icon={<AlertCircle size={20} />}
+          iconBg="bg-red-50 text-red-500"
+          title="Dropped"
+          value={droppedProjects}
+          trend={-1}
+          trendLabel={`${totalProjects > 0 ? Math.round((droppedProjects / totalProjects) * 100) : 0}%`}
+          delay={0.12}
         />
         <ProgressCard
           value={portfolioProgress}
