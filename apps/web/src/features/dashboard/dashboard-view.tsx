@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   TrendingUp, TrendingDown, CheckCircle2, AlertCircle, 
-  Clock, Target, Download, Calendar, Users, ArrowRight,
-  Folder, CheckSquare, Flag,
+  Clock, Target, Calendar, Users, ArrowRight,
+  Folder, CheckSquare, Flag, ChevronDown,
 } from 'lucide-react'
 import { apiGet } from '@/lib/api'
 import { WorkflowStatus } from '@crms/types'
@@ -47,6 +48,8 @@ interface DashboardStats {
 }
 
 export function DashboardView() {
+  const [selectedMonth, setSelectedMonth] = useState<string>('all') // 'all' or 'YYYY-MM'
+
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: () => apiGet<DashboardStats>('/api/dashboard/stats'),
@@ -56,6 +59,76 @@ export function DashboardView() {
   const stats = data?.data
 
   if (isLoading) return <DashboardSkeleton />
+
+  // Build month options from monthlyTrend data
+  const monthOptions = useMemo(() => {
+    const months = stats?.monthlyTrend?.map(m => m.month) ?? []
+    return months.sort((a, b) => b.localeCompare(a)) // newest first
+  }, [stats?.monthlyTrend])
+
+  // Calculate filtered stats
+  const filteredStats = useMemo(() => {
+    if (!stats) return null
+    if (selectedMonth === 'all') return stats
+
+    // Filter recentItems by selected month
+    const monthPrefix = selectedMonth // 'YYYY-MM'
+    const filteredItems = stats.recentItems.filter(item => {
+      const itemMonth = new Date(item.createdAt).toISOString().slice(0, 7)
+      return itemMonth === monthPrefix
+    })
+
+    // For status counts filtered by month, we approximate using filteredItems
+    const byStatusFiltered: Record<string, number> = {}
+    filteredItems.forEach(item => {
+      byStatusFiltered[item.status] = (byStatusFiltered[item.status] ?? 0) + 1
+    })
+
+    // Use monthly count from trend data for total
+    const monthCount = stats.monthlyTrend?.find(m => m.month === monthPrefix)?.count ?? 0
+
+    return {
+      ...stats,
+      // Keep full total but filter ongoing display
+      recentItems: filteredItems,
+    }
+  }, [stats, selectedMonth])
+
+  // === DATA SOURCE & CALCULATION EXPLANATION ===
+  // 
+  // 1. Total Projects: Total semua work items (all statuses)
+  //    Source: stats.total
+  //
+  // 2. Active Tasks: Projects dalam status development, uat, deployment
+  //    Source: stats.byStatus['development'] + stats.byStatus['uat'] + stats.byStatus['deployment']
+  //
+  // 3. Completed Milestones: Projects yang sudah status go_live
+  //    Source: stats.byStatus['go_live']
+  //
+  // 4. Portfolio Progress: Persentase completion rate = (go_live / total) * 100%
+  //    100% tercapai ketika semua projects sudah go_live
+  //    Source: (stats.byStatus['go_live'] / stats.total) * 100
+  //
+  // 5. Project Progress Bar: Berdasarkan status kanban dengan bobot:
+  //    - in_pipeline: 0%
+  //    - assessment: 10%
+  //    - development: 40%
+  //    - uat: 70%
+  //    - deployment: 90%
+  //    - go_live: 100%
+  //    - drop: 0%
+  //
+  // 6. Business Analysts: Jumlah BA beserta project count (exclude go_live & drop)
+  //    Source: stats.businessAnalysts array
+  //
+  // 7. Trends: Perbandingan bulan ini vs bulan lalu
+  //    Source: stats.monthlyTrend
+  //
+  // 8. Upcoming Deadlines: Filtered by backend (dueDate > now, active items only)
+  //    Source: stats.upcomingDeadlines (already sorted by dueDate ASC)
+  //
+  // 9. Ongoing Projects: Filtered by backend (status: assessment/development/uat/deployment)
+  //    Source: stats.recentItems (already filtered, sorted by createdAt DESC)
 
   // === DATA SOURCE & CALCULATION EXPLANATION ===
   // 
@@ -118,14 +191,19 @@ export function DashboardView() {
     'drop': 0,
   }
 
-  // Get ongoing projects (in progress statuses) - already filtered by backend
-  const ongoingProjects = stats?.recentItems?.slice(0, 3) ?? []
+  // Get ongoing projects - filtered by month if selected
+  const ongoingProjects = (filteredStats?.recentItems ?? stats?.recentItems ?? []).slice(0, 3)
 
   // Get upcoming deadlines - already filtered and sorted by backend
   const upcomingDeadlines = stats?.upcomingDeadlines?.slice(0, 3) ?? []
 
   // Business Analysts data
   const businessAnalysts = stats?.businessAnalysts ?? []
+
+  // Month label for display
+  const monthLabel = selectedMonth === 'all'
+    ? 'All Time'
+    : new Date(selectedMonth + '-01').toLocaleString('en', { month: 'long', year: 'numeric' })
 
   return (
     <div className="space-y-6">
@@ -137,15 +215,24 @@ export function DashboardView() {
             Welcome back. Here is the current status of your portfolio.
           </p>
         </div>
+        {/* Month Filter */}
         <div className="flex items-center gap-2">
-          <button className="btn-ghost flex items-center gap-2 text-sm">
-            <Calendar size={14} />
-            This Week
-          </button>
-          <button className="btn-ghost flex items-center gap-2 text-sm">
-            <Download size={14} />
-            Export
-          </button>
+          <div className="relative">
+            <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="pl-8 pr-8 py-1.5 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 appearance-none cursor-pointer"
+            >
+              <option value="all">All Time</option>
+              {monthOptions.map(month => {
+                const [year, m] = month.split('-')
+                const label = new Date(parseInt(year), parseInt(m) - 1).toLocaleString('en', { month: 'long', year: 'numeric' })
+                return <option key={month} value={month}>{label}</option>
+              })}
+            </select>
+            <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          </div>
         </div>
       </div>
 
@@ -198,7 +285,12 @@ export function DashboardView() {
         {/* Ongoing Projects */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">Ongoing Projects</h2>
+            <h2 className="text-lg font-semibold text-foreground">
+              Ongoing Projects
+              {selectedMonth !== 'all' && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">— {monthLabel}</span>
+              )}
+            </h2>
             <Link href="/requests" className="text-sm text-primary hover:underline flex items-center gap-1">
               View All
               <ArrowRight size={14} />
