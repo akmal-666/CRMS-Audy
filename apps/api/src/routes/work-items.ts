@@ -338,7 +338,7 @@ app.get('/:id', authMiddleware, async (c) => {
 
     // Step 2: Fetch each optional relation separately with individual try-catch
     // This way if any table doesn't exist, other data still loads
-    const [comments, attachments, activityLogs, assessment, tasks, deployments] = await Promise.all([
+    const [comments, attachments, activityLogs, assessment, tasks, deployments, businessAnalysts] = await Promise.all([
       db.query.comments.findMany({
         where: eq(schema.comments.workItemId, id),
         with: { user: { columns: { id: true, name: true, avatarUrl: true, role: true } } },
@@ -368,6 +368,15 @@ app.get('/:id', authMiddleware, async (c) => {
       db.query.deployments.findMany({
         where: eq(schema.deployments.workItemId, id),
       }).catch(() => []),
+
+      // Fetch multiple BAs from junction table
+      db.query.workItemBusinessAnalysts.findMany({
+        where: eq(schema.workItemBusinessAnalysts.workItemId, id),
+        with: {
+          user: { columns: { id: true, name: true, email: true, avatarUrl: true } },
+        },
+        orderBy: [schema.workItemBusinessAnalysts.createdAt],
+      }).catch(() => []),
     ])
 
     return c.json(ok({
@@ -378,6 +387,8 @@ app.get('/:id', authMiddleware, async (c) => {
       assessment,
       tasks,
       deployments,
+      // Multiple BAs from junction table
+      businessAnalysts: businessAnalysts.map(r => r.user),
     }))
   } catch (error) {
     console.error('[work-items/:id] Error:', error)

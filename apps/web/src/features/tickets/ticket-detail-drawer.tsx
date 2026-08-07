@@ -12,6 +12,7 @@ import { AssessmentPanel } from './assessment-panel'
 import Link from 'next/link'
 import { useAuth } from '@/context/auth-context'
 import { AssignSelect } from './assign-select'
+import { MultiSelectBA } from './multi-select-ba'
 import { MandaysEdit } from './mandays-edit'
 import { EditableDetailField } from './editable-detail-field'
 import { FileUpload } from '@/components/file-upload'
@@ -160,7 +161,11 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
                     <h3 className="text-sm font-semibold text-foreground mb-3">Team</h3>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <AssignSelect workItemId={item.id} label="Manager" field="managerId" currentUser={item.manager} canEdit={canEditAssignment} />
-                      <AssignSelect workItemId={item.id} label="Business Analyst" field="businessAnalystId" currentUser={item.businessAnalyst} canEdit={canEditAssignment} />
+                      <MultiSelectBA
+                        workItemId={item.id}
+                        assignedBAs={item.businessAnalysts ?? (item.businessAnalyst ? [item.businessAnalyst] : [])}
+                        canEdit={canEditAssignment}
+                      />
                       <EditableDetailField
                         workItemId={item.id}
                         field="vendorId"

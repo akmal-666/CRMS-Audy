@@ -24,6 +24,7 @@ import reportRoutes from './routes/reports'
 import timelineRoutes from './routes/timeline'
 import migrationRoutes from './routes/migration'
 import workItemDepartmentsRoutes from './routes/work-item-departments'
+import workItemBusinessAnalystsRoutes from './routes/work-item-business-analysts'
 import mandaysNegotiationsRoutes from './routes/mandays-negotiations'
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
@@ -59,6 +60,7 @@ app.route('/api/work-items', workItemRoutes)
 app.route('/api/work-items', commentRoutes)
 app.route('/api/work-items', attachmentRoutes)
 app.route('/api/work-items', workItemDepartmentsRoutes)
+app.route('/api/work-items', workItemBusinessAnalystsRoutes)
 app.route('/api/dashboard', dashboardRoutes)
 app.route('/api/users', userRoutes)
 app.route('/api/master', masterDataRoutes)
