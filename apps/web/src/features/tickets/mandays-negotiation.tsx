@@ -3,15 +3,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiGet, apiPost, apiPatch } from '@/lib/api'
-import { UserRole } from '@crms/types'
-import { useAuth } from '@/context/auth-context'
-import { 
-  TrendingDown, Check, X, Edit2, AlertCircle, CheckCircle, 
-  XCircle, Clock, Loader2, DollarSign 
-} from 'lucide-react'
+import { TrendingDown, Edit2, Loader2, Check, X, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
-import { cn, formatDate } from '@/lib/utils'
-import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
 
 interface MandaysNegotiation {
   id: string
@@ -19,68 +13,25 @@ interface MandaysNegotiation {
   mandaysRequested: number
   mandaysNegotiated?: number | null
   mandaysApproved: number
-  negotiationStatus: 'none' | 'proposed' | 'accepted' | 'rejected' | 'pending'
+  negotiationStatus: string
   negotiationNotes?: string | null
-  rejectionReason?: string | null
-  negotiatedBy?: string | null
-  negotiatedAt?: string | null
-  respondedBy?: string | null
-  respondedAt?: string | null
-  negotiator?: { id: string; name: string; email: string } | null
-  responder?: { id: string; name: string; email: string } | null
-}
-
-const STATUS_CONFIG = {
-  none: {
-    label: 'No negotiation',
-    icon: CheckCircle,
-    color: 'text-muted-foreground',
-    bg: 'bg-muted/50',
-  },
-  proposed: {
-    label: 'Proposal pending',
-    icon: Clock,
-    color: 'text-amber-600',
-    bg: 'bg-amber-100 dark:bg-amber-950',
-  },
-  accepted: {
-    label: 'Negotiation successful',
-    icon: CheckCircle,
-    color: 'text-green-600',
-    bg: 'bg-green-100 dark:bg-green-950',
-  },
-  rejected: {
-    label: 'Proposal rejected',
-    icon: XCircle,
-    color: 'text-red-600',
-    bg: 'bg-red-100 dark:bg-red-950',
-  },
-  pending: {
-    label: 'Pending approval',
-    icon: Clock,
-    color: 'text-blue-600',
-    bg: 'bg-blue-100 dark:bg-blue-950',
-  },
 }
 
 export function MandaysNegotiation({
   workItemId,
   currentMandays,
   canPropose,
-  isRequester,
 }: {
   workItemId: string
   currentMandays?: number | null
   canPropose: boolean
-  isRequester: boolean
+  isRequester?: boolean
 }) {
-  const { user } = useAuth()
   const queryClient = useQueryClient()
-  const [showProposeForm, setShowProposeForm] = useState(false)
-  const [proposeMandays, setProposeMandays] = useState('')
-  const [proposeNotes, setProposeNotes] = useState('')
-  const [showRespondForm, setShowRespondForm] = useState(false)
-  const [rejectReason, setRejectReason] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [negoMandays, setNegoMandays] = useState('')
+  const [negoNotes, setNegoNotes] = useState('')
+  const [showHistory, setShowHistory] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['mandays-negotiation', workItemId],
@@ -89,416 +40,224 @@ export function MandaysNegotiation({
 
   const negotiation = data?.data
 
-  // Create new negotiation record (when none exists)
+  // Create initial negotiation record (when mandays already set but no nego record)
   const createMutation = useMutation({
-    mutationFn: (payload: { mandaysRequested: number; mandaysApproved: number; mandaysNegotiated?: number }) =>
+    mutationFn: (payload: { mandaysRequested: number; mandaysApproved: number; mandaysNegotiated?: number; negotiationNotes?: string }) =>
       apiPost(`/api/negotiations/${workItemId}`, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mandays-negotiation', workItemId] })
       queryClient.invalidateQueries({ queryKey: ['work-item', workItemId] })
-      toast.success('Negotiation record created')
-      setShowProposeForm(false)
-      setProposeMandays('')
+      queryClient.invalidateQueries({ queryKey: ['work-items'], exact: false })
+      toast.success('Negotiation saved — Final Approval updated')
+      setShowForm(false)
+      setNegoMandays('')
+      setNegoNotes('')
     },
-    onError: (error: any) => {
-      toast.error(error?.message || 'Failed to create negotiation')
-    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Failed to save negotiation'),
   })
 
+  // Update existing negotiation (propose new nego value)
   const proposeMutation = useMutation({
     mutationFn: (payload: { mandaysNegotiated: number; negotiationNotes: string }) =>
       apiPatch(`/api/negotiations/${workItemId}/propose`, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mandays-negotiation', workItemId] })
       queryClient.invalidateQueries({ queryKey: ['work-item', workItemId] })
-      toast.success('Negotiation proposal submitted')
-      setShowProposeForm(false)
-      setProposeMandays('')
-      setProposeNotes('')
+      queryClient.invalidateQueries({ queryKey: ['work-items'], exact: false })
+      toast.success('Negotiation saved — Final Approval updated to ' + negoMandays + ' days')
+      setShowForm(false)
+      setNegoMandays('')
+      setNegoNotes('')
     },
-    onError: (error: any) => {
-      toast.error(error?.message || 'Failed to submit proposal')
-    },
+    onError: (e: any) => toast.error(e?.response?.data?.message || 'Failed to save negotiation'),
   })
 
-  const respondMutation = useMutation({
-    mutationFn: (payload: { action: 'accept' | 'reject'; rejectionReason?: string }) =>
-      apiPatch(`/api/negotiations/${workItemId}/respond`, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mandays-negotiation', workItemId] })
-      queryClient.invalidateQueries({ queryKey: ['work-item', workItemId] })
-      queryClient.invalidateQueries({ queryKey: ['work-items'] })
-      toast.success('Response submitted')
-      setShowRespondForm(false)
-      setRejectReason('')
-    },
-    onError: () => {
-      toast.error('Failed to submit response')
-    },
-  })
+  const isPending = createMutation.isPending || proposeMutation.isPending
 
-  const handlePropose = () => {
-    const mandays = parseFloat(proposeMandays)
+  const handleSave = () => {
+    const mandays = parseFloat(negoMandays)
     if (!mandays || mandays <= 0) {
-      toast.error('Please enter valid mandays')
+      toast.error('Masukkan nilai mandays yang valid')
       return
     }
-    if (!proposeNotes.trim()) {
-      toast.error('Please provide negotiation notes')
-      return
+
+    if (!negotiation) {
+      // No record yet — create with negotiated value as final approved
+      const original = currentMandays ?? mandays
+      createMutation.mutate({
+        mandaysRequested: original,
+        mandaysApproved: mandays,
+        mandaysNegotiated: mandays !== original ? mandays : undefined,
+        negotiationNotes: negoNotes || undefined,
+      })
+    } else {
+      // Record exists — update with new negotiated value (auto-accepts)
+      proposeMutation.mutate({
+        mandaysNegotiated: mandays,
+        negotiationNotes: negoNotes || 'Negotiation updated',
+      })
     }
-    proposeMutation.mutate({ mandaysNegotiated: mandays, negotiationNotes: proposeNotes })
   }
 
-  const handleCreate = () => {
-    const mandays = parseFloat(proposeMandays)
-    if (!mandays || mandays <= 0) {
-      toast.error('Please enter valid mandays')
-      return
-    }
-    const original = currentMandays ?? mandays
-    createMutation.mutate({
-      mandaysRequested: original,
-      mandaysApproved: original,
-      mandaysNegotiated: mandays !== original ? mandays : undefined,
-    })
-  }
-
-  const handleAccept = () => {
-    respondMutation.mutate({ action: 'accept' })
-  }
-
-  const handleReject = () => {
-    if (!rejectReason.trim()) {
-      toast.error('Please provide rejection reason')
-      return
-    }
-    respondMutation.mutate({ action: 'reject', rejectionReason: rejectReason })
-  }
-
-  if (isLoading) {
+  // Don't show section if no initial mandays set
+  if (!currentMandays && !negotiation) {
     return (
-      <div className="flex items-center justify-center py-4">
-        <Loader2 size={16} className="animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
-  if (!negotiation) {
-    return (
-      <div className="space-y-3">
+      <div className="space-y-2">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <TrendingDown size={14} className="text-muted-foreground" />
           Mandays Negotiation
         </h3>
-        {!showProposeForm && (
-          <p className="text-sm text-muted-foreground italic">No negotiation record yet</p>
-        )}
-        {canPropose && (
-          <div className="space-y-2">
-            {!showProposeForm ? (
-              <button
-                onClick={() => setShowProposeForm(true)}
-                className="text-xs text-primary hover:text-primary/80 transition-colors font-medium flex items-center gap-1"
-              >
-                <Edit2 size={12} /> Add Negotiation
-              </button>
-            ) : (
-              <>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    value={proposeMandays}
-                    onChange={(e) => setProposeMandays(e.target.value)}
-                    placeholder="Negotiated mandays"
-                    className="flex-1 px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    disabled={createMutation.isPending}
-                  />
-                  <button
-                    onClick={handleCreate}
-                    disabled={createMutation.isPending || !proposeMandays}
-                    className="p-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    title="Save"
-                  >
-                    {createMutation.isPending ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <Check size={14} />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => { setShowProposeForm(false); setProposeMandays('') }}
-                    disabled={createMutation.isPending}
-                    className="p-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
-                    title="Cancel"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        <p className="text-xs text-muted-foreground italic">
+          Input mandays awal terlebih dahulu untuk membuka fitur negosiasi.
+        </p>
       </div>
     )
   }
 
-  const StatusIcon = STATUS_CONFIG[negotiation.negotiationStatus].icon
-  const saved = negotiation.mandaysRequested - negotiation.mandaysApproved
-  const savingsPercentage = negotiation.mandaysRequested > 0
-    ? ((saved / negotiation.mandaysRequested) * 100).toFixed(1)
-    : 0
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 py-2">
+        <Loader2 size={14} className="animate-spin text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    )
+  }
 
-  const canRespond = isRequester && negotiation.negotiationStatus === 'proposed'
+  const saved = negotiation ? negotiation.mandaysRequested - negotiation.mandaysApproved : 0
+  const hasNego = negotiation && negotiation.mandaysNegotiated != null
 
   return (
     <div className="space-y-3">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <TrendingDown size={14} className="text-muted-foreground" />
           Mandays Negotiation
         </h3>
-        {canPropose && negotiation.negotiationStatus !== 'proposed' && !showProposeForm && (
+        {canPropose && !showForm && (
           <button
-            onClick={() => setShowProposeForm(true)}
+            onClick={() => {
+              setShowForm(true)
+              setNegoMandays(negotiation?.mandaysApproved?.toString() || currentMandays?.toString() || '')
+            }}
             className="text-xs text-primary hover:text-primary/80 transition-colors font-medium flex items-center gap-1"
           >
-            <Edit2 size={12} /> Propose
+            <Edit2 size={12} /> {negotiation ? 'Update Nego' : 'Input Nego'}
           </button>
         )}
       </div>
 
-      {/* Mandays breakdown */}
-      <div className="space-y-2 p-3 border border-border rounded-lg bg-background">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Requested:</span>
-          <span className={cn(
-            "font-semibold",
-            negotiation.negotiationStatus === 'accepted' && negotiation.mandaysRequested !== negotiation.mandaysApproved
-              ? "line-through text-muted-foreground"
-              : "text-foreground"
-          )}>
-            {negotiation.mandaysRequested} days
+      {/* Summary rows */}
+      <div className="rounded-lg border border-border bg-background divide-y divide-border text-sm">
+        <div className="flex justify-between px-3 py-2">
+          <span className="text-muted-foreground">Requested</span>
+          <span className="font-medium text-foreground">
+            {negotiation ? negotiation.mandaysRequested : currentMandays} days
           </span>
         </div>
 
-        {negotiation.mandaysNegotiated && (
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Negotiated:</span>
-            <span className="font-semibold text-amber-600">
-              {negotiation.mandaysNegotiated} days
-              {negotiation.mandaysNegotiated < negotiation.mandaysRequested && (
-                <span className="text-xs ml-1">
-                  (↓ {negotiation.mandaysRequested - negotiation.mandaysNegotiated} days)
+        {hasNego && (
+          <div className="flex justify-between px-3 py-2">
+            <span className="text-muted-foreground">Negotiated</span>
+            <span className={cn(
+              'font-medium',
+              negotiation!.mandaysNegotiated! < negotiation!.mandaysRequested
+                ? 'text-amber-600'
+                : 'text-foreground'
+            )}>
+              {negotiation!.mandaysNegotiated} days
+              {negotiation!.mandaysNegotiated! < negotiation!.mandaysRequested && (
+                <span className="text-xs ml-1 text-muted-foreground">
+                  (↓ {negotiation!.mandaysRequested - negotiation!.mandaysNegotiated!} days)
                 </span>
               )}
             </span>
           </div>
         )}
 
-        <div className="flex justify-between text-sm pt-2 border-t border-border">
-          <span className="text-muted-foreground">Final Approved:</span>
-          <span className="font-bold text-foreground">
-            {negotiation.mandaysApproved} days
+        <div className="flex justify-between px-3 py-2 bg-primary/5">
+          <span className="font-semibold text-foreground">Final Approved</span>
+          <span className={cn(
+            'font-bold',
+            saved > 0 ? 'text-green-600' : 'text-foreground'
+          )}>
+            {negotiation ? negotiation.mandaysApproved : (currentMandays ?? '—')} days
+            {saved > 0 && (
+              <span className="ml-1.5 text-xs font-normal text-green-600">
+                (hemat {saved} hari)
+              </span>
+            )}
           </span>
         </div>
-
-        {saved > 0 && negotiation.negotiationStatus === 'accepted' && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="pt-2 border-t border-border"
-          >
-            <div className="flex items-center gap-2 text-sm font-medium text-green-600">
-              <CheckCircle size={14} />
-              <span>Saved {saved} days ({savingsPercentage}%)</span>
-            </div>
-          </motion.div>
-        )}
       </div>
 
-      {/* Negotiation notes */}
-      {negotiation.negotiationNotes && (
-        <div className="p-3 border border-border rounded-lg bg-muted/20">
-          <p className="text-xs font-semibold text-muted-foreground mb-1">
-            Negotiation Reason:
-          </p>
-          <p className="text-sm text-foreground leading-relaxed">
-            {negotiation.negotiationNotes}
-          </p>
-          {negotiation.negotiator && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Proposed by {negotiation.negotiator.name} on{' '}
-              {negotiation.negotiatedAt && formatDate(negotiation.negotiatedAt)}
-            </p>
-          )}
+      {/* Notes */}
+      {negotiation?.negotiationNotes && (
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+        >
+          {showHistory ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          {showHistory ? 'Sembunyikan catatan' : 'Lihat catatan negosiasi'}
+        </button>
+      )}
+      {showHistory && negotiation?.negotiationNotes && (
+        <div className="p-2.5 rounded-lg bg-muted/30 border border-border text-xs text-muted-foreground">
+          {negotiation.negotiationNotes}
         </div>
       )}
 
-      {/* Rejection reason */}
-      {negotiation.rejectionReason && (
-        <div className="p-3 border border-red-200 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-950/20">
-          <p className="text-xs font-semibold text-red-600 mb-1 flex items-center gap-1">
-            <XCircle size={12} />
-            Rejection Reason:
+      {/* Input form */}
+      {showForm && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2.5">
+          <p className="text-xs font-medium text-foreground">
+            Input hasil negosiasi mandays (final approved)
           </p>
-          <p className="text-sm text-foreground leading-relaxed">
-            {negotiation.rejectionReason}
-          </p>
-        </div>
-      )}
-
-      {/* Inline Propose form */}
-      {canPropose && negotiation.negotiationStatus !== 'proposed' && (
-        <div className="space-y-2">
-          {!showProposeForm ? (
-            <button
-              onClick={() => setShowProposeForm(true)}
-              className="text-xs text-primary hover:text-primary/80 transition-colors font-medium flex items-center gap-1"
-            >
-              <Edit2 size={12} /> Add Negotiation
-            </button>
-          ) : (
-            <>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  value={proposeMandays}
-                  onChange={(e) => setProposeMandays(e.target.value)}
-                  placeholder="Mandays"
-                  className="flex-1 px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  disabled={proposeMutation.isPending}
-                />
-                <button
-                  onClick={handlePropose}
-                  disabled={proposeMutation.isPending || !proposeMandays || !proposeNotes}
-                  className="p-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  title="Save"
-                >
-                  {proposeMutation.isPending ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Check size={14} />
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowProposeForm(false)
-                    setProposeMandays('')
-                    setProposeNotes('')
-                  }}
-                  disabled={proposeMutation.isPending}
-                  className="p-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
-                  title="Cancel"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-              <textarea
-                value={proposeNotes}
-                onChange={(e) => setProposeNotes(e.target.value)}
-                placeholder="Reason for negotiation..."
-                rows={2}
-                className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-                disabled={proposeMutation.isPending}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                type="number"
+                step="0.5"
+                min="0.5"
+                value={negoMandays}
+                onChange={(e) => setNegoMandays(e.target.value)}
+                placeholder="e.g. 15"
+                className="input py-1.5 text-sm w-full"
+                disabled={isPending}
+                autoFocus
               />
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Respond to proposal (Requester only) */}
-      {canRespond && !showRespondForm && (
-        <div className="p-3 border border-amber-200 dark:border-amber-900 rounded-lg bg-amber-50 dark:bg-amber-950/20 space-y-2">
-          <div className="flex items-start gap-2">
-            <AlertCircle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                Proposal Received
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                The BA/Manager has proposed a different mandays estimate. Please review and respond.
-              </p>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">days</span>
             </div>
-          </div>
-          <div className="flex gap-2 pt-1">
             <button
-              onClick={handleAccept}
-              disabled={respondMutation.isPending}
-              className="flex-1 btn-primary text-xs py-1.5 flex items-center justify-center gap-1"
+              onClick={handleSave}
+              disabled={isPending || !negoMandays}
+              className="p-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-colors flex-shrink-0"
+              title="Simpan"
             >
-              {respondMutation.isPending ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <Check size={12} />
-              )}
-              Accept
+              {isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             </button>
             <button
-              onClick={() => setShowRespondForm(true)}
-              disabled={respondMutation.isPending}
-              className="flex-1 px-3 py-1.5 text-xs border border-red-300 dark:border-red-800 rounded-lg bg-background hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 font-medium transition-colors"
+              onClick={() => { setShowForm(false); setNegoMandays(''); setNegoNotes('') }}
+              disabled={isPending}
+              className="p-1.5 rounded-lg border border-border hover:bg-muted transition-colors flex-shrink-0"
+              title="Batal"
             >
-              <X size={12} className="inline mr-1" />
-              Reject
+              <X size={14} />
             </button>
           </div>
+          <input
+            type="text"
+            value={negoNotes}
+            onChange={(e) => setNegoNotes(e.target.value)}
+            placeholder="Catatan (opsional)"
+            className="input py-1.5 text-xs w-full"
+            disabled={isPending}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Nilai ini akan langsung menjadi <strong>Final Approved</strong> dan update field Mandays di drawer.
+          </p>
         </div>
       )}
-
-      {/* Reject form */}
-      <AnimatePresence>
-        {showRespondForm && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="p-3 border border-red-200 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-950/20 space-y-2"
-          >
-            <div>
-              <label className="text-xs font-medium text-red-700 dark:text-red-400 block mb-1">
-                Rejection Reason
-              </label>
-              <textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Please explain why you're rejecting this proposal..."
-                rows={2}
-                className="w-full px-3 py-1.5 text-sm border border-red-300 dark:border-red-800 rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-red-500/30 resize-none"
-                disabled={respondMutation.isPending}
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleReject}
-                disabled={respondMutation.isPending}
-                className="flex-1 px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-1"
-              >
-                {respondMutation.isPending ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <X size={12} />
-                )}
-                Submit Rejection
-              </button>
-              <button
-                onClick={() => {
-                  setShowRespondForm(false)
-                  setRejectReason('')
-                }}
-                disabled={respondMutation.isPending}
-                className="px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-muted transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }
