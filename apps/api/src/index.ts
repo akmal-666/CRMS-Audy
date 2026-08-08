@@ -182,11 +182,11 @@ async function sendConfirmationEmail(
   console.log('[RESEND] Response body:', responseText)
 
   if (!res.ok) {
-    console.error(`[RESEND] ❌ Failed to send email: ${res.status} ${responseText}`)
+    console.error(`[RESEND] Failed to send email: ${res.status} ${responseText}`)
     throw new Error(`Resend API error ${res.status}: ${responseText}`)
   }
 
-  console.log(`[RESEND] ✅ Email sent successfully to ${payload.to} — ${payload.ticketNumber}`)
+  console.log(`[RESEND] Email sent successfully to ${payload.to} - ${payload.ticketNumber}`)
 }
 
 function buildConfirmationEmail(data: {
@@ -228,7 +228,7 @@ function buildConfirmationEmail(data: {
         <tr>
           <td style="background:#4F46E5;border-radius:12px 12px 0 0;padding:28px 32px;text-align:center;">
             <p style="margin:0;color:rgba(255,255,255,0.7);font-size:11px;letter-spacing:2px;text-transform:uppercase;">Change Request Management System</p>
-            <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:700;">Request Submitted ✅</h1>
+            <h1 style="margin:8px 0 0;color:#fff;font-size:22px;font-weight:700;">Request Submitted</h1>
           </td>
         </tr>
 
@@ -288,7 +288,7 @@ function buildConfirmationEmail(data: {
             </table>
 
             <p style="margin:0;color:#9CA3AF;font-size:12px;line-height:1.6;">
-              📌 Keep this ticket number for reference. You may be contacted for clarification.
+              Keep this ticket number for reference. You may be contacted for clarification.
             </p>
           </td>
         </tr>

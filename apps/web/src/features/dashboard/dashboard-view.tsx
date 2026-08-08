@@ -18,6 +18,7 @@ interface DashboardStats {
   byStatus: Record<string, number>
   byPriority: Record<string, number>
   overdue: number
+  portfolioProgress: number
   recentItems: Array<{
     id: string
     ticketNumber: string
@@ -50,9 +51,19 @@ interface DashboardStats {
 export function DashboardView() {
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
 
+  // Build API query params from selectedMonth filter
+  const apiParams = useMemo(() => {
+    if (selectedMonth === 'all') return {}
+    const parts = selectedMonth.split('-')
+    const params: Record<string, string> = { year: parts[0] }
+    if (parts[1]?.startsWith('Q')) params.quarter = parts[1]
+    else if (parts[1]) params.month = String(parseInt(parts[1]))
+    return params
+  }, [selectedMonth])
+
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: () => apiGet<DashboardStats>('/api/dashboard/stats'),
+    queryKey: ['dashboard-stats', apiParams],
+    queryFn: () => apiGet<DashboardStats>('/api/dashboard/stats', apiParams),
     refetchInterval: 30000,
   })
 
@@ -93,38 +104,18 @@ export function DashboardView() {
     return `${m?.label ?? parts[1]} ${parts[0]}`
   }, [selectedMonth])
 
-  // Build filteredRecentItems based on selectedMonth
-  const filteredRecentItems = useMemo(() => {
-    if (!stats?.recentItems) return []
-    if (selectedMonth === 'all') return stats.recentItems
-
-    const parts = selectedMonth.split('-')
-    const year = parts[0]
-
-    return stats.recentItems.filter(item => {
-      const d = new Date(item.createdAt)
-      const itemYear = d.getFullYear().toString()
-      const itemMonth = String(d.getMonth() + 1).padStart(2, '0')
-
-      if (!parts[1]) return itemYear === year // year only
-
-      if (parts[1]?.startsWith('Q')) {
-        const q = QUARTERS.find(q => q.value === parts[1])
-        return itemYear === year && q?.months.includes(itemMonth)
-      }
-
-      return itemYear === year && itemMonth === parts[1] // YYYY-MM
-    })
-  }, [stats?.recentItems, selectedMonth])
+  // filteredRecentItems now comes directly from API (already filtered server-side)
+  const filteredRecentItems = useMemo(() => stats?.recentItems ?? [], [stats?.recentItems])
 
   if (isLoading) return <DashboardSkeleton />
 
-  // ── Derived values ────────────────────────────────────────────────────────
+  // ── Derived values (all come from filtered API response) ──────────────────
   const totalProjects = stats?.total ?? 0
   const activeProjects = totalProjects - (stats?.byStatus['go_live'] ?? 0) - (stats?.byStatus['drop'] ?? 0)
   const completedProjects = stats?.byStatus['go_live'] ?? 0
   const droppedProjects = stats?.byStatus['drop'] ?? 0
-  const portfolioProgress = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0
+  // portfolioProgress from API (go_live / total of filtered data)
+  const portfolioProgress = stats?.portfolioProgress ?? 0
 
   const currentMonthCount = stats?.monthlyTrend?.[stats.monthlyTrend.length - 1]?.count ?? 0
   const lastMonthCount = stats?.monthlyTrend?.[stats.monthlyTrend.length - 2]?.count ?? 0
