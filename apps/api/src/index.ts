@@ -73,6 +73,32 @@ app.route('/api/negotiations', mandaysNegotiationsRoutes)
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }))
 
+// Debug: check timestamp format in DB
+app.get('/debug/ts', async (c) => {
+  try {
+    const rows = await c.env.DB.prepare(
+      `SELECT id, ticket_number, created_at,
+       datetime(created_at/1000, 'unixepoch') as created_readable,
+       strftime('%Y-%m', datetime(created_at/1000, 'unixepoch')) as month_check
+       FROM work_items ORDER BY created_at DESC LIMIT 5`
+    ).all()
+    const now = Date.now()
+    const aug2026From = new Date(2026, 7, 1).getTime()  // Aug 1
+    const aug2026To = new Date(2026, 8, 0, 23, 59, 59).getTime() // Aug 31
+    return c.json({ 
+      rows: rows.results, 
+      now, 
+      aug2026From,
+      aug2026To,
+      nowReadable: new Date(now).toISOString(),
+      augFromReadable: new Date(aug2026From).toISOString(),
+      augToReadable: new Date(aug2026To).toISOString(),
+    })
+  } catch(e: any) {
+    return c.json({ error: e?.message })
+  }
+})
+
 // 404 handler
 app.notFound((c) => c.json(err('Route not found'), 404))
 
