@@ -37,12 +37,20 @@ app.get('/stats', authMiddleware, async (c) => {
     }
   }
 
-  // Date filter condition (applies to all queries if set)
+  // Date filter condition:
+  // - "created within period" for counting/stats (uses both dateFrom and dateTo)
+  // - "active within period" for ongoing projects (created before period end, not yet done)
   const dateFilter = dateFrom && dateTo
     ? and(
         sql`${schema.workItems.createdAt} >= ${dateFrom}`,
         sql`${schema.workItems.createdAt} <= ${dateTo}`
       )
+    : undefined
+
+  // For ongoing/active projects: show items created up to end of period that are still active
+  // This way filtering "August 2026" still shows projects created in July that are still running
+  const activeInPeriodFilter = dateFrom && dateTo
+    ? sql`${schema.workItems.createdAt} <= ${dateTo}`
     : undefined
 
   const [statusCounts, priorityCounts, overdueCount, recentItems, upcomingDeadlines, monthlyStats, baWorkload] = await Promise.all([
@@ -68,15 +76,16 @@ app.get('/stats', authMiddleware, async (c) => {
         sql`${schema.workItems.status} NOT IN ('go_live', 'drop')`
       )),
 
-    // Recent items for ongoing projects (filtered)
+    // Recent items for ongoing projects:
+    // Show projects that were created up to the end of the selected period and are still active.
+    // This ensures projects created before the period but still running are included.
     db.query.workItems.findMany({
       limit: 10,
       orderBy: [desc(schema.workItems.createdAt)],
-      where: dateFrom && dateTo
+      where: activeInPeriodFilter
         ? and(
             sql`${schema.workItems.status} IN ('assessment', 'development', 'uat', 'deployment')`,
-            sql`${schema.workItems.createdAt} >= ${dateFrom}`,
-            sql`${schema.workItems.createdAt} <= ${dateTo}`
+            activeInPeriodFilter
           )
         : sql`${schema.workItems.status} IN ('assessment', 'development', 'uat', 'deployment')`,
       with: {
@@ -127,14 +136,14 @@ app.get('/stats', authMiddleware, async (c) => {
       .where(gte(schema.workItems.createdAt, new Date(Date.now() - 6 * 30 * 24 * 3600 * 1000)))
       .groupBy(sql`strftime('%Y-%m', datetime(${schema.workItems.createdAt}/1000, 'unixepoch'))`),
 
-    // Business Analyst workload (filtered)
+    // Business Analyst workload (filtered by active-in-period: projects created up to period end)
     db.select({
       businessAnalystId: schema.workItems.businessAnalystId,
       count: count(),
     })
       .from(schema.workItems)
       .where(and(
-        dateFilter,
+        activeInPeriodFilter,
         sql`${schema.workItems.businessAnalystId} IS NOT NULL`,
         sql`${schema.workItems.status} NOT IN ('go_live', 'drop')`
       ))

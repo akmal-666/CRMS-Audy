@@ -186,7 +186,7 @@ export function DashboardView() {
             </div>
           )}
 
-          {/* Month — only show when year selected and no quarter */}
+          {/* Month — only show when year selected and no specific quarter chosen */}
           {selectedMonth !== 'all' && !selectedMonth.includes('-Q') && (
             <div className="relative">
               <select
