@@ -147,38 +147,6 @@ export function MandaysReportPage() {
           </div>
         </motion.div>
 
-        {/* Success Rate */}
-        <motion.div 
-          initial={{ opacity: 0, y: 8 }} 
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="card"
-        >
-          <div className="flex items-start justify-between mb-3">
-            <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-950">
-              <CheckCircle size={18} className="text-amber-600" />
-            </div>
-            <span className="text-2xl font-bold text-amber-600">
-              {stats.statusBreakdown.accepted}
-            </span>
-          </div>
-          <h3 className="text-sm font-semibold text-foreground mb-1">Accepted Proposals</h3>
-          <div className="space-y-1 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <CheckCircle size={12} className="text-green-600" />
-              <span>Accepted: {stats.statusBreakdown.accepted}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <XCircle size={12} className="text-red-600" />
-              <span>Rejected: {stats.statusBreakdown.rejected}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Clock size={12} className="text-amber-600" />
-              <span>Pending: {stats.statusBreakdown.pending}</span>
-            </div>
-          </div>
-        </motion.div>
-
         {/* Average Reduction */}
         <motion.div 
           initial={{ opacity: 0, y: 8 }} 
