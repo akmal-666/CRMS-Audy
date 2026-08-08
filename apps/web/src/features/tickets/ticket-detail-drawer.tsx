@@ -1,9 +1,9 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ExternalLink, Paperclip, FileText, Download, CalendarRange } from 'lucide-react'
-import { apiGet } from '@/lib/api'
+import { X, ExternalLink, Paperclip, FileText, Download, CalendarRange, ChevronDown, ArrowRight, Loader2 } from 'lucide-react'
+import { apiGet, apiPatch } from '@/lib/api'
 import { STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, formatDate, timeAgo, cn } from '@/lib/utils'
 import { WorkflowStatus, Priority } from '@crms/types'
 import { ActivityTimeline } from './activity-timeline'
@@ -17,6 +17,8 @@ import { MandaysEdit } from './mandays-edit'
 import { EditableDetailField } from './editable-detail-field'
 import { FileUpload } from '@/components/file-upload'
 import { UserRole } from '@crms/types'
+import { useState, useRef, useEffect } from 'react'
+import { toast } from 'sonner'
 
 interface TicketDetailDrawerProps {
   itemId: string | null
@@ -25,12 +27,20 @@ interface TicketDetailDrawerProps {
 
 export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps) {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const [moveToOpen, setMoveToOpen] = useState(false)
+  const moveToRef = useRef<HTMLDivElement>(null)
+
   const canEditAssignment = user?.role === UserRole.ADMINISTRATOR 
     || user?.role === UserRole.MANAGER 
     || user?.role === UserRole.BUSINESS_ANALYST
   const canEditDetails = user?.role === UserRole.ADMINISTRATOR 
     || user?.role === UserRole.MANAGER
     || user?.role === UserRole.BUSINESS_ANALYST
+  const canMoveTo = user?.role === UserRole.ADMINISTRATOR
+    || user?.role === UserRole.MANAGER
+    || user?.role === UserRole.BUSINESS_ANALYST
+
   const { data, isLoading } = useQuery({
     queryKey: ['work-item', itemId],
     queryFn: () => apiGet<any>(`/api/work-items/${itemId}`),
@@ -38,6 +48,38 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
   })
 
   const item = data?.data
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!moveToOpen) return
+    const handler = (e: MouseEvent) => {
+      if (!moveToRef.current?.contains(e.target as Node)) setMoveToOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [moveToOpen])
+
+  const moveToMutation = useMutation({
+    mutationFn: (status: string) => apiPatch(`/api/work-items/${itemId}/status`, { status }),
+    onSuccess: (_, status) => {
+      queryClient.invalidateQueries({ queryKey: ['work-item', itemId] })
+      queryClient.invalidateQueries({ queryKey: ['work-items'], exact: false })
+      toast.success(`Moved to ${STATUS_LABELS[status as WorkflowStatus]}`)
+      setMoveToOpen(false)
+    },
+    onError: () => toast.error('Failed to move status'),
+  })
+
+  // All workflow statuses in order
+  const ALL_STATUSES: WorkflowStatus[] = [
+    WorkflowStatus.IN_PIPELINE,
+    WorkflowStatus.ASSESSMENT,
+    WorkflowStatus.DEVELOPMENT,
+    WorkflowStatus.UAT,
+    WorkflowStatus.DEPLOYMENT,
+    WorkflowStatus.GO_LIVE,
+    WorkflowStatus.DROP,
+  ]
 
   return (
     <AnimatePresence>
@@ -76,9 +118,62 @@ export function TicketDetailDrawer({ itemId, onClose }: TicketDetailDrawerProps)
               ) : (
                 <div className="h-5 bg-muted rounded w-40 animate-pulse" />
               )}
-              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground flex-shrink-0">
-                <X size={16} />
-              </button>
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Move To Button */}
+                {item && canMoveTo && (
+                  <div className="relative" ref={moveToRef}>
+                    <button
+                      onClick={() => setMoveToOpen(!moveToOpen)}
+                      disabled={moveToMutation.isPending}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {moveToMutation.isPending ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <ArrowRight size={12} />
+                      )}
+                      Move to
+                      <ChevronDown size={11} className={cn('transition-transform', moveToOpen && 'rotate-180')} />
+                    </button>
+
+                    <AnimatePresence>
+                      {moveToOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                          transition={{ duration: 0.12 }}
+                          className="absolute right-0 top-full mt-1.5 w-48 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden py-1"
+                        >
+                          {ALL_STATUSES.filter(s => s !== item.status).map(status => (
+                            <button
+                              key={status}
+                              onClick={() => moveToMutation.mutate(status)}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-muted transition-colors"
+                            >
+                              <span className={cn('w-2 h-2 rounded-full flex-shrink-0', {
+                                'bg-slate-400': status === WorkflowStatus.IN_PIPELINE,
+                                'bg-blue-500': status === WorkflowStatus.ASSESSMENT,
+                                'bg-violet-500': status === WorkflowStatus.DEVELOPMENT,
+                                'bg-amber-500': status === WorkflowStatus.UAT,
+                                'bg-orange-500': status === WorkflowStatus.DEPLOYMENT,
+                                'bg-green-500': status === WorkflowStatus.GO_LIVE,
+                                'bg-red-500': status === WorkflowStatus.DROP,
+                              })} />
+                              {STATUS_LABELS[status]}
+                            </button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+
+                <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
             {/* Body */}
