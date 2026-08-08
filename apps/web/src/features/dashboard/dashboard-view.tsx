@@ -60,19 +60,60 @@ export function DashboardView() {
 
   // ── All hooks must be above any early return ──────────────────────────────
 
-  // Build month options from monthlyTrend data
-  const monthOptions = useMemo(() => {
-    const months = stats?.monthlyTrend?.map(m => m.month) ?? []
-    return months.sort((a, b) => b.localeCompare(a))
-  }, [stats?.monthlyTrend])
+  // Generate year options: from 2024 to current year
+  const currentYear = new Date().getFullYear()
+  const yearOptions = Array.from({ length: currentYear - 2023 }, (_, i) => 2024 + i)
 
-  // Filter recentItems by selected month
+  const MONTHS = [
+    { value: '01', label: 'January' }, { value: '02', label: 'February' },
+    { value: '03', label: 'March' }, { value: '04', label: 'April' },
+    { value: '05', label: 'May' }, { value: '06', label: 'June' },
+    { value: '07', label: 'July' }, { value: '08', label: 'August' },
+    { value: '09', label: 'September' }, { value: '10', label: 'October' },
+    { value: '11', label: 'November' }, { value: '12', label: 'December' },
+  ]
+
+  const QUARTERS = [
+    { value: 'Q1', label: 'Q1 (Jan–Mar)', months: ['01','02','03'] },
+    { value: 'Q2', label: 'Q2 (Apr–Jun)', months: ['04','05','06'] },
+    { value: 'Q3', label: 'Q3 (Jul–Sep)', months: ['07','08','09'] },
+    { value: 'Q4', label: 'Q4 (Oct–Dec)', months: ['10','11','12'] },
+  ]
+
+  // Parse selectedMonth filter: 'all' | 'YYYY' | 'YYYY-MM' | 'YYYY-Q1'
+  const filterLabel = useMemo(() => {
+    if (selectedMonth === 'all') return 'All Time'
+    const parts = selectedMonth.split('-')
+    if (parts.length === 1) return parts[0] // year only
+    if (parts[1]?.startsWith('Q')) {
+      const q = QUARTERS.find(q => q.value === parts[1])
+      return `${q?.label ?? parts[1]} ${parts[0]}`
+    }
+    const m = MONTHS.find(m => m.value === parts[1])
+    return `${m?.label ?? parts[1]} ${parts[0]}`
+  }, [selectedMonth])
+
+  // Build filteredRecentItems based on selectedMonth
   const filteredRecentItems = useMemo(() => {
     if (!stats?.recentItems) return []
     if (selectedMonth === 'all') return stats.recentItems
+
+    const parts = selectedMonth.split('-')
+    const year = parts[0]
+
     return stats.recentItems.filter(item => {
-      const itemMonth = new Date(item.createdAt).toISOString().slice(0, 7)
-      return itemMonth === selectedMonth
+      const d = new Date(item.createdAt)
+      const itemYear = d.getFullYear().toString()
+      const itemMonth = String(d.getMonth() + 1).padStart(2, '0')
+
+      if (!parts[1]) return itemYear === year // year only
+
+      if (parts[1]?.startsWith('Q')) {
+        const q = QUARTERS.find(q => q.value === parts[1])
+        return itemYear === year && q?.months.includes(itemMonth)
+      }
+
+      return itemYear === year && itemMonth === parts[1] // YYYY-MM
     })
   }, [stats?.recentItems, selectedMonth])
 
@@ -112,24 +153,81 @@ export function DashboardView() {
             Welcome back. Here is the current status of your portfolio.
           </p>
         </div>
-        {/* Month Filter */}
+        {/* Filter: Year / Quarter / Month */}
         <div className="flex items-center gap-2">
+          {/* Year */}
           <div className="relative">
-            <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="pl-8 pr-8 py-1.5 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 appearance-none cursor-pointer"
+              value={selectedMonth === 'all' ? 'all' : selectedMonth.split('-')[0]}
+              onChange={(e) => {
+                const y = e.target.value
+                if (y === 'all') setSelectedMonth('all')
+                else setSelectedMonth(y)
+              }}
+              className="pl-3 pr-7 py-1.5 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 appearance-none cursor-pointer"
             >
               <option value="all">All Time</option>
-              {monthOptions.map(month => {
-                const [year, m] = month.split('-')
-                const label = new Date(parseInt(year), parseInt(m) - 1).toLocaleString('en', { month: 'long', year: 'numeric' })
-                return <option key={month} value={month}>{label}</option>
-              })}
+              {yearOptions.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
             </select>
-            <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           </div>
+
+          {/* Quarter — only show when year selected */}
+          {selectedMonth !== 'all' && (
+            <div className="relative">
+              <select
+                value={selectedMonth.includes('-Q') ? selectedMonth.split('-')[1] : ''}
+                onChange={(e) => {
+                  const year = selectedMonth.split('-')[0]
+                  if (e.target.value === '') setSelectedMonth(year)
+                  else setSelectedMonth(`${year}-${e.target.value}`)
+                }}
+                className="pl-3 pr-7 py-1.5 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 appearance-none cursor-pointer"
+              >
+                <option value="">All Quarters</option>
+                {QUARTERS.map(q => (
+                  <option key={q.value} value={q.value}>{q.label}</option>
+                ))}
+              </select>
+              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            </div>
+          )}
+
+          {/* Month — only show when year selected and no quarter */}
+          {selectedMonth !== 'all' && !selectedMonth.includes('-Q') && (
+            <div className="relative">
+              <select
+                value={selectedMonth.includes('-') && !selectedMonth.includes('-Q') ? selectedMonth.split('-')[1] : ''}
+                onChange={(e) => {
+                  const year = selectedMonth.split('-')[0]
+                  if (e.target.value === '') setSelectedMonth(year)
+                  else setSelectedMonth(`${year}-${e.target.value}`)
+                }}
+                className="pl-3 pr-7 py-1.5 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 appearance-none cursor-pointer"
+              >
+                <option value="">All Months</option>
+                {MONTHS.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            </div>
+          )}
+
+          {/* Active filter label */}
+          {selectedMonth !== 'all' && (
+            <span className="text-xs text-primary font-medium bg-primary/10 px-2 py-1 rounded-lg flex items-center gap-1">
+              <Calendar size={11} />
+              {filterLabel}
+              <button
+                onClick={() => setSelectedMonth('all')}
+                className="ml-1 hover:text-primary/60 transition-colors"
+                title="Clear filter"
+              >×</button>
+            </span>
+          )}
         </div>
       </div>
 
@@ -185,7 +283,7 @@ export function DashboardView() {
             <h2 className="text-lg font-semibold text-foreground">
               Ongoing Projects
               {selectedMonth !== 'all' && (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">— {monthLabel}</span>
+                <span className="ml-2 text-sm font-normal text-muted-foreground">— {filterLabel}</span>
               )}
             </h2>
             <Link href="/requests" className="text-sm text-primary hover:underline flex items-center gap-1">
